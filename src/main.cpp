@@ -5,6 +5,9 @@
 
 using namespace std;
 
+/// Funcion que intenta pedir un numero al usuario en un rango.
+/// En caso de ingresar un numero que no está en rango, se devolverá un mensaje de error.
+/// En caso de exito, se devuelve el valor ingresado.
 Result<int, string> try_range(int from, int to) {
   int result;
   cin >> result;
@@ -36,7 +39,7 @@ int main() {
     // Result es una versión mejorada de Opcion que permite representar la ausencia de estado junto con 
     // un dato que indique de alguna manera qué falló.
     // En este caso la funcion try_range puede devolver un int en caso de exito o un 
-    // string con un mensaje que comunica el error en sus dos ramas.
+    // string con un mensaje que comunica la causa del error.
     Result<int, string> resultado = try_range(10, 20);
 
     if (resultado.is_ok()) {
