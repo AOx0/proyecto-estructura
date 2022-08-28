@@ -1,5 +1,5 @@
-#ifndef LIB_RESULT_H
-#define LIB_RESULT_H
+#ifndef LIB_RESULT_HPP
+#define LIB_RESULT_HPP
 
 #include <iostream>
 
@@ -111,4 +111,4 @@ const char * Result<T, E>::err_name = "Result::Err";
 template<typename T, typename E>
 const char * Result<T, E>::valid_name = "Result::Ok";
 
-#endif // !LIB_RESULT_H
+#endif // !LIB_RESULT_HPP
