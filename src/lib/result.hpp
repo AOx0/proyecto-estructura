@@ -1,10 +1,7 @@
-#include <algorithm>
-#include <cstdlib>
+#ifndef LIB_RESULT_H
+#define LIB_RESULT_H
+
 #include <iostream>
-#include <ostream>
-#include <string>
-#include <utility>
-#include <cassert>
 
 enum ResultType {
     Ok,
@@ -31,26 +28,43 @@ protected:
         , dev_asked_first(false)
     { }
 
-    void inline verify() {
+    Result (E error, ResultType type)
+        : type(type)
+        , error(std::move(error))
+        , valid(true)
+        , dev_asked_first(false)
+    { }
+
+    Result (ResultType type, T value)
+        : type(type)
+        , item(std::move(value))
+        , valid(true)
+        , dev_asked_first(false)
+    { }
+    
+    void inline verify(bool for_error = false) {
         if (!dev_asked_first) {
             std::cout << std::endl << "    ERROR: Read without verifying on " << (is_err() ? err_name : valid_name) << std::endl;
             exit(1);
-        } else if (is_err()) {
+        } else if (is_err() && !for_error) {
             std::cout << std::endl << "    ERROR: Crash when unwraping " << err_name << std::endl;
             exit(1);
         } else if (!valid) {
             std::cout << std::endl << "    ERROR: Crash when unwraping no-longer valir " << valid_name << std::endl;
+            exit(1);
+        } else if (is_ok() && for_error) {
+            std::cout << std::endl << "    ERROR: Crash when unwraping " << valid_name << std::endl;
             exit(1);
         }
     }
 
 public:
     static Result<T, E> Ok(T value) {
-        return Result<T, E>(ResultType::Ok, value, (E)NULL);
+        return Result<T, E>(ResultType::Ok, value);
     }
 
     static Result<T, E> Err(E value) {
-        return Result<T, E>(ResultType::Err, (T)NULL, value);
+        return Result<T, E>(value, ResultType::Err);
     }
 
     bool is_ok() {
@@ -69,11 +83,26 @@ public:
         return i;
     }
 
+    inline E unwrap_err() {
+        verify(true);
+        valid = false;
+        E i = std::move(this->error);
+        return i;
+    }
+
+
     inline T inner() {
         verify();
         T i = item;
         return i;
     }
+
+    inline E inner_err() {
+        verify(true);
+        E i = error;
+        return i;
+    }
+
 };
 
 template<typename T, typename E>
@@ -82,52 +111,4 @@ const char * Result<T, E>::err_name = "Result::Err";
 template<typename T, typename E>
 const char * Result<T, E>::valid_name = "Result::Ok";
 
-template<typename T>
-class Option : private Result<T, void *> {
-protected:
-    using Result<T, void *>::is_ok;
-    static const char * err_name;
-    static const char * valid_name;
-
-    Option (ResultType type, T value) :  Result<T, void *>(type, value, NULL) { }
-
-public:
-    using Result<T, void *>::unwrap;
-    using Result<T, void *>::inner;
-
-    bool is_some() {
-        return is_ok();
-    }
-
-    bool is_none() {
-        return !is_ok();
-    }
-
-    static Option<T> Some(T value) {
-        return Option<T>(ResultType::Ok, value);
-    }
-
-    static Option<T> None() {
-        return Option<T>(ResultType::Err, (T)NULL);
-    }
-};
-
-template<typename T>
-const char * Option<T>::err_name = "Option::None";
-
-template<typename T>
-const char * Option<T>::valid_name = "Option::Some";
-
-int main() {
-    Option<int> v = Option<int>::Some(4);
-
-    //std::cout << "El valor es " << v.inner() << std::endl;
-
-    if (v.is_some()) {
-        std::cout << "El valor es " << v.inner() << std::endl;
-    }
-
-    std::cout << "Hello World!" << std::endl;
-    return 0;
-}
-
+#endif // !LIB_RESULT_H
