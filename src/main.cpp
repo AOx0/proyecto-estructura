@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 
 #include "lib/option.hpp"
 #include "lib/result.hpp"
@@ -9,18 +10,55 @@ using namespace std;
 /// En caso de ingresar un numero que no está en rango, se devolverá un mensaje de error.
 /// En caso de exito, se devuelve el valor ingresado.
 Result<int, string> try_range(int from, int to) {
-  int result;
-  cin >> result;
+    int result;
+    cin >> result;
 
-  if (result >= to || result < from) {
-      return Result<int, string>::Err("Error: El valor no está en el rango especificado"); 
-  } else {
-      return Result<int, string>::Ok(result);  
-  }
-} 
+    if (result >= to || result < from) {
+        return Result<int, string>::Err("Error: El valor no está en el rango especificado"); 
+    } else {
+        return Result<int, string>::Ok(result);  
+    }
+}
 
+
+
+template<typename K, typename V>
+struct KeyVal {
+    K key;
+    V value;
+};
+
+template<typename K, typename V>
+struct Dict {
+  vector<KeyVal<K, V>> items;
+};
+
+struct Index {
+    vector<KeyVal<string, string>> index_table;
+
+    Index() : index_table(vector<KeyVal<string, string>>()) {}
+};
+
+struct Table {
+    Index index;
+    vector<KeyVal<string, size_t>> signature;
+    Table() : index(Index()) {} 
+};
+
+class DB {
+protected:
+    vector<Table> tables;
+public:
+    DB() : tables(vector<Table>()) {};
+
+    void create_table(const string & name, const string & pk) { 
+        
+    }
+};
 
 int main() {
+    DB db = DB();
+
     // Option: Al igual que en rust puede ser un Some o un None. 
     // Nos sirve para respresentar la ausencia de un dato de forma explicita, 
     // así podemos hacer un mejor manejo de ausencia de datos.
@@ -34,7 +72,6 @@ int main() {
     } else {
         cout << "No hay valor" << endl;
     }
-
 
     // Result es una versión mejorada de Opcion que permite representar la ausencia de estado junto con 
     // un dato que indique de alguna manera qué falló.

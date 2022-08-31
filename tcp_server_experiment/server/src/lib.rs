@@ -150,7 +150,6 @@ pub unsafe extern "C" fn start_server() -> *mut c_void {
         move || {
             let mut tcp = TcpServer::new_async(cx);
             tcp.run_server();
-            println!("Continued..");
         }
     });
 
@@ -171,7 +170,7 @@ pub unsafe extern "C" fn end_server(server: *mut c_void) {
     { 
         *runtime.sender.lock().unwrap() = true;
     }
-    println!("Recovering raw pointer...");
+    println!("Joining process...");
     runtime.process.join().unwrap();
     println!("Ending server!!");
 }

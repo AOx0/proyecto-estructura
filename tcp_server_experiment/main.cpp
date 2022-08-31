@@ -21,11 +21,5 @@ int main() {
 
   end_server(server);
 
-  cout << "Hello World!" << endl;
-
-  std::chrono::seconds timespan(5); // or whatever
-
-  std::this_thread::sleep_for(timespan);
-  
   return 0;
 }
