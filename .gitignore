@@ -1,10 +1,14 @@
 
-CMakeFiles/
+**/CMakeFiles/
 
-CMakeCache.txt
+**/CMakeCache.txt
 
-cmake_install.cmake
+**/cmake_install.cmake
 
-Makefile
+**/Makefile
 
 proyecto-estructura
+
+**/target/
+
+tcp_server_experiment/tcp_server_experiment

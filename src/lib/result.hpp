@@ -20,14 +20,6 @@ protected:
     bool valid;
     ResultType type;
 
-    Result (ResultType type, T value, E error)
-        : type(type)
-        , item(std::move(value))
-        , error(std::move(error))
-        , valid(true)
-        , dev_asked_first(false)
-    { }
-
     Result (E error, ResultType type)
         : type(type)
         , error(std::move(error))

@@ -11,7 +11,7 @@ protected:
     static const char * err_name;
     static const char * valid_name;
 
-    Option (ResultType type, T value) :  Result<T, void *>(type, value, NULL) { }
+    Option (ResultType type, T value) :  Result<T, void *>(type, value) { }
 
 public:
     using Result<T, void *>::unwrap;
