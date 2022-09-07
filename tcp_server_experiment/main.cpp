@@ -13,9 +13,9 @@ int main() {
   //print((char *)&"Hola");
 
   cout << "Starting server..." << endl;
-  void * server = (void *)start_server(); 
+  void * server = (void *)start_server();
   cout << "Started!!" << endl;
-  
+
   cout << "Input anything to end server: ";
   cin >> in;
 
