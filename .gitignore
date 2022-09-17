@@ -12,3 +12,7 @@ proyecto-estructura
 **/target/
 
 tcp_server_experiment/tcp_server_experiment
+
+.idea/
+
+cmake-build-debug/

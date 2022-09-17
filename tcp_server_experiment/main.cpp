@@ -6,14 +6,14 @@ extern "C" void print(char* n);
 extern "C" void * start_server();
 extern "C" void end_server(void *);
 extern "C" char* read(void *);
-extern "C" void write(void *, char *);
+extern "C" void write(char *);
 
 using namespace std;
 
 int main() {
   string in;
   //print((char *)&"Hola");
-
+  // Hola jajaja 
   cout << "Starting server..." << endl;
   void * server = (void *)start_server(); 
   cout << "Started!!" << endl;
@@ -22,9 +22,7 @@ int main() {
     char * received;
     received = read(server);
 
-    write(server, "Jajaja");
-
-
+    write("Jajaja");
   }
 
   cout << "Input anything to end server: ";
