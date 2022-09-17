@@ -16,3 +16,13 @@ tcp_server_experiment/tcp_server_experiment
 .idea/
 
 cmake-build-debug/
+
+tcp_server_experiment/.ninja_deps
+
+tcp_server_experiment/.ninja_log
+
+tcp_server_experiment/build.ninja
+
+tcp_server_experiment/.cmake/api/v1/query/
+
+tcp_server_experiment/.cmake/api/v1/reply/

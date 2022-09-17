@@ -1,12 +1,8 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-
-extern "C" void print(char* n);
-extern "C" void * start_server();
-extern "C" void end_server(void *);
-extern "C" char* read(void *);
-extern "C" void write(char *);
+#include "server/target/cxxbridge/rust/cxx.h"
+#include "server/target/cxxbridge/server/src/lib.rs.h"
 
 using namespace std;
 
@@ -15,20 +11,13 @@ int main() {
   //print((char *)&"Hola");
   // Hola jajaja 
   cout << "Starting server..." << endl;
-  void * server = (void *)start_server(); 
+  Tcp server = start();
   cout << "Started!!" << endl;
-
-  for (int i=0; i<10; i++) {
-    char * received;
-    received = read(server);
-
-    write("Jajaja");
-  }
 
   cout << "Input anything to end server: ";
   cin >> in;
 
-  end_server(server);
+  stop(server);
 
   return 0;
 }

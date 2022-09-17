@@ -4,6 +4,9 @@ use mio::net::{TcpStream, TcpListener};
 use mio::{Events, Interest, Poll, Token, event::Event, Registry};
 use std::io::{Read, Write};
 use std::str::from_utf8;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{channel, Sender, Receiver};
+use std::thread::{JoinHandle, spawn};
 
 pub struct TcpServer {
     listener: TcpListener,
@@ -12,6 +15,8 @@ pub struct TcpServer {
     connections: HashMap<Token, TcpStream>,
     response: HashMap<Token, String>,
     unique_token: Token,
+    cont: Receiver<()>,
+    still_alive: Arc<Mutex<bool>>
 }
 
 static SERVER: Token = Token(0);
@@ -32,7 +37,7 @@ impl TcpServer {
         Token(next)
     }
 
-    pub fn new() -> TcpServer {
+    pub fn new(cont: Receiver<()>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap()).expect("Failed to init listener"),
             poll: Poll::new().expect("Failed to init poll"),
@@ -40,6 +45,8 @@ impl TcpServer {
             connections: HashMap::new(),
             response: HashMap::new(),
             unique_token: Token(SERVER.0 + 1),
+            still_alive,
+            cont
         };
 
         result.poll.registry().register(&mut result.listener, Token(0), Interest::READABLE | Interest::WRITABLE).unwrap();
@@ -47,7 +54,7 @@ impl TcpServer {
     }
 
     pub fn run_server(&mut self) {
-        loop {
+        while *self.still_alive.lock().unwrap() == true {
             self.poll.poll(&mut self.events, Some(Duration::from_secs_f32(5.0))).unwrap();
             for event in self.events.iter() {
                 match event.token() {
@@ -164,5 +171,59 @@ impl TcpServer {
 
         Ok(false)
     }
+}
 
+// Bridge
+
+#[cxx::bridge]
+mod ffi {
+    pub struct Tcp {
+        /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
+        pub runtime: *mut u8,
+        /// Apuntador a el sender de continuar
+        pub continue_signal: *mut u8,
+        /// Apuntador a mutex que indica si el proceso sigue vivo
+        pub stay_alive: *mut u8
+    }
+
+    extern "Rust" {
+        fn start() -> Tcp;
+        fn stop(state: Tcp);
+    }
+}
+
+// ### Tcp implementation
+pub use ffi::*;
+
+pub fn start() -> Tcp {
+    let still_alive = Arc::new(Mutex::new(true));
+    let (cx, rx): (Sender<()>, Receiver<()>) = channel();
+    let cx = Box::new(cx);
+    let cx = Box::into_raw(cx);
+
+    let runtime = Box::new(spawn({
+        let still = Arc::clone(&still_alive);
+        || {
+            let mut server = TcpServer::new(rx, still);
+            server.run_server();
+        }
+    }));
+    let runtime = Box::into_raw(runtime);
+
+    let still_alive = Box::new(still_alive);
+    let still_alive = Box::into_raw(still_alive);
+
+    Tcp {
+        runtime: runtime as *mut u8,
+        continue_signal: cx as *mut u8,
+        stay_alive: still_alive as *mut u8
+    }
+}
+
+pub fn stop(state: Tcp) {
+    let still_alive = unsafe { Box::from_raw(state.stay_alive as *mut Arc<Mutex<bool>>) };
+    *still_alive.lock().unwrap() = false;
+
+    let runtime = unsafe { Box::from_raw(state.runtime as *mut JoinHandle<()>) };
+    runtime.join().unwrap();
 }
