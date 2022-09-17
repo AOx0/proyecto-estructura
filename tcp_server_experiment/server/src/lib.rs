@@ -1,13 +1,13 @@
+use mio::net::{TcpListener, TcpStream};
+use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::time::Duration;
-use mio::net::{TcpStream, TcpListener};
-use mio::{Events, Interest, Poll, Token, event::Event, Registry};
 use std::io::{Read, Write};
 use std::str::from_utf8;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Sender, Receiver};
-use std::thread::{JoinHandle, spawn};
+use std::thread::{spawn, JoinHandle};
+use std::time::Duration;
 
 pub struct TcpServer {
     listener: TcpListener,
@@ -17,13 +17,12 @@ pub struct TcpServer {
     response: HashMap<Token, String>,
     unique_token: Token,
     cont: Receiver<CString>,
-    still_alive: Arc<Mutex<bool>>
+    still_alive: Arc<Mutex<bool>>,
 }
 
 static SERVER: Token = Token(0);
 
 impl TcpServer {
-
     fn would_block(err: &std::io::Error) -> bool {
         err.kind() == std::io::ErrorKind::WouldBlock
     }
@@ -40,23 +39,34 @@ impl TcpServer {
 
     pub fn new(cont: Receiver<CString>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
         let mut result = TcpServer {
-            listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap()).expect("Failed to init listener"),
+            listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
+                .expect("Failed to init listener"),
             poll: Poll::new().expect("Failed to init poll"),
             events: Events::with_capacity(128),
             connections: HashMap::new(),
             response: HashMap::new(),
             unique_token: Token(SERVER.0 + 1),
             still_alive,
-            cont
+            cont,
         };
 
-        result.poll.registry().register(&mut result.listener, Token(0), Interest::READABLE | Interest::WRITABLE).unwrap();
+        result
+            .poll
+            .registry()
+            .register(
+                &mut result.listener,
+                Token(0),
+                Interest::READABLE | Interest::WRITABLE,
+            )
+            .unwrap();
         result
     }
 
     pub fn run_server(&mut self) {
         while *self.still_alive.lock().unwrap() == true {
-            self.poll.poll(&mut self.events, Some(Duration::from_secs_f32(5.0))).unwrap();
+            self.poll
+                .poll(&mut self.events, Some(Duration::from_secs_f32(5.0)))
+                .unwrap();
             for event in self.events.iter() {
                 match event.token() {
                     Token(0) => loop {
@@ -74,20 +84,31 @@ impl TcpServer {
                         println!("Accepted connection from: {}", address);
 
                         let token = Self::next(&mut self.unique_token);
-                        self.poll.registry().register(
-                            &mut connection,
-                            token,
-                            Interest::READABLE.add(Interest::WRITABLE),
-                        ).unwrap();
+                        self.poll
+                            .registry()
+                            .register(
+                                &mut connection,
+                                token,
+                                Interest::READABLE.add(Interest::WRITABLE),
+                            )
+                            .unwrap();
 
                         self.connections.insert(token, connection);
                     },
                     token => {
                         // Manejo de posible mensaje desde una conexión activa de TCP
                         let done = if let Some(connection) = self.connections.get_mut(&token) {
-                            let response_handler = self.response.entry(token).or_insert("".to_owned());
+                            let response_handler =
+                                self.response.entry(token).or_insert("".to_owned());
                             // Manejamos cualquiera que sea el mensaje recibido.
-                            Self::handle_connection_event(self.poll.registry(), connection, event, response_handler).unwrap()
+                            Self::handle_connection_event(
+                                self.poll.registry(),
+                                connection,
+                                event,
+                                response_handler,
+                                &mut self.cont,
+                            )
+                            .unwrap()
                         } else {
                             false
                         };
@@ -106,7 +127,8 @@ impl TcpServer {
         registry: &Registry,
         connection: &mut TcpStream,
         event: &Event,
-        data: &mut String
+        data: &mut String,
+        cx: &mut Receiver<CString>,
     ) -> std::io::Result<bool> {
         println!("{:?}", event);
 
@@ -117,13 +139,16 @@ impl TcpServer {
 
             loop {
                 match connection.read(&mut received_data[bytes_read..]) {
-                    Ok(0) => { connection_closed = true; break; }
+                    Ok(0) => {
+                        connection_closed = true;
+                        break;
+                    }
                     Ok(n) => {
                         bytes_read += n;
                         if bytes_read == received_data.len() {
                             received_data.resize(received_data.len() + 1024, 0);
                         }
-                    },
+                    }
                     Err(ref err) if Self::would_block(err) => break,
                     Err(ref err) if Self::interrupted(err) => continue,
                     Err(err) => return Err(err),
@@ -138,7 +163,8 @@ impl TcpServer {
                         connection_closed = true;
                     } else {
                         //TODO: Inyectar la espera de señal de completado con el proceso desde C++
-                        *data = str_buf.to_string();
+                        let response = cx.recv().unwrap_or_else(|_| { CString::new(" ").unwrap() });
+                        *data = response.into_string().unwrap();
                         registry.reregister(connection, event.token(), Interest::WRITABLE)?;
                     }
                 } else {
@@ -154,16 +180,13 @@ impl TcpServer {
 
         if event.is_writable() {
             match connection.write(data.as_bytes()) {
-
                 Ok(n) if n < data.len() => return Err(std::io::ErrorKind::WriteZero.into()),
-                Ok(_) => {
-                    registry.reregister(connection, event.token(), Interest::READABLE)?
-                }
+                Ok(_) => registry.reregister(connection, event.token(), Interest::READABLE)?,
 
                 Err(ref err) if Self::would_block(err) => {}
 
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(registry, connection, event, data)
+                    return Self::handle_connection_event(registry, connection, event, data, cx)
                 }
 
                 Err(err) => return Err(err),
@@ -178,7 +201,6 @@ impl TcpServer {
 
 #[cxx::bridge]
 mod ffi {
-    use std::ffi::CString;
 
     pub struct Tcp {
         /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
@@ -186,11 +208,11 @@ mod ffi {
         /// Apuntador a el sender de continuar
         pub continue_signal: *mut u8,
         /// Apuntador a mutex que indica si el proceso sigue vivo
-        pub stay_alive: *mut u8
+        pub stay_alive: *mut u8,
     }
 
     extern "Rust" {
-        pub fn communicate(state: &mut Tcp, msg: CString);
+        pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8);
         fn start() -> Tcp;
         fn stop(state: Tcp);
     }
@@ -199,8 +221,9 @@ mod ffi {
 // ### Tcp implementation
 pub use ffi::*;
 
-pub fn communicate(state: &mut Tcp, msg: CString) {
-    let sender = unsafe { Box::from_raw(state.continue_signal as *mut Sender<CString>) };
+pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8) {
+    let msg = { CString::from_raw(msg as *mut i8) };
+    let sender = { Box::from_raw(state.continue_signal as *mut Sender<CString>) };
     sender.send(msg).expect("TODO: panic message");
 }
 
@@ -225,7 +248,7 @@ pub fn start() -> Tcp {
     Tcp {
         runtime: runtime as *mut u8,
         continue_signal: cx as *mut u8,
-        stay_alive: still_alive as *mut u8
+        stay_alive: still_alive as *mut u8,
     }
 }
 
