@@ -16,8 +16,6 @@ public:
 
 int main() {
   string in;
-  //print((char *)&"Hola");
-  // Hola jajaja 
   cout << "Starting server..." << endl;
   TcpServer server = TcpServer();
   cout << "Started!!" << endl;

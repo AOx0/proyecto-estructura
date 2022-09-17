@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::time::Duration;
 use mio::net::{TcpStream, TcpListener};
 use mio::{Events, Interest, Poll, Token, event::Event, Registry};
@@ -15,7 +16,7 @@ pub struct TcpServer {
     connections: HashMap<Token, TcpStream>,
     response: HashMap<Token, String>,
     unique_token: Token,
-    cont: Receiver<()>,
+    cont: Receiver<CString>,
     still_alive: Arc<Mutex<bool>>
 }
 
@@ -37,7 +38,7 @@ impl TcpServer {
         Token(next)
     }
 
-    pub fn new(cont: Receiver<()>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
+    pub fn new(cont: Receiver<CString>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap()).expect("Failed to init listener"),
             poll: Poll::new().expect("Failed to init poll"),
@@ -177,6 +178,8 @@ impl TcpServer {
 
 #[cxx::bridge]
 mod ffi {
+    use std::ffi::CString;
+
     pub struct Tcp {
         /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
         pub runtime: *mut u8,
@@ -187,6 +190,7 @@ mod ffi {
     }
 
     extern "Rust" {
+        pub fn communicate(state: &mut Tcp, msg: CString);
         fn start() -> Tcp;
         fn stop(state: Tcp);
     }
@@ -195,9 +199,14 @@ mod ffi {
 // ### Tcp implementation
 pub use ffi::*;
 
+pub fn communicate(state: &mut Tcp, msg: CString) {
+    let sender = unsafe { Box::from_raw(state.continue_signal as *mut Sender<CString>) };
+    sender.send(msg).expect("TODO: panic message");
+}
+
 pub fn start() -> Tcp {
     let still_alive = Arc::new(Mutex::new(true));
-    let (cx, rx): (Sender<()>, Receiver<()>) = channel();
+    let (cx, rx): (Sender<CString>, Receiver<CString>) = channel();
     let cx = Box::new(cx);
     let cx = Box::into_raw(cx);
 
