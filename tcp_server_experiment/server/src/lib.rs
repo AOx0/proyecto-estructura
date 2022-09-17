@@ -43,7 +43,6 @@ impl TcpServer {
         };
 
         result.poll.registry().register(&mut result.listener, Token(0), Interest::READABLE | Interest::WRITABLE).unwrap();
-
         result
     }
 
@@ -53,8 +52,7 @@ impl TcpServer {
             for event in self.events.iter() {
                 match event.token() {
                     Token(0) => loop {
-                        // Received an event for the TCP server socket, which
-                        // indicates we can accept an connection.
+                        // Evento de socket para el server, aceptamos la conexión nueva y la registramos
                         let (mut connection, address) = match self.listener.accept() {
                             Ok((connection, address)) => (connection, address),
                             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -77,9 +75,10 @@ impl TcpServer {
                         self.connections.insert(token, connection);
                     },
                     token => {
-                        // Maybe received an event for a TCP connection.
+                        // Manejo de posible mensaje desde una conexión activa de TCP
                         let done = if let Some(connection) = self.connections.get_mut(&token) {
                             let response_handler = self.response.entry(token).or_insert("".to_owned());
+                            // Manejamos cualquiera que sea el mensaje recibido.
                             Self::handle_connection_event(self.poll.registry(), connection, event, response_handler).unwrap()
                         } else {
                             false
@@ -127,12 +126,12 @@ impl TcpServer {
                 let received_data = &received_data[..bytes_read];
                 if let Ok(str_buf) = from_utf8(received_data) {
                     println!("Received data: {}", str_buf.trim_end());
-                    if str_buf.trim_end().contains("END") {
+                    if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
-                    } else if str_buf.trim_end().contains("IN"){
-                        registry.reregister(connection, event.token(), Interest::WRITABLE)?
                     } else {
+                        //TODO: Inyectar la espera de señal de completado con el proceso desde C++
                         *data = str_buf.to_string();
+                        registry.reregister(connection, event.token(), Interest::WRITABLE)?;
                     }
                 } else {
                     println!("Received (none UTF-8) data: {:?}", received_data);
@@ -150,7 +149,6 @@ impl TcpServer {
 
                 Ok(n) if n < data.len() => return Err(std::io::ErrorKind::WriteZero.into()),
                 Ok(_) => {
-
                     registry.reregister(connection, event.token(), Interest::READABLE)?
                 }
 
