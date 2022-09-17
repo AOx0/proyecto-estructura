@@ -1,23 +1,29 @@
 #include <iostream>
-#include <chrono>
 #include <thread>
-#include "server/target/cxxbridge/rust/cxx.h"
 #include "server/target/cxxbridge/server/src/lib.rs.h"
 
 using namespace std;
+
+struct TcpServer {
+protected:
+  Tcp server;
+public:
+  TcpServer() : server(start()) {}
+  ~TcpServer() {
+    stop(server);
+  }
+};
 
 int main() {
   string in;
   //print((char *)&"Hola");
   // Hola jajaja 
   cout << "Starting server..." << endl;
-  Tcp server = start();
+  TcpServer server = TcpServer();
   cout << "Started!!" << endl;
 
   cout << "Input anything to end server: ";
   cin >> in;
-
-  stop(server);
 
   return 0;
 }
