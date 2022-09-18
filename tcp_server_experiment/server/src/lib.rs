@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::io::{Read, Write};
 use std::os::raw::c_char;
+use std::ptr::null_mut;
 use std::str::from_utf8;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -70,7 +71,7 @@ impl TcpServer {
     }
 
     pub fn run_server(&mut self) {
-        while *self.still_alive.lock().unwrap() == true {
+        while *self.still_alive.lock().unwrap() {
             self.poll
                 .poll(&mut self.events, Some(Duration::from_secs_f32(5.0)))
                 .unwrap();
@@ -106,7 +107,7 @@ impl TcpServer {
                         // Manejo de posible mensaje desde una conexión activa de TCP
                         let done = if let Some(connection) = self.connections.get_mut(&token) {
                             let response_handler =
-                                self.response.entry(token).or_insert("".to_owned());
+                                self.response.entry(token).or_insert_with(|| "".to_owned());
                             // Manejamos cualquiera que sea el mensaje recibido.
                             Self::handle_connection_event(
                                 self.poll.registry(),
@@ -167,7 +168,7 @@ impl TcpServer {
             if bytes_read != 0 {
                 let received_data = &received_data[..bytes_read];
                 if let Ok(str_buf) = from_utf8(received_data) {
-                    println!("Received data: {}", str_buf.trim_end());
+                    //println!("Received data: {}", str_buf.trim_end());
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
                         // Send received data from tcp stream to c++
@@ -241,7 +242,7 @@ pub struct Shared {
 
 #[no_mangle]
 pub extern "C" fn drop_shared(v: Shared) {
-    if v.null == false {
+    if !v.null {
         unsafe {
             match v.typ {
                 1 => {
@@ -256,6 +257,8 @@ pub extern "C" fn drop_shared(v: Shared) {
     }
 }
 
+///# Safety
+///
 #[no_mangle]
 pub unsafe extern "C" fn communicate(state: &mut Tcp, msg: *mut c_char) {
     let msg = CStr::from_ptr(msg);
@@ -282,6 +285,8 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, msg: *mut c_char) {
     }
 }
 
+///# Safety
+///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
     let x = Box::from_raw(state.recv_signal as *mut Receiver<String>);
@@ -301,7 +306,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
                     println!("Failed to make CString: {:?}", err);
                     Shared {
                         null: true,
-                        value: 0 as *mut u8,
+                        value: null_mut::<u8>(),
                         typ: 0,
                     }
                 }
@@ -315,7 +320,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
             );
             Shared {
                 null: true,
-                value: 0 as *mut u8,
+                value: null_mut::<u8>(),
                 typ: 0,
             }
         }
@@ -372,7 +377,7 @@ pub extern "C" fn stop(state: Tcp) {
 
     // Drop channels
     unsafe {
-        Box::from_raw(state.recv_signal);
-        Box::from_raw(state.continue_signal);
+        Box::from_raw(state.recv_signal as *mut Receiver<String>);
+        Box::from_raw(state.continue_signal as *mut Sender<String>);
     }
 }
