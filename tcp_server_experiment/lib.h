@@ -48,8 +48,8 @@ public:
     return result;
   }
 
-  void send(const string& msg) {
-    char * m = (char *)msg.c_str();
+  void send(const string &msg) {
+    char *m = (char *)msg.c_str();
     communicate(server, m);
   }
 };
