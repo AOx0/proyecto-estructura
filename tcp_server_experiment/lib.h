@@ -1,19 +1,19 @@
-#include <iostream>
 #include <cstdint>
+#include <iostream>
 
 using namespace std;
 
 struct Shared {
-  uint8_t * value;
+  uint8_t *value;
   uint8_t typ;
   bool null;
 };
 
 struct Tcp {
-  uint8_t * runtime;
-  uint8_t * continue_signal;
-  uint8_t * recv_signal;
-  uint8_t * stay_alive;
+  uint8_t *runtime;
+  uint8_t *continue_signal;
+  uint8_t *recv_signal;
+  uint8_t *stay_alive;
 };
 
 extern "C" void drop_shared(Shared);
@@ -25,7 +25,6 @@ extern "C" Shared receive(Tcp &);
 extern "C" Tcp start();
 
 extern "C" void stop(Tcp);
-
 
 struct TcpServer {
 protected:
@@ -44,7 +43,7 @@ public:
     } else if (rec.typ != 1) {
       result = (string)NULL;
     } else {
-      string value = (char *)rec.value; 
+      string value = (char *)rec.value;
       result = value;
     }
 
@@ -53,7 +52,7 @@ public:
   }
 
   void send(string msg) {
-    char * m = (char *)msg.c_str();
+    char *m = (char *)msg.c_str();
     communicate(server, m);
   }
 };
