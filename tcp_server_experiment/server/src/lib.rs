@@ -1,7 +1,6 @@
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::io::{Read, Write};
 use std::str::from_utf8;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -16,8 +15,8 @@ pub struct TcpServer {
     connections: HashMap<Token, TcpStream>,
     response: HashMap<Token, String>,
     unique_token: Token,
-    cont: Receiver<CString>,
-    msg: Sender<CString>,
+    cont: Receiver<String>,
+    msg: Sender<String>,
     still_alive: Arc<Mutex<bool>>,
 }
 
@@ -38,7 +37,7 @@ impl TcpServer {
         Token(next)
     }
 
-    pub fn new(cont: Receiver<CString>, msg: Sender<CString>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
+    pub fn new(cont: Receiver<String>, msg: Sender<String>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
                 .expect("Failed to init listener"),
@@ -73,7 +72,7 @@ impl TcpServer {
                 match event.token() {
                     Token(0) => loop {
                         // Evento de socket para el server, aceptamos la conexión nueva y la registramos
-                        let (mut connection, address) = match self.listener.accept() {
+                        let (mut connection, _) = match self.listener.accept() {
                             Ok((connection, address)) => (connection, address),
                             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                                 break;
@@ -131,8 +130,8 @@ impl TcpServer {
         connection: &mut TcpStream,
         event: &Event,
         data: &mut String,
-        cx: &mut Receiver<CString>,
-        rx: &mut Sender<CString>,
+        cx: &mut Receiver<String>,
+        rx: &mut Sender<String>,
     ) -> std::io::Result<bool> {
         //println!("{:?}", event);
 
@@ -166,16 +165,17 @@ impl TcpServer {
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
                         // Send received data from tcp stream to c++
-                        rx.send(CString::new(str_buf.trim()).unwrap()).unwrap();
+                        rx.send(str_buf.trim().to_owned()).unwrap();
                     } else {
                         // Send received data from tcp stream to c++
-                        rx.send(CString::new(str_buf.trim()).unwrap()).unwrap();
+                        rx.send(str_buf.trim().to_owned()).unwrap();
 
                         // Receive response from c++ runtime
-                        let response = cx.recv().unwrap_or_else(|_| { CString::new(" ").unwrap() });
+                        let response = cx.recv().unwrap_or_else(|_| { " ".to_owned() });
                         
                         // Set response to queue
-                        *data = response.into_string().unwrap();
+                        *data = response;
+                        
                         
                         // Register writable eevent to send response
                         registry.reregister(connection, event.token(), Interest::WRITABLE)?;
@@ -214,7 +214,6 @@ impl TcpServer {
 
 #[cxx::bridge]
 mod ffi {
-
     pub struct Tcp {
         /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
         pub runtime: *mut u8,
@@ -227,43 +226,37 @@ mod ffi {
     }
 
     extern "Rust" {
-        pub unsafe fn receive(state: &mut Tcp) -> *mut u8;
-        pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8);
-        fn start() -> Tcp;
-        fn stop(state: Tcp);
+        pub unsafe fn receive(state: &mut Tcp) -> String;
+        pub unsafe fn communicate(state: &mut Tcp, msg: String);
+        pub fn start() -> Tcp;
+        pub unsafe fn stop(state: Tcp);
     }
 }
 
 // ### Tcp implementation
 pub use ffi::*;
 
-pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8) {
-    let msg = { CString::from_raw(msg as *mut i8) };
-    let sender = { Box::from_raw(state.continue_signal as *mut Sender<CString>) };
-    sender.send(msg.to_owned()).unwrap();
-    let sender = Box::into_raw(sender);
-    state.continue_signal = sender as *mut u8;
-    std::mem::forget(msg);
+pub unsafe fn communicate(state: &mut Tcp, msg: String) {
+    let sender = { Box::from_raw(state.continue_signal as *mut Sender<String>) };
+    sender.send(msg).unwrap();
+    state.continue_signal =  Box::into_raw(sender) as *mut u8;
 }
 
 
-pub unsafe fn receive(state: &mut Tcp) -> *mut u8 {
-    let x = Box::from_raw(state.recv_signal as *mut Receiver<CString>);
-    let msg = x.recv().unwrap_or(CString::new("NULL").unwrap()).clone();
-    let x = Box::into_raw(x);
-    state.recv_signal = x as *mut u8;
-    let msg = Box::new(msg);
-    let msg = Box::leak(msg);
-    msg.as_ptr() as *mut u8
+pub unsafe fn receive(state: &mut Tcp) -> String {
+    let x = Box::from_raw(state.recv_signal as *mut Receiver<String>);
+    let msg = x.recv().unwrap_or("NULL".to_owned());
+    state.recv_signal = Box::into_raw(x) as *mut u8;
+    msg
 }
 
 pub fn start() -> Tcp {
     let still_alive = Arc::new(Mutex::new(true));
-    let (cx, rx): (Sender<CString>, Receiver<CString>) = channel();
+    let (cx, rx): (Sender<String>, Receiver<String>) = channel();
     let cx = Box::new(cx);
     let cx = Box::into_raw(cx);
 
-    let (cx2, rx2): (Sender<CString>, Receiver<CString>) = channel();
+    let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
     let rx2 = Box::new(rx2);
     let rx2 = Box::into_raw(rx2);
     
@@ -287,10 +280,17 @@ pub fn start() -> Tcp {
     }
 }
 
-pub fn stop(state: Tcp) {
-    let still_alive = unsafe { Box::from_raw(state.stay_alive as *mut Arc<Mutex<bool>>) };
+pub unsafe fn stop(state: Tcp) {
+    let still_alive = Box::from_raw(state.stay_alive as *mut Arc<Mutex<bool>>);
     *still_alive.lock().unwrap() = false;
 
-    let runtime = unsafe { Box::from_raw(state.runtime as *mut JoinHandle<()>) };
+    let runtime = Box::from_raw(state.runtime as *mut JoinHandle<()>);
+   
+    // Drop channels
+    {
+        Box::from_raw(state.recv_signal);
+        Box::from_raw(state.continue_signal);
+    }
+    
     runtime.join().unwrap();
 }

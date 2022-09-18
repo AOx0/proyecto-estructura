@@ -6,5 +6,5 @@ fn main() {
 
     stdin().read_line(&mut String::new()).unwrap();
 
-    stop(server);
+    unsafe { stop(server) };
 }
