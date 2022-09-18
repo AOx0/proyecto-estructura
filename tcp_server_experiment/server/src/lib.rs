@@ -231,7 +231,7 @@ pub struct Tcp {
 
 #[repr(C)]
 pub struct Shared {
-    // Pointer to a Boxed value
+    // Pointer to an Allocated value
     value: *mut u8,
     // Type of the value
     typ: u8,
@@ -327,24 +327,20 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 pub extern "C" fn start() -> Tcp {
     let still_alive = Arc::new(Mutex::new(true));
     let (cx, rx): (Sender<String>, Receiver<String>) = channel();
-    let cx = Box::new(cx);
-    let cx = Box::into_raw(cx);
+    let cx = Box::into_raw(Box::new(cx));
 
     let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
-    let rx2 = Box::new(rx2);
-    let rx2 = Box::into_raw(rx2);
+    let rx2 = Box::into_raw(Box::new(rx2));
 
-    let runtime = Box::new(spawn({
+    let runtime = Box::into_raw(Box::new(spawn({
         let still = Arc::clone(&still_alive);
         || {
             let mut server = TcpServer::new(rx, cx2, still);
             server.run_server();
         }
-    }));
-    let runtime = Box::into_raw(runtime);
+    })));
 
-    let still_alive = Box::new(still_alive);
-    let still_alive = Box::into_raw(still_alive);
+    let still_alive = Box::into_raw(Box::new(still_alive));
 
     Tcp {
         runtime: runtime as *mut u8,

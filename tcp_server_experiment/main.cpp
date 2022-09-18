@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #include "lib.h"
@@ -21,6 +22,7 @@ int main() {
   while (true) {
     r = server.recv();
     a.str(string());
+    sleep(5);
     a << "Hola desde C++ " << r << endl;
     b = a.str();
     if (r == "exit") {
