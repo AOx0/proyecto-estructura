@@ -14,9 +14,5 @@ crate-type = ["staticlib", "rlib", "cdylib"]
 name = "server_test"
 path = "src/main.rs"
 
-
 [dependencies]
 mio = { version = "0.8.4", features = ["net", "os-poll"] }
-
-[build-dependencies]
-cxx-build = "1.0.75"
