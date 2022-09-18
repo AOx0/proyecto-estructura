@@ -11,46 +11,46 @@ using namespace std;
 
 struct TcpServer {
 protected:
-  Tcp server;
+    Tcp server;
 public:
-  TcpServer() : server(start()) {}
-  ~TcpServer() {
-    stop(server);
-  }
-  string recv() {
-    rust::String rec = receive(server);
-    string res(rec);
-    return res;
-  }
+    TcpServer() : server(start()) {}
+    ~TcpServer() {
+        stop(server);
+    }
+    string recv() {
+        rust::String rec = receive(server);
+        string res(rec);
+        return res;
+    }
 
-  void send(string msg) {
-    rust::String msg2(msg);
-    communicate(server, msg2);
-  }
+    void send(string msg) {
+        rust::String msg2(msg);
+        communicate(server, msg2);
+    }
 };
 
 
 int main() {
-  string in;
+    string in;
 
-  cout << "Starting server..." << endl;
-  TcpServer server = TcpServer();
-  cout << "Started!!" << endl;
-  
-  string r, b;
-  stringstream a;
-  while (true) {
-    r = server.recv();
-    a.str(string());
-    a << "Hola desde C++ " << r << endl;
-    b = a.str();
-    if (r == "exit") {
-      continue;
+    cout << "Starting server..." << endl;
+    TcpServer server = TcpServer();
+    cout << "Started!!" << endl;
+
+    string r, b;
+    stringstream a;
+    while (true) {
+        r = server.recv();
+        a.str(string());
+        a << "Hola desde C++ " << r << endl;
+        b = a.str();
+        if (r == "exit") {
+            continue;
+        }
+        server.send(b);
+        cout << "Received \"" << r << "\"" << endl;
+        if (r == "finish") break;
     }
-    server.send(b);
-    cout << "Received \"" << r << "\"" << endl;
-    if (r == "finish") break;
-  }
 
-  return 0;
+    return 0;
 }
