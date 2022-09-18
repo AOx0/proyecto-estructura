@@ -1,7 +1,9 @@
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
+use std::ffi::{CStr, CString};
 use std::io::{Read, Write};
+use std::os::raw::c_char;
 use std::str::from_utf8;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -215,44 +217,114 @@ impl TcpServer {
 
 // Bridge
 
-#[cxx::bridge]
-mod ffi {
-    pub struct Tcp {
-        /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
-        pub runtime: *mut u8,
-        /// Apuntador a el sender de continuar con el mensaje de respuesta
-        pub continue_signal: *mut u8,
-        /// Apuntador a el receiver de continuar con el mensaje recibido
-        pub recv_signal: *mut u8,
-        /// Apuntador a mutex que indica si el proceso sigue vivo
-        pub stay_alive: *mut u8,
-    }
+#[repr(C)]
+pub struct Tcp {
+    /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
+    pub runtime: *mut u8,
+    /// Apuntador a el sender de continuar con el mensaje de respuesta
+    pub continue_signal: *mut u8,
+    /// Apuntador a el receiver de continuar con el mensaje recibido
+    pub recv_signal: *mut u8,
+    /// Apuntador a mutex que indica si el proceso sigue vivo
+    pub stay_alive: *mut u8,
+}
 
-    extern "Rust" {
-        pub unsafe fn receive(state: &mut Tcp) -> String;
-        pub unsafe fn communicate(state: &mut Tcp, msg: String);
-        pub fn start() -> Tcp;
-        pub unsafe fn stop(state: Tcp);
+#[repr(C)]
+pub struct Shared {
+    // Pointer to a Boxed value
+    value: *mut u8,
+    // Type of the value
+    typ: u8,
+    // Is null?
+    null: bool,
+}
+
+#[no_mangle]
+pub extern "C" fn drop_shared(v: Shared) {
+    if v.null != false {
+        unsafe {
+            match v.typ {
+                1 => {
+                    // Drop String
+                    let _ = CString::from_raw(v.value as *mut i8);
+                }
+                _ => {
+                    println!("Wrong type u8 descriptor {} for {:p}", v.typ, v.value)
+                }
+            }
+        }
     }
 }
 
-// ### Tcp implementation
-pub use ffi::*;
+#[no_mangle]
+pub unsafe extern "C" fn communicate(state: &mut Tcp, msg: *mut c_char) {
+    let msg = CStr::from_ptr(msg);
+    std::mem::forget(msg);
 
-pub unsafe fn communicate(state: &mut Tcp, msg: String) {
-    let sender = { Box::from_raw(state.continue_signal as *mut Sender<String>) };
-    sender.send(msg).unwrap();
-    state.continue_signal = Box::into_raw(sender) as *mut u8;
+    match msg.to_str() {
+        Ok(value) => {
+            let sender = { Box::from_raw(state.continue_signal as *mut Sender<String>) };
+
+            match sender.send(value.to_owned()) {
+                Ok(_) => {
+                    state.continue_signal = Box::into_raw(sender) as *mut u8;
+                }
+                Err(error) => {
+                    println!("Failed to send trough channel: {:?}", error);
+                }
+            }
+        }
+        Err(_) => {
+            println!(
+                "Something bad happened while converting to string {:?}",
+                msg
+            )
+        }
+    }
 }
 
-pub unsafe fn receive(state: &mut Tcp) -> String {
+#[no_mangle]
+pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
     let x = Box::from_raw(state.recv_signal as *mut Receiver<String>);
-    let msg = x.recv().unwrap_or("NULL".to_owned());
-    state.recv_signal = Box::into_raw(x) as *mut u8;
-    msg
+    match x.recv() {
+        Ok(value) => {
+            state.recv_signal = Box::into_raw(x) as *mut u8;
+            match CString::new(value) {
+                Ok(value) => {
+                    let v = CString::into_raw(value);
+                    Shared {
+                        null: false,
+                        value: v as *mut u8,
+                        typ: 1,
+                    }
+                }
+                Err(err) => {
+                    println!("Failed to make CString: {:?}", err);
+                    Shared {
+                        null: true,
+                        value: 0 as *mut u8,
+                        typ: 0,
+                    }
+                }
+            }
+        }
+        Err(err) => {
+            state.recv_signal = Box::into_raw(x) as *mut u8;
+            println!(
+                "Something wrong happened while reading from channel: {:?}",
+                err
+            );
+            Shared {
+                null: true,
+                value: 0 as *mut u8,
+                typ: 0,
+            }
+        }
+    }
 }
 
-pub fn start() -> Tcp {
+#[no_mangle]
+pub extern "C" fn start() -> Tcp {
     let still_alive = Arc::new(Mutex::new(true));
     let (cx, rx): (Sender<String>, Receiver<String>) = channel();
     let cx = Box::new(cx);
@@ -282,17 +354,30 @@ pub fn start() -> Tcp {
     }
 }
 
-pub unsafe fn stop(state: Tcp) {
-    let still_alive = Box::from_raw(state.stay_alive as *mut Arc<Mutex<bool>>);
-    *still_alive.lock().unwrap() = false;
+#[no_mangle]
+pub extern "C" fn stop(state: Tcp) {
+    let still_alive = unsafe { Box::from_raw(state.stay_alive as *mut Arc<Mutex<bool>>) };
+    match still_alive.lock() {
+        Ok(mut value) => {
+            *value = false;
+        }
+        Err(err) => {
+            println!("Failed to lock Mutex: {:?}", err);
+        }
+    }
 
-    let runtime = Box::from_raw(state.runtime as *mut JoinHandle<()>);
+    let runtime = unsafe { Box::from_raw(state.runtime as *mut JoinHandle<()>) };
+
+    match runtime.join() {
+        Ok(_) => {}
+        Err(err) => {
+            println!("Failed to join Rust Runtime: {:?}", err)
+        }
+    }
 
     // Drop channels
-    {
+    unsafe {
         Box::from_raw(state.recv_signal);
         Box::from_raw(state.continue_signal);
     }
-
-    runtime.join().unwrap();
 }

@@ -1,5 +1,3 @@
-#include "server/target/cxxbridge/rust/cxx.h"
-#include "server/target/cxxbridge/server/src/lib.rs.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -7,26 +5,9 @@
 #include <thread>
 #include <vector>
 
+#include "lib.h"
+
 using namespace std;
-
-struct TcpServer {
-protected:
-  Tcp server;
-
-public:
-  TcpServer() : server(start()) {}
-  ~TcpServer() { stop(server); }
-  string recv() {
-    rust::String rec = receive(server);
-    string res(rec);
-    return res;
-  }
-
-  void send(string msg) {
-    rust::String msg2(msg);
-    communicate(server, msg2);
-  }
-};
 
 int main() {
   string in;

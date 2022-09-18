@@ -8,7 +8,7 @@ edition = "2021"
 [lib]
 name = "server"
 path = "src/lib.rs"
-crate-type = ["staticlib", "rlib"]
+crate-type = ["staticlib", "rlib", "cdylib"]
 
 [[bin]]
 name = "server_test"
@@ -16,7 +16,6 @@ path = "src/main.rs"
 
 
 [dependencies]
-cxx = { version = "1.0.75", features = ["c++14"] }
 mio = { version = "0.8.4", features = ["net", "os-poll"] }
 
 [build-dependencies]
