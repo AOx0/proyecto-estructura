@@ -26,3 +26,11 @@ tcp_server_experiment/build.ninja
 tcp_server_experiment/.cmake/api/v1/query/
 
 tcp_server_experiment/.cmake/api/v1/reply/
+
+tcp_server_experiment/cmake-build-relwithdebinfo/
+
+tcp_server_experiment/cmake-build-release/
+
+tcp_server_experiment/cmake-build-minsizerel/
+
+tcp_server_experiment/cmake-build-default/
