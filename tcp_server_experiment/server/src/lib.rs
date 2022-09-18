@@ -241,7 +241,7 @@ pub struct Shared {
 
 #[no_mangle]
 pub extern "C" fn drop_shared(v: Shared) {
-    if v.null != false {
+    if v.null == false {
         unsafe {
             match v.typ {
                 1 => {
@@ -259,7 +259,6 @@ pub extern "C" fn drop_shared(v: Shared) {
 #[no_mangle]
 pub unsafe extern "C" fn communicate(state: &mut Tcp, msg: *mut c_char) {
     let msg = CStr::from_ptr(msg);
-    std::mem::forget(msg);
 
     match msg.to_str() {
         Ok(value) => {

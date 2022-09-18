@@ -17,18 +17,16 @@ int main() {
   TcpServer server = TcpServer();
   cout << "Started!!" << endl;
 
-  string r, b;
+  string r;
   stringstream a;
   while (true) {
     r = server.recv();
     a.str(string());
-    sleep(5);
     a << "Hola desde C++ " << r << endl;
-    b = a.str();
     if (r == "exit") {
       continue;
     }
-    server.send(b);
+    server.send(a.str());
     cout << "Received \"" << r << "\"" << endl;
     if (r == "finish")
       break;

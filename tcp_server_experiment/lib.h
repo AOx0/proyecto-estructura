@@ -38,21 +38,18 @@ public:
     string result;
     Shared rec = receive(server);
 
-    if (rec.null == true) {
-      result = (string)NULL;
-    } else if (rec.typ != 1) {
+    if (rec.null || rec.typ != 1) {
       result = (string)NULL;
     } else {
-      string value = (char *)rec.value;
-      result = value;
+      result = (char *)rec.value;
     }
 
     drop_shared(rec);
     return result;
   }
 
-  void send(string msg) {
-    char *m = (char *)msg.c_str();
+  void send(const string& msg) {
+    char * m = (char *)msg.c_str();
     communicate(server, m);
   }
 };
