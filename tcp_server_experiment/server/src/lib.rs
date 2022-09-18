@@ -37,7 +37,11 @@ impl TcpServer {
         Token(next)
     }
 
-    pub fn new(cont: Receiver<String>, msg: Sender<String>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
+    pub fn new(
+        cont: Receiver<String>,
+        msg: Sender<String>,
+        still_alive: Arc<Mutex<bool>>,
+    ) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
                 .expect("Failed to init listener"),
@@ -48,7 +52,7 @@ impl TcpServer {
             unique_token: Token(SERVER.0 + 1),
             still_alive,
             cont,
-            msg
+            msg,
         };
 
         result
@@ -108,7 +112,7 @@ impl TcpServer {
                                 event,
                                 response_handler,
                                 &mut self.cont,
-                                &mut self.msg
+                                &mut self.msg,
                             )
                             .unwrap()
                         } else {
@@ -171,12 +175,11 @@ impl TcpServer {
                         rx.send(str_buf.trim().to_owned()).unwrap();
 
                         // Receive response from c++ runtime
-                        let response = cx.recv().unwrap_or_else(|_| { " ".to_owned() });
-                        
+                        let response = cx.recv().unwrap_or_else(|_| " ".to_owned());
+
                         // Set response to queue
                         *data = response;
-                        
-                        
+
                         // Register writable eevent to send response
                         registry.reregister(connection, event.token(), Interest::WRITABLE)?;
                     }
@@ -239,9 +242,8 @@ pub use ffi::*;
 pub unsafe fn communicate(state: &mut Tcp, msg: String) {
     let sender = { Box::from_raw(state.continue_signal as *mut Sender<String>) };
     sender.send(msg).unwrap();
-    state.continue_signal =  Box::into_raw(sender) as *mut u8;
+    state.continue_signal = Box::into_raw(sender) as *mut u8;
 }
-
 
 pub unsafe fn receive(state: &mut Tcp) -> String {
     let x = Box::from_raw(state.recv_signal as *mut Receiver<String>);
@@ -259,7 +261,7 @@ pub fn start() -> Tcp {
     let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
     let rx2 = Box::new(rx2);
     let rx2 = Box::into_raw(rx2);
-    
+
     let runtime = Box::new(spawn({
         let still = Arc::clone(&still_alive);
         || {
@@ -285,12 +287,12 @@ pub unsafe fn stop(state: Tcp) {
     *still_alive.lock().unwrap() = false;
 
     let runtime = Box::from_raw(state.runtime as *mut JoinHandle<()>);
-   
+
     // Drop channels
     {
         Box::from_raw(state.recv_signal);
         Box::from_raw(state.continue_signal);
     }
-    
+
     runtime.join().unwrap();
 }
