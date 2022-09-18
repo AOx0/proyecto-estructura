@@ -17,6 +17,7 @@ pub struct TcpServer {
     response: HashMap<Token, String>,
     unique_token: Token,
     cont: Receiver<CString>,
+    msg: Sender<CString>,
     still_alive: Arc<Mutex<bool>>,
 }
 
@@ -37,7 +38,7 @@ impl TcpServer {
         Token(next)
     }
 
-    pub fn new(cont: Receiver<CString>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
+    pub fn new(cont: Receiver<CString>, msg: Sender<CString>, still_alive: Arc<Mutex<bool>>) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
                 .expect("Failed to init listener"),
@@ -48,6 +49,7 @@ impl TcpServer {
             unique_token: Token(SERVER.0 + 1),
             still_alive,
             cont,
+            msg
         };
 
         result
@@ -107,6 +109,7 @@ impl TcpServer {
                                 event,
                                 response_handler,
                                 &mut self.cont,
+                                &mut self.msg
                             )
                             .unwrap()
                         } else {
@@ -129,6 +132,7 @@ impl TcpServer {
         event: &Event,
         data: &mut String,
         cx: &mut Receiver<CString>,
+        rx: &mut Sender<CString>,
     ) -> std::io::Result<bool> {
         println!("{:?}", event);
 
@@ -161,10 +165,19 @@ impl TcpServer {
                     println!("Received data: {}", str_buf.trim_end());
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
+                        // Send received data from tcp stream to c++
+                        event.send(CString::new(str_buf.trim()).unwrap()).unwrap();
                     } else {
-                        //TODO: Inyectar la espera de señal de completado con el proceso desde C++
+                        // Send received data from tcp stream to c++
+                        rx.send(CString::new(str_buf.trim()).unwrap()).unwrap();
+
+                        // Receive response from c++ runtime
                         let response = cx.recv().unwrap_or_else(|_| { CString::new(" ").unwrap() });
+                        
+                        // Set response to queue
                         *data = response.into_string().unwrap();
+                        
+                        // Register writable eevent to send response
                         registry.reregister(connection, event.token(), Interest::WRITABLE)?;
                     }
                 } else {
@@ -186,7 +199,7 @@ impl TcpServer {
                 Err(ref err) if Self::would_block(err) => {}
 
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(registry, connection, event, data, cx)
+                    return Self::handle_connection_event(registry, connection, event, data, cx, rx)
                 }
 
                 Err(err) => return Err(err),
@@ -205,13 +218,16 @@ mod ffi {
     pub struct Tcp {
         /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
         pub runtime: *mut u8,
-        /// Apuntador a el sender de continuar
+        /// Apuntador a el sender de continuar con el mensaje de respuesta
         pub continue_signal: *mut u8,
+        /// Apuntador a el receiver de continuar con el mensaje recibido
+        pub recv_signal: *mut u8,
         /// Apuntador a mutex que indica si el proceso sigue vivo
         pub stay_alive: *mut u8,
     }
 
     extern "Rust" {
+        pub unsafe fn receive(state: &mut Tcp) -> *mut u8;
         pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8);
         fn start() -> Tcp;
         fn stop(state: Tcp);
@@ -222,9 +238,32 @@ mod ffi {
 pub use ffi::*;
 
 pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8) {
+    println!("        Com 1");
     let msg = { CString::from_raw(msg as *mut i8) };
+    println!("        Com 2");
     let sender = { Box::from_raw(state.continue_signal as *mut Sender<CString>) };
-    sender.send(msg).expect("TODO: panic message");
+    println!("        Com 3 {:?}", msg);
+    sender.send(msg.to_owned()).unwrap();
+    println!("        Com 4");
+    let sender = Box::into_raw(sender);
+    println!("        Com 5");
+    state.continue_signal = sender as *mut u8;
+    std::mem::forget(msg);
+}
+
+
+pub unsafe fn receive(state: &mut Tcp) -> *mut u8 {
+    println!("    Aaa...");
+    let x = Box::from_raw(state.recv_signal as *mut Receiver<CString>);
+    let msg = x.recv().unwrap_or(CString::new("NULL").unwrap()).clone();
+    let x = Box::into_raw(x);
+    state.recv_signal = x as *mut u8;
+    println!("    Aaa 1...");
+    let msg = Box::new(msg);
+    println!("    Aaa 2...");
+    let msg = Box::leak(msg);
+    println!("    Aaa 3...");
+    msg.as_ptr() as *mut u8
 }
 
 pub fn start() -> Tcp {
@@ -233,10 +272,14 @@ pub fn start() -> Tcp {
     let cx = Box::new(cx);
     let cx = Box::into_raw(cx);
 
+    let (cx2, rx2): (Sender<CString>, Receiver<CString>) = channel();
+    let rx2 = Box::new(rx2);
+    let rx2 = Box::into_raw(rx2);
+    
     let runtime = Box::new(spawn({
         let still = Arc::clone(&still_alive);
         || {
-            let mut server = TcpServer::new(rx, still);
+            let mut server = TcpServer::new(rx, cx2, still);
             server.run_server();
         }
     }));
@@ -248,6 +291,7 @@ pub fn start() -> Tcp {
     Tcp {
         runtime: runtime as *mut u8,
         continue_signal: cx as *mut u8,
+        recv_signal: rx2 as *mut u8,
         stay_alive: still_alive as *mut u8,
     }
 }
