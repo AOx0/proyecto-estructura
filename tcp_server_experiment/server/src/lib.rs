@@ -83,7 +83,7 @@ impl TcpServer {
                             }
                         };
 
-                        println!("Accepted connection from: {}", address);
+                        //println!("Accepted connection from: {}", address);
 
                         let token = Self::next(&mut self.unique_token);
                         self.poll
@@ -134,7 +134,7 @@ impl TcpServer {
         cx: &mut Receiver<CString>,
         rx: &mut Sender<CString>,
     ) -> std::io::Result<bool> {
-        println!("{:?}", event);
+        //println!("{:?}", event);
 
         if event.is_readable() {
             let mut connection_closed = false;
@@ -166,7 +166,7 @@ impl TcpServer {
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
                         // Send received data from tcp stream to c++
-                        event.send(CString::new(str_buf.trim()).unwrap()).unwrap();
+                        rx.send(CString::new(str_buf.trim()).unwrap()).unwrap();
                     } else {
                         // Send received data from tcp stream to c++
                         rx.send(CString::new(str_buf.trim()).unwrap()).unwrap();
@@ -181,12 +181,12 @@ impl TcpServer {
                         registry.reregister(connection, event.token(), Interest::WRITABLE)?;
                     }
                 } else {
-                    println!("Received (none UTF-8) data: {:?}", received_data);
+                    //println!("Received (none UTF-8) data: {:?}", received_data);
                 }
             }
 
             if connection_closed {
-                println!("Connection closed");
+                //println!("Connection closed");
                 return Ok(true);
             }
         }
@@ -238,31 +238,22 @@ mod ffi {
 pub use ffi::*;
 
 pub unsafe fn communicate(state: &mut Tcp, msg: *mut u8) {
-    println!("        Com 1");
     let msg = { CString::from_raw(msg as *mut i8) };
-    println!("        Com 2");
     let sender = { Box::from_raw(state.continue_signal as *mut Sender<CString>) };
-    println!("        Com 3 {:?}", msg);
     sender.send(msg.to_owned()).unwrap();
-    println!("        Com 4");
     let sender = Box::into_raw(sender);
-    println!("        Com 5");
     state.continue_signal = sender as *mut u8;
     std::mem::forget(msg);
 }
 
 
 pub unsafe fn receive(state: &mut Tcp) -> *mut u8 {
-    println!("    Aaa...");
     let x = Box::from_raw(state.recv_signal as *mut Receiver<CString>);
     let msg = x.recv().unwrap_or(CString::new("NULL").unwrap()).clone();
     let x = Box::into_raw(x);
     state.recv_signal = x as *mut u8;
-    println!("    Aaa 1...");
     let msg = Box::new(msg);
-    println!("    Aaa 2...");
     let msg = Box::leak(msg);
-    println!("    Aaa 3...");
     msg.as_ptr() as *mut u8
 }
 
