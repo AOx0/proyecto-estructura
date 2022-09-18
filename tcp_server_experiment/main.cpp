@@ -1,22 +1,21 @@
+#include "server/target/cxxbridge/rust/cxx.h"
+#include "server/target/cxxbridge/server/src/lib.rs.h"
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <thread>
 #include <vector>
-#include <cstring>
-#include "server/target/cxxbridge/server/src/lib.rs.h"
-#include "server/target/cxxbridge/rust/cxx.h"
 
 using namespace std;
 
 struct TcpServer {
 protected:
   Tcp server;
+
 public:
   TcpServer() : server(start()) {}
-  ~TcpServer() {
-    stop(server);
-  }
+  ~TcpServer() { stop(server); }
   string recv() {
     rust::String rec = receive(server);
     string res(rec);
@@ -29,14 +28,13 @@ public:
   }
 };
 
-
 int main() {
   string in;
 
   cout << "Starting server..." << endl;
   TcpServer server = TcpServer();
   cout << "Started!!" << endl;
-  
+
   string r, b;
   stringstream a;
   while (true) {
@@ -49,7 +47,8 @@ int main() {
     }
     server.send(b);
     cout << "Received \"" << r << "\"" << endl;
-    if (r == "finish") break;
+    if (r == "finish")
+      break;
   }
 
   return 0;
