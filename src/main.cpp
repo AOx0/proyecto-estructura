@@ -20,42 +20,6 @@ Result<int, string> try_range(int from, int to) {
   }
 }
 
-
-
-template<typename K, typename V>
-struct KeyVal {
-  K key;
-  V value;
-};
-
-template<typename K, typename V>
-struct Dict {
-  vector<KeyVal<K, V>> items;
-};
-
-struct Index {
-  vector<KeyVal<string, string>> index_table;
-
-  Index() : index_table(vector<KeyVal<string, string>>()) {}
-};
-
-struct Table {
-  Index index;
-  vector<KeyVal<string, size_t>> signature;
-  Table() : index(Index()) {}
-};
-
-class DB {
-protected:
-  vector<Table> tables;
-public:
-  DB() : tables(vector<Table>()) {};
-
-  void create_table(const string & name, const string & pk) {
-
-  }
-};
-
 int main() {
   DB db = DB();
 
