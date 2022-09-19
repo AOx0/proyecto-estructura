@@ -8,35 +8,36 @@
 using namespace std;
 
 void backgroundTask() {
-    cout << "Procesando..." << endl;
-    this_thread::sleep_for(chrono::seconds(1));
+  cout << "Procesando..." << endl;
+  this_thread::sleep_for(chrono::seconds(1));
 }
 
 int main() {
-    string in;
+  string in;
 
-    TcpServer server = TcpServer();
-    std::vector<std::thread> threads;
+  TcpServer server = TcpServer();
+  std::vector<std::thread> threads;
 
-    string r;
-    stringstream a;
-    while (true) {
-        r = server.recv();
+  string r;
+  stringstream a;
+  while (true) {
+    r = server.recv();
 
-        a.str(string());
-        a << "Hola desde C++ " << r << endl;
+    a.str(string());
+    a << "Hola desde C++ " << r << endl;
 
-        threads.emplace_back(backgroundTask);
+    threads.emplace_back(backgroundTask);
 
-        if (r == "exit")
-            continue;
+    if (r == "exit")
+      continue;
 
-        server.send(a.str());
-        if (r == "finish")
-            break;
-    }
+    server.send(a.str());
+    if (r == "finish")
+      break;
+  }
 
-    for (thread & t: threads) t.join();
+  for (thread &t : threads)
+    t.join();
 
-    return 0;
+  return 0;
 }
