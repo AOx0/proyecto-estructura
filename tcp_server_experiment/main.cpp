@@ -36,7 +36,8 @@ int main() {
       break;
   }
 
-  for (thread & t: threads) t.join();
+  for (thread &t : threads)
+    t.join();
 
   return 0;
 }
