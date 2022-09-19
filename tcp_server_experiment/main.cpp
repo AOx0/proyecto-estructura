@@ -1,9 +1,6 @@
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 #include "lib.h"
@@ -27,7 +24,6 @@ int main() {
       continue;
     }
     server.send(a.str());
-    cout << "Received \"" << r << "\"" << endl;
     if (r == "finish")
       break;
   }

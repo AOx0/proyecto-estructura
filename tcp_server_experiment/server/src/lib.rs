@@ -169,21 +169,20 @@ impl TcpServer {
                 let received_data = &received_data[..bytes_read];
                 if let Ok(str_buf) = from_utf8(received_data) {
                     //println!("Received data: {}", str_buf.trim_end());
+
+                    // Send received data from tcp stream to c++
+                    rx.send(str_buf.trim().to_owned()).unwrap();
+
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
-                        // Send received data from tcp stream to c++
-                        rx.send(str_buf.trim().to_owned()).unwrap();
                     } else {
-                        // Send received data from tcp stream to c++
-                        rx.send(str_buf.trim().to_owned()).unwrap();
-
                         // Receive response from c++ runtime
                         let response = cx.recv().unwrap_or_else(|_| " ".to_owned());
 
                         // Set response to queue
                         *data = response;
 
-                        // Register writable eevent to send response
+                        // Register writable event to send response
                         registry.reregister(connection, event.token(), Interest::WRITABLE)?;
                     }
                 } else {
