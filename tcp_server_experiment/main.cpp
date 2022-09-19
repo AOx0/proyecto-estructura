@@ -7,26 +7,36 @@
 
 using namespace std;
 
+void backgroundTask() {
+  cout << "Procesando..." << endl;
+  this_thread::sleep_for(chrono::seconds(1));
+}
+
 int main() {
   string in;
 
-  cout << "Starting server..." << endl;
   TcpServer server = TcpServer();
-  cout << "Started!!" << endl;
+  std::vector<std::thread> threads;
 
   string r;
   stringstream a;
   while (true) {
     r = server.recv();
+
     a.str(string());
     a << "Hola desde C++ " << r << endl;
-    if (r == "exit") {
+
+    threads.emplace_back(backgroundTask);
+
+    if (r == "exit")
       continue;
-    }
+
     server.send(a.str());
     if (r == "finish")
       break;
   }
+
+  for (thread & t: threads) t.join();
 
   return 0;
 }
