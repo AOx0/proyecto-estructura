@@ -9,10 +9,8 @@ using namespace std;
 
 int main() {
   string in;
-
-  cout << "Starting server..." << endl;
+  
   TcpServer server = TcpServer();
-  cout << "Started!!" << endl;
 
   string r;
   stringstream a;
