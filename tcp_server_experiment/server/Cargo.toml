@@ -8,11 +8,7 @@ edition = "2021"
 [lib]
 name = "server"
 path = "src/lib.rs"
-crate-type = ["staticlib", "rlib", "cdylib"]
-
-[[bin]]
-name = "server_test"
-path = "src/main.rs"
+crate-type = ["staticlib"]
 
 [dependencies]
 mio = { version = "0.8.4", features = ["net", "os-poll"] }
