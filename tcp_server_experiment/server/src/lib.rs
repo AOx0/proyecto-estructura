@@ -372,15 +372,20 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
 #[no_mangle]
 pub extern "C" fn start() -> Tcp {
+    // Creamos el mutex que mantiene corriendo el servidor
     let still_alive = Arc::new(Mutex::new(true));
 
+    // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
     let rx2 = Box::into_raw(Box::new(rx2));
 
+    // Creamos el diccionario de estado para las conexiones establecidas
     let channels = Arc::new(Mutex::new(HashMap::new()));
 
+    // Creamos la cola de espera de mensajes
     let queue = Arc::new(Mutex::new(Vec::new()));
 
+    // Spawn del server
     let runtime = Box::into_raw(Box::new(spawn({
         let channels = Arc::clone(&channels);
         let queue = Arc::clone(&queue);
@@ -388,6 +393,9 @@ pub extern "C" fn start() -> Tcp {
         || {
             let mut server = TcpServer::new(cx2, still, channels, queue);
             server.run_server();
+            for t in server.threads {
+                t.join().unwrap();
+            }
         }
     })));
 
