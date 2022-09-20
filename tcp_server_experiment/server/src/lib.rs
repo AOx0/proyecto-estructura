@@ -28,8 +28,8 @@ pub struct TcpServer {
     poll: Arc<Mutex<Poll>>,
     events: Events,
     channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
+    queue: Arc<Mutex<Vec<u8>>>,
     unique_token: Token,
-    c_response_receiver: Receiver<String>,
     query_sender: Sender<String>,
     keep_running: Arc<Mutex<bool>>,
     threads: Vec<JoinHandle<()>>,
@@ -54,10 +54,10 @@ impl TcpServer {
     }
 
     pub fn new(
-        cont: Receiver<String>,
         msg: Sender<String>,
         still_alive: Arc<Mutex<bool>>,
-        channels: Arc<Mutex<HashMap<Token, ConnectionState>>>
+        channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
+        queue: Arc<Mutex<Vec<u8>>>
     ) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
@@ -65,9 +65,9 @@ impl TcpServer {
             poll: Arc::new(Mutex::new(Poll::new().expect("Failed to init poll"))),
             events: Events::with_capacity(1024),
             channels,
+            queue,
             unique_token: Token(SERVER.0 + 1),
             keep_running: still_alive,
-            c_response_receiver: cont,
             query_sender: msg,
             threads: vec![],
         };
@@ -140,9 +140,9 @@ impl TcpServer {
                                 Arc::clone(&self.poll),
                                 state,
                                 event,
-                                &mut self.c_response_receiver,
                                 &mut self.query_sender,
-                                &mut self.threads
+                                &mut self.threads,
+                                Arc::clone(&self.queue)
                             )
                             .unwrap()
                         } else {
@@ -163,9 +163,9 @@ impl TcpServer {
         poll: Arc<Mutex<Poll>>,
         connection: &mut ConnectionState,
         event: &Event,
-        cx: &mut Receiver<String>,
         rx: &mut Sender<String>,
-        threads: &mut Vec<JoinHandle<()>>
+        threads: &mut Vec<JoinHandle<()>>,
+        queue: Arc<Mutex<Vec<u8>>>
     ) -> std::io::Result<bool> {
         //println!("{:?}", event);
 
@@ -246,7 +246,7 @@ impl TcpServer {
                 Err(ref err) if Self::would_block(err) => {}
 
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(poll, connection, event, cx, rx, threads)
+                    return Self::handle_connection_event(poll, connection, event, rx, threads, queue)
                 }
 
                 Err(err) => return Err(err),
@@ -263,14 +263,14 @@ impl TcpServer {
 pub struct Tcp {
     /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
     pub runtime: *mut u8,
-    /// Apuntador a el sender de continuar con el mensaje de respuesta
-    pub continue_signal: *mut u8,
     /// Apuntador a el receiver de continuar con el mensaje recibido
     pub recv_signal: *mut u8,
     /// Apuntador a mutex que indica si el proceso sigue vivo
     pub stay_alive: *mut u8,
     /// Apuntador al diccionario de estado de canales
-    pub channels: *mut u8
+    pub channels: *mut u8,
+    /// Apuntador a una cola de Token por escuchar
+    pub queue: *mut u8
 }
 
 #[repr(C)]
@@ -373,32 +373,34 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 #[no_mangle]
 pub extern "C" fn start() -> Tcp {
     let still_alive = Arc::new(Mutex::new(true));
-    let (cx, rx): (Sender<String>, Receiver<String>) = channel();
-    let cx = Box::into_raw(Box::new(cx));
 
     let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
     let rx2 = Box::into_raw(Box::new(rx2));
 
     let channels = Arc::new(Mutex::new(HashMap::new()));
 
+    let queue = Arc::new(Mutex::new(Vec::new()));
+
     let runtime = Box::into_raw(Box::new(spawn({
         let channels = Arc::clone(&channels);
+        let queue = Arc::clone(&queue);
         let still = Arc::clone(&still_alive);
         || {
-            let mut server = TcpServer::new(rx, cx2, still, channels);
+            let mut server = TcpServer::new(cx2, still, channels, queue);
             server.run_server();
         }
     })));
 
     let still_alive = Box::into_raw(Box::new(still_alive));
     let channels = Box::into_raw(Box::new(channels));
+    let queue = Box::into_raw(Box::new(queue));
 
     Tcp {
         runtime: runtime as *mut u8,
-        continue_signal: cx as *mut u8,
         recv_signal: rx2 as *mut u8,
         stay_alive: still_alive as *mut u8,
-        channels: channels as *mut u8
+        channels: channels as *mut u8,
+        queue: queue as *mut u8
     }
 }
 
