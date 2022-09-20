@@ -12,21 +12,21 @@ int main() {
   
   TcpServer server = TcpServer();
 
-  string r;
+  Shared result;
   stringstream a;
   while (true) {
-    r = server.recv();
+    result = server.recv();
+    result.get_msg()
 
-    {
-      a.str(string());
-      a << "Hola desde C++ " << r << endl;
-      if (r == "exit") {
-        continue;
-      }
-      server.send(a.str());
-      if (r == "finish")
-        break;
+    a.str(string());
+    a << "Hola desde C++ " << result << endl;
+    if (result == "exit") {
+      continue;
     }
+    server.send(a.str());
+    if (result == "finish")
+      break;
+
   }
 
   return 0;

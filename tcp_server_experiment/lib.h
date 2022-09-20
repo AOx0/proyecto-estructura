@@ -7,6 +7,18 @@ struct Shared {
   uint8_t *value;
   uint8_t typ;
   bool null;
+
+  string get_msg() {
+    string result;
+
+    if (null || typ != 1) {
+      result = (string)NULL;
+    } else {
+      result = (char *)value;
+    }
+
+    return result;
+  }
 };
 
 struct Tcp {
@@ -16,9 +28,7 @@ struct Tcp {
   uint8_t *stay_alive;
 };
 
-extern "C" void drop_shared(Shared);
-
-extern "C" void communicate(Tcp &, char *);
+extern "C" void communicate(Tcp &, Shared s, char *);
 
 extern "C" Shared receive(Tcp &);
 
@@ -34,22 +44,12 @@ public:
   TcpServer() : server(start()) {}
   ~TcpServer() { stop(server); }
 
-  string recv() {
-    string result;
-    Shared rec = receive(server);
-
-    if (rec.null || rec.typ != 1) {
-      result = (string)NULL;
-    } else {
-      result = (char *)rec.value;
-    }
-
-    drop_shared(rec);
-    return result;
+  Shared recv() {
+    return receive(server);
   }
 
-  void send(const string &msg) {
+  void send(Shared s, const string &msg) {
     char *m = (char *)msg.c_str();
-    communicate(server, m);
+    communicate(server, s, m);
   }
 };

@@ -195,6 +195,9 @@ impl TcpServer {
                     // Send received data notification from tcp stream to c++
                     rx.send(event.token().0).unwrap();
 
+                    // Send message from private channel
+                    connection.rs_sender.lock().unwrap().send(str_buf.trim_end().to_owned()).unwrap();
+
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
                     } else {
@@ -310,6 +313,8 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: Shared, msg: *mut 
             )
         }
     }
+
+
 }
 
 ///# Safety
