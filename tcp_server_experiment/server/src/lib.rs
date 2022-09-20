@@ -27,7 +27,7 @@ pub struct TcpServer {
     listener: TcpListener,
     poll: Arc<Mutex<Poll>>,
     events: Events,
-    channels: HashMap<Token, ConnectionState>,
+    channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
     unique_token: Token,
     c_response_receiver: Receiver<String>,
     query_sender: Sender<String>,
@@ -36,6 +36,7 @@ pub struct TcpServer {
 }
 
 static SERVER: Token = Token(0);
+
 
 impl TcpServer {
     fn would_block(err: &std::io::Error) -> bool {
@@ -56,13 +57,14 @@ impl TcpServer {
         cont: Receiver<String>,
         msg: Sender<String>,
         still_alive: Arc<Mutex<bool>>,
+        channels: Arc<Mutex<HashMap<Token, ConnectionState>>>
     ) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
                 .expect("Failed to init listener"),
             poll: Arc::new(Mutex::new(Poll::new().expect("Failed to init poll"))),
             events: Events::with_capacity(1024),
-            channels: HashMap::new(),
+            channels,
             unique_token: Token(SERVER.0 + 1),
             keep_running: still_alive,
             c_response_receiver: cont,
@@ -121,7 +123,7 @@ impl TcpServer {
                         let (c_sender, rs_receiver) = channel();
                         let (rs_sender, c_receiver) = channel();
 
-                        self.channels.insert(token, ConnectionState {
+                        self.channels.lock().unwrap().insert(token, ConnectionState {
                             stream: Arc::new(Mutex::new(connection)),
                             response: Arc::new(Mutex::new("".to_string())),
                             c_sender: Arc::new(Mutex::new(c_sender)),
@@ -132,7 +134,7 @@ impl TcpServer {
                     },
                     token => {
                         // Manejo de posible mensaje desde una conexión activa de TCP
-                        let done = if let Some(state) = self.channels.get_mut(&token) {
+                        let done = if let Some(state) = self.channels.lock().unwrap().get_mut(&token) {
                             // Manejamos cualquiera que sea el mensaje recibido.
                             Self::handle_connection_event(
                                 Arc::clone(&self.poll),
@@ -147,7 +149,7 @@ impl TcpServer {
                             false
                         };
                         if done {
-                            if let Some(ConnectionState { stream: connection, .. }) = self.channels.remove(&token) {
+                            if let Some(ConnectionState { stream: connection, .. }) = self.channels.lock().unwrap().remove(&token) {
                                 self.poll.lock().unwrap().registry().deregister(&mut *connection.lock().unwrap()).unwrap();
                             }
                         }
@@ -267,6 +269,8 @@ pub struct Tcp {
     pub recv_signal: *mut u8,
     /// Apuntador a mutex que indica si el proceso sigue vivo
     pub stay_alive: *mut u8,
+    /// Apuntador al diccionario de estado de canales
+    pub channels: *mut u8
 }
 
 #[repr(C)]
@@ -375,21 +379,26 @@ pub extern "C" fn start() -> Tcp {
     let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
     let rx2 = Box::into_raw(Box::new(rx2));
 
+    let channels = Arc::new(Mutex::new(HashMap::new()));
+
     let runtime = Box::into_raw(Box::new(spawn({
+        let channels = Arc::clone(&channels);
         let still = Arc::clone(&still_alive);
         || {
-            let mut server = TcpServer::new(rx, cx2, still);
+            let mut server = TcpServer::new(rx, cx2, still, channels);
             server.run_server();
         }
     })));
 
     let still_alive = Box::into_raw(Box::new(still_alive));
+    let channels = Box::into_raw(Box::new(channels));
 
     Tcp {
         runtime: runtime as *mut u8,
         continue_signal: cx as *mut u8,
         recv_signal: rx2 as *mut u8,
         stay_alive: still_alive as *mut u8,
+        channels: channels as *mut u8
     }
 }
 
