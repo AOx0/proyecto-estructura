@@ -287,9 +287,14 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: Shared, msg: *mut 
     match msg.to_str() {
         Ok(value) => {
             let channels = { Box::from_raw(state.channels as *mut Arc<Mutex<HashMap<Token, ConnectionState>>>) };
-            let channel = channels.lock().unwrap().get_mut(&Token(shared.token)).unwrap().c_sender.lock().unwrap();
 
-            match channel.send(value.to_owned()) {
+            let result = {
+                let mut channel = channels.lock().unwrap();
+                let channel = channel.get_mut(&Token(shared.token)).unwrap().c_sender.lock().unwrap();
+                channel.send(value.to_owned())
+            };
+
+            match result {
                 Ok(_) => {
                     state.channels = Box::into_raw(channels) as *mut u8;
                 }
@@ -311,16 +316,23 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: Shared, msg: *mut 
 ///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
-    let x = Box::from_raw(state.recv_signal as *mut Receiver<usize>);
+    let receiver = Box::from_raw(state.recv_signal as *mut Receiver<usize>);
+    let result = receiver.recv();
 
-    match x.recv() {
+    state.recv_signal = Box::into_raw(receiver) as *mut u8;
+
+    match result {
         Ok(value) => {
             let channels = { Box::from_raw(state.channels as *mut Arc<Mutex<HashMap<Token, ConnectionState>>>) };
-            let channel = channels.lock().unwrap().get_mut(&Token(value)).unwrap().c_receiver.lock().unwrap();
-            state.recv_signal = Box::into_raw(x) as *mut u8;
+
+            let result = {
+                let mut channel = channels.lock().unwrap();
+                let channel = channel.get_mut(&Token(value)).unwrap().c_receiver.lock().unwrap();
+                channel.recv()
+            };
 
             let x = value;
-            match channel.recv() {
+            match result {
                 Ok(value) => {
                     match CString::new(value) {
                         Ok(value) => {
@@ -357,7 +369,6 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
         }
         Err(err) => {
-            state.recv_signal = Box::into_raw(x) as *mut u8;
             println!(
                 "Something bad happened while reading rust channel token: {:?}",
                 err
@@ -428,7 +439,7 @@ pub extern "C" fn stop(state: Tcp) {
             println!("Failed to join Rust Runtime: {:?}", err)
         }
     }
-m
+
     // Drop channels
     unsafe {
         Box::from_raw(state.recv_signal as *mut Receiver<String>);
