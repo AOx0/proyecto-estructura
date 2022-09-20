@@ -3,6 +3,7 @@ use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::io::{Read, Write};
+use std::mem::swap;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::str::from_utf8;
@@ -11,16 +12,25 @@ use std::sync::{Arc, Mutex};
 use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
+pub struct ConnectionState {
+    stream: TcpStream,
+    response: String,
+    c_sender: Sender<String>,
+    c_receiver: Receiver<String>,
+    rs_sender: Sender<String>,
+    rs_receiver: Receiver<String>
+}
+
 pub struct TcpServer {
     listener: TcpListener,
     poll: Poll,
     events: Events,
-    connections: HashMap<Token, TcpStream>,
-    response: HashMap<Token, String>,
+    channels: HashMap<Token, ConnectionState>,
     unique_token: Token,
-    cont: Receiver<String>,
-    msg: Sender<String>,
-    still_alive: Arc<Mutex<bool>>,
+    c_response_receiver: Receiver<String>,
+    query_sender: Sender<String>,
+    keep_running: Arc<Mutex<bool>>,
+    threads: Vec<JoinHandle<()>>
 }
 
 static SERVER: Token = Token(0);
@@ -50,12 +60,12 @@ impl TcpServer {
                 .expect("Failed to init listener"),
             poll: Poll::new().expect("Failed to init poll"),
             events: Events::with_capacity(128),
-            connections: HashMap::new(),
-            response: HashMap::new(),
+            channels: HashMap::new(),
             unique_token: Token(SERVER.0 + 1),
-            still_alive,
-            cont,
-            msg,
+            keep_running: still_alive,
+            c_response_receiver: cont,
+            query_sender: msg,
+            threads: vec![]
         };
 
         result
@@ -71,7 +81,7 @@ impl TcpServer {
     }
 
     pub fn run_server(&mut self) {
-        while *self.still_alive.lock().unwrap() {
+        while *self.keep_running.lock().unwrap() {
             self.poll
                 .poll(&mut self.events, Some(Duration::from_secs_f32(5.0)))
                 .unwrap();
@@ -101,28 +111,35 @@ impl TcpServer {
                             )
                             .unwrap();
 
-                        self.connections.insert(token, connection);
+                        let (c_sender, rs_receiver) = channel();
+                        let (rs_sender, c_receiver) = channel();
+
+                        self.channels.insert(token, ConnectionState {
+                            stream: connection,
+                            response: "".to_string(),
+                            c_sender,
+                            c_receiver,
+                            rs_sender,
+                            rs_receiver
+                        });
                     },
                     token => {
                         // Manejo de posible mensaje desde una conexión activa de TCP
-                        let done = if let Some(connection) = self.connections.get_mut(&token) {
-                            let response_handler =
-                                self.response.entry(token).or_insert_with(|| "".to_owned());
+                        let done = if let Some(state) = self.channels.get_mut(&token) {
                             // Manejamos cualquiera que sea el mensaje recibido.
                             Self::handle_connection_event(
+                                state,
                                 self.poll.registry(),
-                                connection,
                                 event,
-                                response_handler,
-                                &mut self.cont,
-                                &mut self.msg,
+                                &mut self.c_response_receiver,
+                                &mut self.query_sender,
                             )
                             .unwrap()
                         } else {
                             false
                         };
                         if done {
-                            if let Some(mut connection) = self.connections.remove(&token) {
+                            if let Some(ConnectionState { stream: mut connection, .. }) = self.channels.remove(&token) {
                                 self.poll.registry().deregister(&mut connection).unwrap();
                             }
                         }
@@ -133,10 +150,9 @@ impl TcpServer {
     }
 
     fn handle_connection_event(
+        connection: &mut ConnectionState,
         registry: &Registry,
-        connection: &mut TcpStream,
         event: &Event,
-        data: &mut String,
         cx: &mut Receiver<String>,
         rx: &mut Sender<String>,
     ) -> std::io::Result<bool> {
@@ -148,7 +164,7 @@ impl TcpServer {
             let mut bytes_read = 0;
 
             loop {
-                match connection.read(&mut received_data[bytes_read..]) {
+                match connection.stream.read(&mut received_data[bytes_read..]) {
                     Ok(0) => {
                         connection_closed = true;
                         break;
@@ -179,11 +195,10 @@ impl TcpServer {
                         // Receive response from c++ runtime
                         let response = cx.recv().unwrap_or_else(|_| " ".to_owned());
 
-                        // Set response to queue
-                        *data = response;
+                        connection.response = response;
 
                         // Register writable event to send response
-                        registry.reregister(connection, event.token(), Interest::WRITABLE)?;
+                        registry.reregister(&mut connection.stream, event.token(), Interest::WRITABLE)?;
                     }
                 } else {
                     //println!("Received (none UTF-8) data: {:?}", received_data);
@@ -197,14 +212,17 @@ impl TcpServer {
         }
 
         if event.is_writable() {
-            match connection.write(data.as_bytes()) {
+            let mut data = String::new();
+            swap(&mut connection.response, &mut data);
+
+            match connection.stream.write(data.as_bytes()) {
                 Ok(n) if n < data.len() => return Err(std::io::ErrorKind::WriteZero.into()),
-                Ok(_) => registry.reregister(connection, event.token(), Interest::READABLE)?,
+                Ok(_) => registry.reregister(&mut connection.stream, event.token(), Interest::READABLE)?,
 
                 Err(ref err) if Self::would_block(err) => {}
 
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(registry, connection, event, data, cx, rx)
+                    return Self::handle_connection_event(connection, registry, event, cx, rx)
                 }
 
                 Err(err) => return Err(err),

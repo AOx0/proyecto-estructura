@@ -16,14 +16,17 @@ int main() {
   stringstream a;
   while (true) {
     r = server.recv();
-    a.str(string());
-    a << "Hola desde C++ " << r << endl;
-    if (r == "exit") {
-      continue;
+
+    {
+      a.str(string());
+      a << "Hola desde C++ " << r << endl;
+      if (r == "exit") {
+        continue;
+      }
+      server.send(a.str());
+      if (r == "finish")
+        break;
     }
-    server.send(a.str());
-    if (r == "finish")
-      break;
   }
 
   return 0;
