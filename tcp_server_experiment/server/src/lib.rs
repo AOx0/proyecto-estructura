@@ -28,9 +28,8 @@ pub struct TcpServer {
     poll: Arc<Mutex<Poll>>,
     events: Events,
     channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
-    queue: Arc<Mutex<Vec<u8>>>,
     unique_token: Token,
-    query_sender: Sender<String>,
+    query_sender: Sender<usize>,
     keep_running: Arc<Mutex<bool>>,
     threads: Vec<JoinHandle<()>>,
 }
@@ -54,10 +53,9 @@ impl TcpServer {
     }
 
     pub fn new(
-        msg: Sender<String>,
+        msg: Sender<usize>,
         still_alive: Arc<Mutex<bool>>,
         channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
-        queue: Arc<Mutex<Vec<u8>>>
     ) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
@@ -65,7 +63,6 @@ impl TcpServer {
             poll: Arc::new(Mutex::new(Poll::new().expect("Failed to init poll"))),
             events: Events::with_capacity(1024),
             channels,
-            queue,
             unique_token: Token(SERVER.0 + 1),
             keep_running: still_alive,
             query_sender: msg,
@@ -142,7 +139,6 @@ impl TcpServer {
                                 event,
                                 &mut self.query_sender,
                                 &mut self.threads,
-                                Arc::clone(&self.queue)
                             )
                             .unwrap()
                         } else {
@@ -163,9 +159,8 @@ impl TcpServer {
         poll: Arc<Mutex<Poll>>,
         connection: &mut ConnectionState,
         event: &Event,
-        rx: &mut Sender<String>,
+        rx: &mut Sender<usize>,
         threads: &mut Vec<JoinHandle<()>>,
-        queue: Arc<Mutex<Vec<u8>>>
     ) -> std::io::Result<bool> {
         //println!("{:?}", event);
 
@@ -198,7 +193,7 @@ impl TcpServer {
                     //println!("Received data: {}", str_buf.trim_end());
 
                     // Send received data notification from tcp stream to c++
-                    rx.send(str_buf.trim().to_owned()).unwrap();
+                    rx.send(event.token().0).unwrap();
 
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
@@ -246,7 +241,7 @@ impl TcpServer {
                 Err(ref err) if Self::would_block(err) => {}
 
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(poll, connection, event, rx, threads, queue)
+                    return Self::handle_connection_event(poll, connection, event, rx, threads)
                 }
 
                 Err(err) => return Err(err),
@@ -269,8 +264,6 @@ pub struct Tcp {
     pub stay_alive: *mut u8,
     /// Apuntador al diccionario de estado de canales
     pub channels: *mut u8,
-    /// Apuntador a una cola de Token por escuchar
-    pub queue: *mut u8
 }
 
 #[repr(C)]
@@ -281,38 +274,24 @@ pub struct Shared {
     typ: u8,
     // Is null?
     null: bool,
-}
-
-#[no_mangle]
-pub extern "C" fn drop_shared(v: Shared) {
-    if !v.null {
-        unsafe {
-            match v.typ {
-                1 => {
-                    // Drop String
-                    let _ = CString::from_raw(v.value as *mut i8);
-                }
-                _ => {
-                    println!("Wrong type u8 descriptor {} for {:p}", v.typ, v.value)
-                }
-            }
-        }
-    }
+    // Token
+    token: usize
 }
 
 ///# Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn communicate(state: &mut Tcp, msg: *mut c_char) {
+pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: Shared, msg: *mut c_char) {
     let msg = CStr::from_ptr(msg);
 
     match msg.to_str() {
         Ok(value) => {
-            let sender = { Box::from_raw(state.continue_signal as *mut Sender<String>) };
+            let channels = { Box::from_raw(state.channels as *mut Arc<Mutex<HashMap<Token, ConnectionState>>>) };
+            let channel = channels.lock().unwrap().get_mut(&Token(shared.token)).unwrap().c_sender.lock().unwrap();
 
-            match sender.send(value.to_owned()) {
+            match channel.send(value.to_owned()) {
                 Ok(_) => {
-                    state.continue_signal = Box::into_raw(sender) as *mut u8;
+                    state.channels = Box::into_raw(channels) as *mut u8;
                 }
                 Err(error) => {
                     println!("Failed to send trough channel: {:?}", error);
@@ -332,39 +311,62 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, msg: *mut c_char) {
 ///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
-    let x = Box::from_raw(state.recv_signal as *mut Receiver<String>);
+    let x = Box::from_raw(state.recv_signal as *mut Receiver<usize>);
+
     match x.recv() {
         Ok(value) => {
+            let channels = { Box::from_raw(state.channels as *mut Arc<Mutex<HashMap<Token, ConnectionState>>>) };
+            let channel = channels.lock().unwrap().get_mut(&Token(value)).unwrap().c_receiver.lock().unwrap();
             state.recv_signal = Box::into_raw(x) as *mut u8;
-            match CString::new(value) {
+
+            let x = value;
+            match channel.recv() {
                 Ok(value) => {
-                    let v = CString::into_raw(value);
-                    Shared {
-                        null: false,
-                        value: v as *mut u8,
-                        typ: 1,
+                    match CString::new(value) {
+                        Ok(value) => {
+                            let v = CString::into_raw(value);
+                            Shared {
+                                null: false,
+                                value: v as *mut u8,
+                                typ: 1,
+                                token: x
+                            }
+                        }
+                        Err(err) => {
+                            println!("Failed to make CString: {:?}", err);
+                            Shared {
+                                null: true,
+                                value: null_mut::<u8>(),
+                                typ: 0,
+                                token: 0
+                            }
+                        }
                     }
-                }
+                },
                 Err(err) => {
-                    println!("Failed to make CString: {:?}", err);
+                    println!("Something wrong happened while reading from channel: {:?}, {}", err, line!());
                     Shared {
                         null: true,
                         value: null_mut::<u8>(),
                         typ: 0,
+                        token: 0
                     }
                 }
             }
+
+
         }
         Err(err) => {
             state.recv_signal = Box::into_raw(x) as *mut u8;
             println!(
-                "Something wrong happened while reading from channel: {:?}",
+                "Something bad happened while reading rust channel token: {:?}",
                 err
             );
             Shared {
                 null: true,
                 value: null_mut::<u8>(),
                 typ: 0,
+                token: 0
             }
         }
     }
@@ -376,22 +378,18 @@ pub extern "C" fn start() -> Tcp {
     let still_alive = Arc::new(Mutex::new(true));
 
     // Creamos el canal de notificación principal
-    let (cx2, rx2): (Sender<String>, Receiver<String>) = channel();
+    let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();
     let rx2 = Box::into_raw(Box::new(rx2));
 
     // Creamos el diccionario de estado para las conexiones establecidas
     let channels = Arc::new(Mutex::new(HashMap::new()));
 
-    // Creamos la cola de espera de mensajes
-    let queue = Arc::new(Mutex::new(Vec::new()));
-
     // Spawn del server
     let runtime = Box::into_raw(Box::new(spawn({
         let channels = Arc::clone(&channels);
-        let queue = Arc::clone(&queue);
         let still = Arc::clone(&still_alive);
         || {
-            let mut server = TcpServer::new(cx2, still, channels, queue);
+            let mut server = TcpServer::new(cx2, still, channels);
             server.run_server();
             for t in server.threads {
                 t.join().unwrap();
@@ -401,14 +399,12 @@ pub extern "C" fn start() -> Tcp {
 
     let still_alive = Box::into_raw(Box::new(still_alive));
     let channels = Box::into_raw(Box::new(channels));
-    let queue = Box::into_raw(Box::new(queue));
 
     Tcp {
         runtime: runtime as *mut u8,
         recv_signal: rx2 as *mut u8,
         stay_alive: still_alive as *mut u8,
         channels: channels as *mut u8,
-        queue: queue as *mut u8
     }
 }
 
@@ -432,10 +428,9 @@ pub extern "C" fn stop(state: Tcp) {
             println!("Failed to join Rust Runtime: {:?}", err)
         }
     }
-
+m
     // Drop channels
     unsafe {
         Box::from_raw(state.recv_signal as *mut Receiver<String>);
-        Box::from_raw(state.continue_signal as *mut Sender<String>);
     }
 }
