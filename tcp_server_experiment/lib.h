@@ -7,8 +7,9 @@ struct Shared {
   uint8_t *value;
   uint8_t typ;
   bool null;
+  size_t token;
 
-  string get_msg() {
+  string get_msg() const {
     string result;
 
     if (null || typ != 1) {
@@ -23,9 +24,9 @@ struct Shared {
 
 struct Tcp {
   uint8_t *runtime;
-  uint8_t *continue_signal;
   uint8_t *recv_signal;
   uint8_t *stay_alive;
+  uint8_t *channels;
 };
 
 extern "C" void communicate(Tcp &, Shared s, char *);
