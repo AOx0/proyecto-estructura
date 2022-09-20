@@ -1,9 +1,11 @@
+extern crate core;
+
+
 use mio::net::{TcpListener, TcpStream};
-use mio::{event::Event, Events, Interest, Poll, Registry, Token};
+use mio::{event::Event, Events, Interest, Poll, Token};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::io::{Read, Write};
-use std::mem::swap;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::str::from_utf8;
@@ -13,24 +15,24 @@ use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
 pub struct ConnectionState {
-    stream: TcpStream,
-    response: String,
-    c_sender: Sender<String>,
-    c_receiver: Receiver<String>,
-    rs_sender: Sender<String>,
-    rs_receiver: Receiver<String>
+    stream: Arc<Mutex<TcpStream>>,
+    response: Arc<Mutex<String>>,
+    c_sender: Arc<Mutex<Sender<String>>>,
+    c_receiver: Arc<Mutex<Receiver<String>>>,
+    rs_sender: Arc<Mutex<Sender<String>>>,
+    rs_receiver: Arc<Mutex<Receiver<String>>>
 }
 
 pub struct TcpServer {
     listener: TcpListener,
-    poll: Poll,
+    poll: Arc<Mutex<Poll>>,
     events: Events,
     channels: HashMap<Token, ConnectionState>,
     unique_token: Token,
     c_response_receiver: Receiver<String>,
     query_sender: Sender<String>,
     keep_running: Arc<Mutex<bool>>,
-    threads: Vec<JoinHandle<()>>
+    threads: Vec<JoinHandle<()>>,
 }
 
 static SERVER: Token = Token(0);
@@ -58,18 +60,20 @@ impl TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
                 .expect("Failed to init listener"),
-            poll: Poll::new().expect("Failed to init poll"),
-            events: Events::with_capacity(128),
+            poll: Arc::new(Mutex::new(Poll::new().expect("Failed to init poll"))),
+            events: Events::with_capacity(1024),
             channels: HashMap::new(),
             unique_token: Token(SERVER.0 + 1),
             keep_running: still_alive,
             c_response_receiver: cont,
             query_sender: msg,
-            threads: vec![]
+            threads: vec![],
         };
 
         result
             .poll
+            .lock()
+            .unwrap()
             .registry()
             .register(
                 &mut result.listener,
@@ -83,6 +87,8 @@ impl TcpServer {
     pub fn run_server(&mut self) {
         while *self.keep_running.lock().unwrap() {
             self.poll
+                .lock()
+                .unwrap()
                 .poll(&mut self.events, Some(Duration::from_secs_f32(5.0)))
                 .unwrap();
             for event in self.events.iter() {
@@ -103,6 +109,7 @@ impl TcpServer {
 
                         let token = Self::next(&mut self.unique_token);
                         self.poll
+                          .lock().unwrap()
                             .registry()
                             .register(
                                 &mut connection,
@@ -115,12 +122,12 @@ impl TcpServer {
                         let (rs_sender, c_receiver) = channel();
 
                         self.channels.insert(token, ConnectionState {
-                            stream: connection,
-                            response: "".to_string(),
-                            c_sender,
-                            c_receiver,
-                            rs_sender,
-                            rs_receiver
+                            stream: Arc::new(Mutex::new(connection)),
+                            response: Arc::new(Mutex::new("".to_string())),
+                            c_sender: Arc::new(Mutex::new(c_sender)),
+                            c_receiver: Arc::new(Mutex::new(c_receiver)),
+                            rs_sender: Arc::new(Mutex::new(rs_sender)),
+                            rs_receiver: Arc::new(Mutex::new(rs_receiver))
                         });
                     },
                     token => {
@@ -128,19 +135,20 @@ impl TcpServer {
                         let done = if let Some(state) = self.channels.get_mut(&token) {
                             // Manejamos cualquiera que sea el mensaje recibido.
                             Self::handle_connection_event(
+                                Arc::clone(&self.poll),
                                 state,
-                                self.poll.registry(),
                                 event,
                                 &mut self.c_response_receiver,
                                 &mut self.query_sender,
+                                &mut self.threads
                             )
                             .unwrap()
                         } else {
                             false
                         };
                         if done {
-                            if let Some(ConnectionState { stream: mut connection, .. }) = self.channels.remove(&token) {
-                                self.poll.registry().deregister(&mut connection).unwrap();
+                            if let Some(ConnectionState { stream: connection, .. }) = self.channels.remove(&token) {
+                                self.poll.lock().unwrap().registry().deregister(&mut *connection.lock().unwrap()).unwrap();
                             }
                         }
                     }
@@ -150,11 +158,12 @@ impl TcpServer {
     }
 
     fn handle_connection_event(
+        poll: Arc<Mutex<Poll>>,
         connection: &mut ConnectionState,
-        registry: &Registry,
         event: &Event,
         cx: &mut Receiver<String>,
         rx: &mut Sender<String>,
+        threads: &mut Vec<JoinHandle<()>>
     ) -> std::io::Result<bool> {
         //println!("{:?}", event);
 
@@ -164,7 +173,7 @@ impl TcpServer {
             let mut bytes_read = 0;
 
             loop {
-                match connection.stream.read(&mut received_data[bytes_read..]) {
+                match connection.stream.lock().unwrap().read(&mut received_data[bytes_read..]) {
                     Ok(0) => {
                         connection_closed = true;
                         break;
@@ -186,19 +195,31 @@ impl TcpServer {
                 if let Ok(str_buf) = from_utf8(received_data) {
                     //println!("Received data: {}", str_buf.trim_end());
 
-                    // Send received data from tcp stream to c++
+                    // Send received data notification from tcp stream to c++
                     rx.send(str_buf.trim().to_owned()).unwrap();
 
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
                     } else {
                         // Receive response from c++ runtime
-                        let response = cx.recv().unwrap_or_else(|_| " ".to_owned());
+                        let t = spawn({
+                            let registry = Arc::clone(&poll);
+                            let token = event.token();
+                            let rs_receiver = Arc::clone(&connection.rs_receiver);
+                            let future_response = Arc::clone(&connection.response);
+                            let connection = Arc::clone(&connection.stream);
+                            move || {
+                            // Receive response from private channel
+                            let receiver_guard = rs_receiver.lock().unwrap();
+                            let response = receiver_guard.recv().unwrap();
 
-                        connection.response = response;
+                            *future_response.lock().unwrap() = response;
 
-                        // Register writable event to send response
-                        registry.reregister(&mut connection.stream, event.token(), Interest::WRITABLE)?;
+                            // Register writable event to send response
+                            registry.lock().unwrap().registry().reregister(&mut *connection.lock().unwrap(), token, Interest::WRITABLE).unwrap();
+                        }});
+
+                        threads.push(t);
                     }
                 } else {
                     //println!("Received (none UTF-8) data: {:?}", received_data);
@@ -212,17 +233,18 @@ impl TcpServer {
         }
 
         if event.is_writable() {
-            let mut data = String::new();
-            swap(&mut connection.response, &mut data);
+            let data = connection.response.lock().unwrap().clone();
 
-            match connection.stream.write(data.as_bytes()) {
+            let write = connection.stream.lock().unwrap().write(data.as_bytes());
+
+            match write {
                 Ok(n) if n < data.len() => return Err(std::io::ErrorKind::WriteZero.into()),
-                Ok(_) => registry.reregister(&mut connection.stream, event.token(), Interest::READABLE)?,
+                Ok(_) => poll.lock().unwrap().registry().reregister(&mut *connection.stream.lock().unwrap(), event.token(), Interest::READABLE)?,
 
                 Err(ref err) if Self::would_block(err) => {}
 
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(connection, registry, event, cx, rx)
+                    return Self::handle_connection_event(poll, connection, event, cx, rx, threads)
                 }
 
                 Err(err) => return Err(err),
