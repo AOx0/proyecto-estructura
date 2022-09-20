@@ -1,6 +1,5 @@
 extern crate core;
 
-
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
@@ -10,7 +9,7 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::str::from_utf8;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
@@ -27,14 +26,14 @@ pub struct TcpServer {
     listener: TcpListener,
     poll: Poll,
     events: Events,
-    channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
+    channels: Arc<RwLock<HashMap<Token, ConnectionState>>>,
     unique_token: Token,
     query_sender: Sender<usize>,
-    keep_running: Arc<Mutex<bool>>,
     threads: Vec<JoinHandle<()>>,
 }
 
 static SERVER: Token = Token(0);
+static END: RwLock<bool> = RwLock::new(false);
 
 
 impl TcpServer {
@@ -54,8 +53,7 @@ impl TcpServer {
 
     pub fn new(
         msg: Sender<usize>,
-        still_alive: Arc<Mutex<bool>>,
-        channels: Arc<Mutex<HashMap<Token, ConnectionState>>>,
+        channels: Arc<RwLock<HashMap<Token, ConnectionState>>>,
     ) -> TcpServer {
         let mut result = TcpServer {
             listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
@@ -64,7 +62,6 @@ impl TcpServer {
             events: Events::with_capacity(1024),
             channels,
             unique_token: Token(SERVER.0 + 1),
-            keep_running: still_alive,
             query_sender: msg,
             threads: vec![],
         };
@@ -82,7 +79,7 @@ impl TcpServer {
     }
 
     pub fn run_server(&mut self) {
-        while *self.keep_running.lock().unwrap() {
+        while !*END.read().unwrap() {
 
             self.poll
             .poll(&mut self.events, Some(Duration::from_secs_f32(5.0)))
@@ -117,7 +114,7 @@ impl TcpServer {
                         let (c_sender, rs_receiver) = channel();
                         let (rs_sender, c_receiver) = channel();
 
-                        self.channels.lock().unwrap().insert(token, ConnectionState {
+                        self.channels.write().unwrap().insert(token, ConnectionState {
                             stream: Arc::new(Mutex::new(connection)),
                             response: Arc::new(Mutex::new("".to_string())),
                             c_sender: Arc::new(Mutex::new(c_sender)),
@@ -128,7 +125,7 @@ impl TcpServer {
                     },
                     token => {
                         // Manejo de posible mensaje desde una conexión activa de TCP
-                        let done = if let Some(state) = self.channels.lock().unwrap().get_mut(&token) {
+                        let done = if let Some(state) = self.channels.read().unwrap().get(&token) {
                             // Manejamos cualquiera que sea el mensaje recibido.
                             Self::handle_connection_event(
                                 self.poll.registry().try_clone().unwrap(),
@@ -142,7 +139,7 @@ impl TcpServer {
                             false
                         };
                         if done {
-                            if let Some(ConnectionState { stream: connection, .. }) = self.channels.lock().unwrap().remove(&token) {
+                            if let Some(ConnectionState { stream: connection, .. }) = self.channels.write().unwrap().remove(&token) {
                                 self.poll.registry().deregister(&mut *connection.lock().unwrap()).unwrap();
                             }
                         }
@@ -154,7 +151,7 @@ impl TcpServer {
 
     fn handle_connection_event(
         registry: Registry,
-        connection: &mut ConnectionState,
+        connection: &ConnectionState,
         event: &Event,
         rx: &mut Sender<usize>,
         threads: &mut Vec<JoinHandle<()>>,
@@ -205,18 +202,29 @@ impl TcpServer {
                             let future_response = Arc::clone(&connection.response);
                             let connection = Arc::clone(&connection.stream);
                             move || {
+                                // Stop receiving while processing
+
                                 // Receive response from private channel
                                 let receiver_guard = rs_receiver.lock().unwrap();
-                                let response = receiver_guard.recv().unwrap();
+                                let response = loop {
+                                    if !(*END.read().unwrap()) {
+                                        match receiver_guard.recv_timeout(Duration::from_secs_f32(5.0)) {
+                                            Ok(value) => {
+                                                break value;
+                                            }
+                                            Err(_) => {continue;}
+                                        }
+                                    } else {
+                                        return;
+                                    }
+                                };
 
                                 println!("{:?}", response);
 
                                 *future_response.lock().unwrap() = response;
 
                                 // Register writable event to send response
-                                println!("Registering... ");
                                 registry.reregister(&mut *connection.lock().unwrap(), token, Interest::WRITABLE).unwrap();
-                                println!("Registered!");
                             }
                         });
 
@@ -252,6 +260,14 @@ impl TcpServer {
 
         Ok(false)
     }
+
+    fn stop(self) {
+        println!("        Joining threads...");
+        for t in self.threads.into_iter() {
+            println!("            Joining thread...");
+            t.join().expect("TODO: panic message");
+        }
+    }
 }
 
 // Bridge
@@ -262,8 +278,6 @@ pub struct Tcp {
     pub runtime: *mut u8,
     /// Apuntador a el receiver de continuar con el mensaje recibido
     pub recv_signal: *mut u8,
-    /// Apuntador a mutex que indica si el proceso sigue vivo
-    pub stay_alive: *mut u8,
     /// Apuntador al diccionario de estado de canales
     pub channels: *mut u8,
 }
@@ -278,6 +292,24 @@ pub struct Shared {
     null: bool,
     // Token
     token: usize
+}
+
+impl Drop for Shared {
+    fn drop(&mut self) {
+        if !self.null {
+            unsafe {
+                match self.typ {
+                    1 => {
+                        // Drop CString
+                        let _ = CString::from_raw(self.value as *mut i8);
+                    }
+                    _ => {
+                        println!("Wrong type u8 descriptor {} for {:p}", self.typ, self.value)
+                    }
+                }
+            }
+        }
+    }
 }
 
 ///# Safety
@@ -327,10 +359,10 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
     match result {
         Ok(value) => {
-            let channels = Box::from_raw(state.channels as *mut Arc<Mutex<HashMap<Token, ConnectionState>>>);
+            let channels = Box::from_raw(state.channels as *mut Arc<RwLock<HashMap<Token, ConnectionState>>>);
 
             let result = {
-                let mut channel = channels.lock().unwrap();
+                let mut channel = channels.write().unwrap();
                 let channel = channel.get_mut(&Token(value)).unwrap().c_receiver.lock().unwrap();
                 channel.recv()
             };
@@ -391,54 +423,52 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
 #[no_mangle]
 pub extern "C" fn start() -> Tcp {
-    // Creamos el mutex que mantiene corriendo el servidor
-    let still_alive = Arc::new(Mutex::new(true));
 
     // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();
     let rx2 = Box::into_raw(Box::new(rx2));
 
     // Creamos el diccionario de estado para las conexiones establecidas
-    let channels = Arc::new(Mutex::new(HashMap::new()));
+    let channels = Arc::new(RwLock::new(HashMap::new()));
 
     // Spawn del server
     let runtime = Box::into_raw(Box::new(spawn({
         let channels = Arc::clone(&channels);
-        let still = Arc::clone(&still_alive);
         || {
-            let mut server = TcpServer::new(cx2, still, channels);
+            let mut server = TcpServer::new(cx2, channels);
             server.run_server();
-            for t in server.threads {
-                t.join().unwrap();
-            }
+            println!("    Stopping server...");
+            server.stop();
         }
     })));
 
-    let still_alive = Box::into_raw(Box::new(still_alive));
     let channels = Box::into_raw(Box::new(channels));
 
     Tcp {
         runtime: runtime as *mut u8,
         recv_signal: rx2 as *mut u8,
-        stay_alive: still_alive as *mut u8,
         channels: channels as *mut u8,
     }
 }
 
 #[no_mangle]
 pub extern "C" fn stop(state: Tcp) {
-    let still_alive = unsafe { Box::from_raw(state.stay_alive as *mut Arc<Mutex<bool>>) };
-    match still_alive.lock() {
+    println!("Finishing from rust...");
+
+    println!("    Setting end rwlock to true...");
+    match END.write() {
         Ok(mut value) => {
-            *value = false;
+            *value = true;
         }
         Err(err) => {
             println!("Failed to lock Mutex: {:?}", err);
         }
     }
 
+    println!("    Getting runtime...");
     let runtime = unsafe { Box::from_raw(state.runtime as *mut JoinHandle<()>) };
 
+    println!("    Waiting for runtime...");
     match runtime.join() {
         Ok(_) => {}
         Err(err) => {
@@ -447,7 +477,9 @@ pub extern "C" fn stop(state: Tcp) {
     }
 
     // Drop channels
+    println!("    Dropping recv_signal & channels...");
     unsafe {
-        Box::from_raw(state.recv_signal as *mut Receiver<String>);
+        Box::from_raw(state.recv_signal as *mut Receiver<usize>);
+        Box::from_raw(state.channels as *mut Arc<RwLock<HashMap<Token, ConnectionState>>>);
     }
 }
