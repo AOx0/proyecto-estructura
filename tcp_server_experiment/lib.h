@@ -48,7 +48,6 @@ public:
 
   ~Connection() {
     if (!is_null()) {
-      cout << "Dropping Connection.." << endl;
       drop_shared(shared);
     }
   }
