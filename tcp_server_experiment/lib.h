@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <algorithm>
 
 using namespace std;
 
@@ -11,14 +11,13 @@ struct Shared {
   size_t token;
 };
 
-
 struct Tcp {
   uint8_t *runtime;
   uint8_t *recv_signal;
   uint8_t *channels;
 };
 
-extern "C" void communicate(Tcp &, Shared & s, char *);
+extern "C" void communicate(Tcp &, Shared &s, char *);
 
 extern "C" void drop_shared(Shared s);
 
@@ -33,18 +32,13 @@ extern "C" void kill_sign();
 class Connection {
   bool null;
   Shared shared;
+
 public:
-  explicit Connection(Shared s) : shared(s) {
-    null = shared.null;
-  }
+  explicit Connection(Shared s) : shared(s) { null = shared.null; }
 
-  bool is_null() const {
-    return null;
-  }
+  bool is_null() const { return null; }
 
-  Shared & get_shared() {
-    return shared;
-  }
+  Shared &get_shared() { return shared; }
 
   ~Connection() {
     if (!is_null()) {
@@ -77,7 +71,7 @@ public:
     return make_shared<Connection>(receive(server));
   }
 
-  void send(Connection & s, const string &msg) {
+  void send(Connection &s, const string &msg) {
     char *m = (char *)msg.c_str();
     communicate(server, s.get_shared(), m);
   }

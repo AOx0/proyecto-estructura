@@ -1,8 +1,8 @@
+#include <csignal>
 #include <iostream>
 #include <sstream>
 #include <thread>
 #include <vector>
-#include <csignal>
 
 #include "lib.h"
 
@@ -15,8 +15,9 @@ void inthand(int signum) {
   st = 1;
 }
 
-void resolve(shared_ptr<Connection> s, TcpServer & tcp) {
-  if (s->is_null()) return;
+void resolve(shared_ptr<Connection> s, TcpServer &tcp) {
+  if (s->is_null())
+    return;
   stringstream a((string()));
   string r = s->get_msg();
 
@@ -41,13 +42,12 @@ int main() {
     while (!st) {
       shared_ptr<Connection> result = server.recv();
       threads.emplace_back(
-          thread([result, &server]{resolve(result, server);}));
+          thread([result, &server] { resolve(result, server); }));
     }
   }
 
   cout << "Finishing CPP..." << endl;
-  for (auto & t: threads) {
+  for (auto &t : threads) {
     t.join();
   }
 }
-
