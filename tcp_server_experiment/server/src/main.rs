@@ -1,5 +1,5 @@
-use std::ffi::CString;
 use server::*;
+use std::ffi::CString;
 use std::io::stdin;
 
 fn main() {
