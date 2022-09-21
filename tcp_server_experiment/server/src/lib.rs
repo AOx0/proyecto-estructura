@@ -511,7 +511,8 @@ pub extern "C" fn stop(state: Tcp) {
     }
 
     println!("    Getting runtime...");
-    let runtime = unsafe { Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>)).unwrap()  };
+    let runtime =
+        unsafe { Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>)).unwrap() };
     let join = runtime.join();
 
     println!("    Waiting for runtime...");
