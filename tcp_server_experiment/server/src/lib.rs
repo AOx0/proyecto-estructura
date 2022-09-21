@@ -202,7 +202,7 @@ impl TcpServer {
                             let future_response = Arc::clone(&connection.response);
                             let connection = Arc::clone(&connection.stream);
                             move || {
-                                // Stop receiving while processing
+                                // TODO: Stop receiving while processing
 
                                 // Receive response from private channel
                                 let receiver_guard = rs_receiver.lock().unwrap();
@@ -315,20 +315,20 @@ impl Drop for Shared {
 ///# Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: Shared, msg: *mut c_char) {
+pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut c_char) {
     let msg = CStr::from_ptr(msg);
 
     match msg.to_str() {
         Ok(value) => {
-            let channels = Box::from_raw(state.channels as *mut Arc<Mutex<HashMap<Token, ConnectionState>>>);
+            let channels = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
 
             let result = {
-                let mut channel = channels.lock().unwrap();
+                let mut channel = channels.write().unwrap();
                 let channel = channel.get_mut(&Token(shared.token)).unwrap().c_sender.lock().unwrap();
                 channel.send(value.to_owned())
             };
 
-            state.channels = Box::into_raw(channels) as *mut u8;
+            state.channels = Arc::into_raw(channels) as *mut u8;
 
             match result {
                 Ok(_) => {}
@@ -352,65 +352,65 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: Shared, msg: *mut 
 ///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
-    let receiver = Box::from_raw(state.recv_signal as *mut Receiver<usize>);
-    let result = receiver.recv();
-
-    state.recv_signal = Box::into_raw(receiver) as *mut u8;
-
-    match result {
-        Ok(value) => {
-            let channels = Box::from_raw(state.channels as *mut Arc<RwLock<HashMap<Token, ConnectionState>>>);
-
-            let result = {
-                let mut channel = channels.write().unwrap();
-                let channel = channel.get_mut(&Token(value)).unwrap().c_receiver.lock().unwrap();
-                channel.recv()
-            };
-
-            state.channels = Box::into_raw(channels) as *mut u8;
-
-            let x = value;
-            match result {
+    let receiver = Arc::from_raw(state.recv_signal as *mut Receiver<usize>);
+    let token = loop {
+        if !(*END.read().unwrap()) {
+            match receiver.recv_timeout(Duration::from_secs_f32(5.0)) {
                 Ok(value) => {
-                    match CString::new(value) {
-                        Ok(value) => {
-                            let v = CString::into_raw(value);
-                            Shared {
-                                null: false,
-                                value: v as *mut u8,
-                                typ: 1,
-                                token: x
-                            }
-                        }
-                        Err(err) => {
-                            println!("Failed to make CString: {:?}", err);
-                            Shared {
-                                null: true,
-                                value: null_mut::<u8>(),
-                                typ: 0,
-                                token: 0
-                            }
-                        }
-                    }
-                },
-                Err(err) => {
-                    println!("Something wrong happened while reading from channel: {:?}, {}", err, line!());
-                    Shared {
-                        null: true,
-                        value: null_mut::<u8>(),
-                        typ: 0,
-                        token: 0
-                    }
+                    break value;
                 }
+                Err(_) => {continue;}
             }
+        } else {
+            return Shared {
+                null: true,
+                value: null_mut::<u8>(),
+                typ: 0,
+                token: 0
+            };
+        }
+    };
 
+    state.recv_signal = Arc::into_raw(receiver) as *mut u8;
 
+    let channels = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+
+    let result = {
+        let mut channel = channels.write().unwrap();
+        let channel = channel.get_mut(&Token(token)).unwrap().c_receiver.lock().unwrap();
+        loop {
+            if !(*END.read().unwrap()) {
+                match channel.recv_timeout(Duration::from_secs_f32(5.0)) {
+                    Ok(value) => {
+                        break value;
+                    }
+                    Err(_) => {continue;}
+                }
+            } else {
+                return Shared {
+                    null: true,
+                    value: null_mut::<u8>(),
+                    typ: 0,
+                    token: 0
+                };
+            }
+        }
+    };
+
+    state.channels = Arc::into_raw(channels) as *mut u8;
+
+    match CString::new(result) {
+        Ok(value) => {
+            let v = CString::into_raw(value);
+            Shared {
+                null: false,
+                value: v as *mut u8,
+                typ: 1,
+                token
+            }
         }
         Err(err) => {
-            println!(
-                "Something bad happened while reading rust channel token: {:?}",
-                err
-            );
+            println!("Failed to make CString: {:?}", err);
             Shared {
                 null: true,
                 value: null_mut::<u8>(),
@@ -423,10 +423,11 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
 #[no_mangle]
 pub extern "C" fn start() -> Tcp {
+    println!("Starting TcpServer 0.1.13 ...");
 
     // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();
-    let rx2 = Box::into_raw(Box::new(rx2));
+    let rx2 = Arc::into_raw(Arc::new(rx2));
 
     // Creamos el diccionario de estado para las conexiones establecidas
     let channels = Arc::new(RwLock::new(HashMap::new()));
@@ -442,7 +443,7 @@ pub extern "C" fn start() -> Tcp {
         }
     })));
 
-    let channels = Box::into_raw(Box::new(channels));
+    let channels = Arc::into_raw(Arc::clone(&channels));
 
     Tcp {
         runtime: runtime as *mut u8,
@@ -470,16 +471,37 @@ pub extern "C" fn stop(state: Tcp) {
 
     println!("    Waiting for runtime...");
     match runtime.join() {
-        Ok(_) => {}
+        Ok(_) => {
+            println!("        Done!");
+        }
         Err(err) => {
             println!("Failed to join Rust Runtime: {:?}", err)
         }
     }
 
-    // Drop channels
-    println!("    Dropping recv_signal & channels...");
     unsafe {
-        Box::from_raw(state.recv_signal as *mut Receiver<usize>);
-        Box::from_raw(state.channels as *mut Arc<RwLock<HashMap<Token, ConnectionState>>>);
+        println!("    Dropping channels...");
+        let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+        println!("    Dropping recv_signal...");
+        let _ = Arc::from_raw(state.recv_signal as *mut Receiver<usize>);
     }
+    println!("Done from rust!");
+}
+
+#[no_mangle]
+extern "C" fn kill_sign() {
+    println!("    Setting end rwlock to true...");
+    match END.write() {
+        Ok(mut value) => {
+            *value = true;
+        }
+        Err(err) => {
+            println!("Failed to lock Mutex: {:?}", err);
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn drop_shared(s: Shared) {
+    drop(s);
 }

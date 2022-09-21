@@ -2,34 +2,36 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+#include <csignal>
 
 #include "lib.h"
 
 using namespace std;
 
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-
 volatile sig_atomic_t st = 0;
 
 void inthand(int signum) {
+  kill_sign();
   st = 1;
 }
 
-void resolve(Shared s, TcpServer & tcp) {
+void resolve(shared_ptr<Connection> s, TcpServer & tcp) {
+  if (s->is_null()) return;
   stringstream a((string()));
-  string r = s.get_msg();
+  string r = s->get_msg();
 
-  a << "Hola desde C++ " << r << endl;
-
+  a << "Hola desde C++ " << r << "!" << endl;
   if (r == "slow")
     this_thread::sleep_for(chrono::seconds(10));
 
-  tcp.send(s, a.str());
+  if (r == "stop")
+    inthand(0);
+  else
+    tcp.send(*s, a.str());
 }
 
 int main() {
+  cout << "Starting CppServer 0.1.10 ..." << endl;
   vector<thread> threads;
 
   signal(SIGINT, inthand);
@@ -40,17 +42,18 @@ int main() {
 
     while (!st) {
       cout << "Antes: " << st << endl;
-      Shared result = server.recv();
-      cout << "Despues: " << st << endl;
+      shared_ptr<Connection> result = server.recv();
+      cout << "Después 1: " << st << endl;
+      cout << "Después 2: " << st << endl;
       threads.emplace_back(
-          thread([result, &server] { resolve(result, server); }));
+          thread([result, &server]{resolve(result, server);}));
       cout << "Final: " << st << endl;
     }
   }
 
-
-  cout << "Finishing" << endl;
+  cout << "Finishing..." << endl;
   for (auto & t: threads) {
     t.join();
   }
 }
+
