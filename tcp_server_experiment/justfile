@@ -1,13 +1,19 @@
 default:
   just --list
 
+cargo_build_release:
+  cd server && cargo build --release
+
+cargo_build:
+  cd server && cargo build
+
 init:
   cmake .
 
-build: init
+build: init cargo_build_release
   cmake --build .
 
-build_release: init 
+build_release: init cargo_build
   cmake --build . --config Release
 
 run: build

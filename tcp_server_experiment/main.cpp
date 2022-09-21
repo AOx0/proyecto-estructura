@@ -3,6 +3,7 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+#include <memory>
 
 #include "lib.h"
 

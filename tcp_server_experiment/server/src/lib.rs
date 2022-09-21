@@ -387,7 +387,7 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
 ///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
-    let receiver = Arc::from_raw(state.recv_signal as *mut Receiver<usize>);
+    let receiver = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
     let token = loop {
         if !(*END.read().unwrap()) {
             match receiver.recv_timeout(Duration::from_secs_f32(5.0)) {
@@ -477,7 +477,7 @@ pub extern "C" fn start() -> Tcp {
     let channels = Arc::new(RwLock::new(HashMap::new()));
 
     // Spawn del server
-    let runtime = Box::into_raw(Box::new(spawn({
+    let runtime = Arc::into_raw(Arc::new(spawn({
         let channels = Arc::clone(&channels);
         || {
             let mut server = TcpServer::new(cx2, channels);
@@ -487,7 +487,7 @@ pub extern "C" fn start() -> Tcp {
         }
     })));
 
-    let channels = Arc::into_raw(Arc::clone(&channels));
+    let channels = Arc::into_raw(channels);
 
     Tcp {
         runtime: runtime as *mut u8,
@@ -511,10 +511,11 @@ pub extern "C" fn stop(state: Tcp) {
     }
 
     println!("    Getting runtime...");
-    let runtime = unsafe { Box::from_raw(state.runtime as *mut JoinHandle<()>) };
+    let runtime = unsafe { Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>)).unwrap()  };
+    let join = runtime.join();
 
     println!("    Waiting for runtime...");
-    match runtime.join() {
+    match join {
         Ok(_) => {
             println!("        Done!");
         }
@@ -527,7 +528,7 @@ pub extern "C" fn stop(state: Tcp) {
         println!("    Dropping channels...");
         let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
         println!("    Dropping recv_signal...");
-        let _ = Arc::from_raw(state.recv_signal as *mut Receiver<usize>);
+        //let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
     }
     println!("Done from rust!");
 }
