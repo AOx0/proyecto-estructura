@@ -365,9 +365,14 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
 
             let result = {
                 let mut channel = channels.write().unwrap();
-                let channel = channel
-                    .get_mut(&Token(shared.token))
-                    .unwrap()
+                let channel_result = channel
+                    .get_mut(&Token(shared.token));
+
+                if channel_result.is_none() {
+                    return;
+                }
+
+                let channel = channel_result.unwrap()
                     .c_sender
                     .lock()
                     .unwrap();
