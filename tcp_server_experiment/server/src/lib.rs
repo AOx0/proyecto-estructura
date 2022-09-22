@@ -20,6 +20,7 @@ pub struct ConnectionState {
     c_receiver: Arc<Mutex<Receiver<String>>>,
     rs_sender: Arc<Mutex<Sender<String>>>,
     rs_receiver: Arc<Mutex<Receiver<String>>>,
+    is_active: Arc<Mutex<bool>>
 }
 
 pub struct TcpServer {
@@ -29,7 +30,7 @@ pub struct TcpServer {
     channels: Arc<RwLock<HashMap<Token, ConnectionState>>>,
     unique_token: Token,
     query_sender: Sender<usize>,
-    threads: Vec<JoinHandle<()>>,
+    threads: HashMap<Token, JoinHandle<()>>,
 }
 
 static SERVER: Token = Token(0);
@@ -62,7 +63,7 @@ impl TcpServer {
             channels,
             unique_token: Token(SERVER.0 + 1),
             query_sender: msg,
-            threads: vec![],
+            threads: HashMap::new(),
         };
 
         result
@@ -121,6 +122,7 @@ impl TcpServer {
                                 c_receiver: Arc::new(Mutex::new(c_receiver)),
                                 rs_sender: Arc::new(Mutex::new(rs_sender)),
                                 rs_receiver: Arc::new(Mutex::new(rs_receiver)),
+                                is_active: Arc::new(Mutex::new(false))
                             },
                         );
                     },
@@ -161,11 +163,11 @@ impl TcpServer {
         connection: &ConnectionState,
         event: &Event,
         rx: &mut Sender<usize>,
-        threads: &mut Vec<JoinHandle<()>>,
+        threads: &mut HashMap<Token, JoinHandle<()>>,
     ) -> std::io::Result<bool> {
         //println!("{:?}", event);
 
-        if event.is_readable() {
+        if event.is_readable() && !*connection.is_active.lock().unwrap() {
             let mut connection_closed = false;
             let mut received_data = vec![0; 4096];
             let mut bytes_read = 0;
@@ -194,6 +196,7 @@ impl TcpServer {
             }
 
             if bytes_read != 0 {
+                *connection.is_active.lock().unwrap() = true;
                 let received_data = &received_data[..bytes_read];
                 if let Ok(str_buf) = from_utf8(received_data) {
                     //println!("Received data: {}", str_buf.trim_end());
@@ -255,7 +258,11 @@ impl TcpServer {
                             }
                         });
 
-                        threads.push(t);
+                        let a = threads.insert(event.token(), t);
+                        if let Some(a) = a {
+                            println!("Joining past thread...");
+                            a.join().unwrap();
+                        }
                     }
                 } else {
                     //println!("Received (none UTF-8) data: {:?}", received_data);
@@ -273,11 +280,13 @@ impl TcpServer {
 
             match write {
                 Ok(n) if n < data.len() => return Err(std::io::ErrorKind::WriteZero.into()),
-                Ok(_) => registry.reregister(
+                Ok(_) => {
+                    *connection.is_active.lock().unwrap() = false;
+                    registry.reregister(
                     &mut *connection.stream.lock().unwrap(),
                     event.token(),
                     Interest::READABLE,
-                )?,
+                )?},
 
                 Err(ref err) if Self::would_block(err) => {}
 
@@ -296,7 +305,7 @@ impl TcpServer {
         println!("        Joining threads...");
         for t in self.threads.into_iter() {
             println!("            Joining thread...");
-            t.join().expect("TODO: panic message");
+            t.1.join().expect("TODO: panic message");
         }
     }
 }

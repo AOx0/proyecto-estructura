@@ -1,3 +1,4 @@
+#include <chrono>
 #include <csignal>
 #include <iostream>
 #include <memory>
@@ -23,6 +24,10 @@ void resolve(shared_ptr<Connection> s, TcpServer &tcp) {
   string r = s->get_msg();
 
   a << "Hola desde C++ " << r << "!" << endl;
+
+  if (r == "slow") {
+    this_thread::sleep_for(chrono::seconds(15));
+  }
 
   if (r == "stop")
     inthand(0);

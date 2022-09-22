@@ -10,10 +10,10 @@ cargo_build:
 init:
   cmake .
 
-build: init cargo_build_release
+build: init cargo_build
   cmake --build .
 
-build_release: init cargo_build
+build_release: init cargo_build_release
   cmake --build . --config Release
 
 run: build
