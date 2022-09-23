@@ -4,10 +4,13 @@ default:
 init:
   cmake .
 
-build: init
+cargo_build_release:
+  cd server && cargo build --release
+
+build: init cargo_build_release
   cmake --build .
 
-build_release: init 
+build_release: init cargo_build_release
   cmake --build . --config Release
 
 run: build
@@ -17,4 +20,4 @@ run_release: build_release
   ./proyecto-estructura
 
 clean:
-  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile 
+  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile

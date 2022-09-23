@@ -11,4 +11,24 @@ proyecto-estructura
 
 **/target/
 
-tcp_server_experiment/tcp_server_experiment
+.idea/
+
+**/cmake-build-debug/
+
+**/.ninja_deps
+
+**/.ninja_log
+
+**/build.ninja
+
+**/.cmake/
+
+**/.cmake/
+
+**/cmake-build-relwithdebinfo/
+
+**/cmake-build-release/
+
+**/cmake-build-minsizerel/
+
+**/cmake-build-default/
