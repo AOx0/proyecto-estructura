@@ -11,26 +11,24 @@ proyecto-estructura
 
 **/target/
 
-tcp_server_experiment/tcp_server_experiment
-
 .idea/
 
-cmake-build-debug/
+**/cmake-build-debug/
 
-tcp_server_experiment/.ninja_deps
+**/.ninja_deps
 
-tcp_server_experiment/.ninja_log
+**/.ninja_log
 
-tcp_server_experiment/build.ninja
+**/build.ninja
 
-tcp_server_experiment/.cmake/api/v1/query/
+**/.cmake/
 
-tcp_server_experiment/.cmake/api/v1/reply/
+**/.cmake/
 
-tcp_server_experiment/cmake-build-relwithdebinfo/
+**/cmake-build-relwithdebinfo/
 
-tcp_server_experiment/cmake-build-release/
+**/cmake-build-release/
 
-tcp_server_experiment/cmake-build-minsizerel/
+**/cmake-build-minsizerel/
 
-tcp_server_experiment/cmake-build-default/
+**/cmake-build-default/
