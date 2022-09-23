@@ -1,10 +1,10 @@
-#include <vector>
 #include <chrono>
 #include <csignal>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 #include "lib/option.hpp"
 #include "lib/result.hpp"

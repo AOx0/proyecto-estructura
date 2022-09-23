@@ -23,7 +23,7 @@ endif (WIN32)
 link_directories(${CMAKE_SOURCE_DIR}/server/target/release/)
 
 add_executable(proyecto-estructura
-  src/main.cpp 
+  src/main.cpp
   src/lib/option.hpp
   src/lib/result.hpp
   src/lib/server.hpp
