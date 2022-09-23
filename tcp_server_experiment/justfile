@@ -1,13 +1,19 @@
 default:
   just --list
 
+cargo_build_release:
+  cd server && cargo build --release
+
+cargo_build:
+  cd server && cargo build
+
 init:
   cmake .
 
-build: init
+build: init cargo_build
   cmake --build .
 
-build_release: init 
+build_release: init cargo_build_release
   cmake --build . --config Release
 
 run: build
@@ -17,4 +23,4 @@ run_release: build_release
   ./tcp_server_experiment
 
 clean:
-  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile 
+  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile

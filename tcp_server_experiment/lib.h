@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
@@ -7,18 +9,18 @@ struct Shared {
   uint8_t *value;
   uint8_t typ;
   bool null;
+  size_t token;
 };
 
 struct Tcp {
   uint8_t *runtime;
-  uint8_t *continue_signal;
   uint8_t *recv_signal;
-  uint8_t *stay_alive;
+  uint8_t *channels;
 };
 
-extern "C" void drop_shared(Shared);
+extern "C" void communicate(Tcp &, Shared &s, char *);
 
-extern "C" void communicate(Tcp &, char *);
+extern "C" void drop_shared(Shared s);
 
 extern "C" Shared receive(Tcp &);
 
@@ -26,7 +28,39 @@ extern "C" Tcp start();
 
 extern "C" void stop(Tcp);
 
-struct TcpServer {
+extern "C" void kill_sign();
+
+class Connection {
+  bool null;
+  Shared shared;
+
+public:
+  explicit Connection(Shared s) : shared(s) { null = shared.null; }
+
+  bool is_null() const { return null; }
+
+  Shared &get_shared() { return shared; }
+
+  ~Connection() {
+    if (!is_null()) {
+      drop_shared(shared);
+    }
+  }
+
+  string get_msg() const {
+    string result;
+
+    if (shared.null || shared.typ != 1) {
+      result = (string)NULL;
+    } else {
+      result = (char *)shared.value;
+    }
+
+    return result;
+  }
+};
+
+class TcpServer {
 protected:
   Tcp server;
 
@@ -34,22 +68,12 @@ public:
   TcpServer() : server(start()) {}
   ~TcpServer() { stop(server); }
 
-  string recv() {
-    string result;
-    Shared rec = receive(server);
-
-    if (rec.null || rec.typ != 1) {
-      result = (string)NULL;
-    } else {
-      result = (char *)rec.value;
-    }
-
-    drop_shared(rec);
-    return result;
+  shared_ptr<Connection> recv() {
+    return make_shared<Connection>(receive(server));
   }
 
-  void send(const string &msg) {
+  void send(Connection &s, const string &msg) {
     char *m = (char *)msg.c_str();
-    communicate(server, m);
+    communicate(server, s.get_shared(), m);
   }
 };

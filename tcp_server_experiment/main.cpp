@@ -1,4 +1,7 @@
+#include <chrono>
+#include <csignal>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -7,26 +10,50 @@
 
 using namespace std;
 
-int main() {
-  string in;
+volatile sig_atomic_t st = 0;
 
-  cout << "Starting server..." << endl;
-  TcpServer server = TcpServer();
-  cout << "Started!!" << endl;
+void inthand(int signum) {
+  kill_sign();
+  st = 1;
+}
 
-  string r;
-  stringstream a;
-  while (true) {
-    r = server.recv();
-    a.str(string());
-    a << "Hola desde C++ " << r << endl;
-    if (r == "exit") {
-      continue;
-    }
-    server.send(a.str());
-    if (r == "finish")
-      break;
+void resolve(shared_ptr<Connection> s, TcpServer &tcp) {
+  if (s->is_null())
+    return;
+  stringstream a((string()));
+  string r = s->get_msg();
+
+  a << "Hola desde C++ " << r << "!" << endl;
+
+  if (r == "slow") {
+    this_thread::sleep_for(chrono::seconds(15));
   }
 
-  return 0;
+  if (r == "stop")
+    inthand(0);
+  else
+    tcp.send(*s, a.str());
+}
+
+int main() {
+  cout << "Starting CppServer 0.1.11 ..." << endl;
+  vector<thread> threads;
+
+  signal(SIGINT, inthand);
+  signal(SIGTERM, inthand);
+
+  {
+    TcpServer server = TcpServer();
+
+    while (!st) {
+      shared_ptr<Connection> result = server.recv();
+      threads.emplace_back(
+          thread([result, &server] { resolve(result, server); }));
+    }
+  }
+
+  cout << "Finishing CPP..." << endl;
+  for (auto &t : threads) {
+    t.join();
+  }
 }
