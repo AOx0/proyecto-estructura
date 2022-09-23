@@ -20,7 +20,7 @@ pub struct ConnectionState {
     c_receiver: Arc<Mutex<Receiver<String>>>,
     rs_sender: Arc<Mutex<Sender<String>>>,
     rs_receiver: Arc<Mutex<Receiver<String>>>,
-    is_active: Arc<Mutex<bool>>
+    is_active: Arc<Mutex<bool>>,
 }
 
 pub struct TcpServer {
@@ -122,7 +122,7 @@ impl TcpServer {
                                 c_receiver: Arc::new(Mutex::new(c_receiver)),
                                 rs_sender: Arc::new(Mutex::new(rs_sender)),
                                 rs_receiver: Arc::new(Mutex::new(rs_receiver)),
-                                is_active: Arc::new(Mutex::new(false))
+                                is_active: Arc::new(Mutex::new(false)),
                             },
                         );
                     },
@@ -283,10 +283,11 @@ impl TcpServer {
                 Ok(_) => {
                     *connection.is_active.lock().unwrap() = false;
                     registry.reregister(
-                    &mut *connection.stream.lock().unwrap(),
-                    event.token(),
-                    Interest::READABLE,
-                )?},
+                        &mut *connection.stream.lock().unwrap(),
+                        event.token(),
+                        Interest::READABLE,
+                    )?
+                }
 
                 Err(ref err) if Self::would_block(err) => {}
 
@@ -365,17 +366,13 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
 
             let result = {
                 let mut channel = channels.write().unwrap();
-                let channel_result = channel
-                    .get_mut(&Token(shared.token));
+                let channel_result = channel.get_mut(&Token(shared.token));
 
                 if channel_result.is_none() {
                     return;
                 }
 
-                let channel = channel_result.unwrap()
-                    .c_sender
-                    .lock()
-                    .unwrap();
+                let channel = channel_result.unwrap().c_sender.lock().unwrap();
                 channel.send(value.to_owned())
             };
 
