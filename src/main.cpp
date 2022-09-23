@@ -19,7 +19,6 @@ void inthand(int signum) {
   st = 1;
 }
 
-
 void resolve(shared_ptr<Connection> s, TcpServer &tcp) {
   if (s->is_null())
     return;
@@ -37,7 +36,6 @@ void resolve(shared_ptr<Connection> s, TcpServer &tcp) {
   else
     tcp.send(*s, a.str());
 }
-
 
 int main() {
   cout << "Starting CppServer 0.1.11 ..." << endl;
