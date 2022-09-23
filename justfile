@@ -20,4 +20,4 @@ run_release: build_release
   ./proyecto-estructura
 
 clean:
-  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile 
+  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile
