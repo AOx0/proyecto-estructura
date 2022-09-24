@@ -8,20 +8,9 @@
 ## no mingw is required in the main system due to rustup shipping it with component rust-mingw
 
 cmake_minimum_required(VERSION 3.10)
-project(proyecto_estructura)
+project(proyecto-estructura)
 
 set(CMAKE_CXX_STANDARD 20)
-
-# Agregamos `googltest` para poder escribir pruebas del código
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.12.1
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
 
 # For profiling, disable when building the release
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
@@ -33,28 +22,16 @@ endif (WIN32)
 
 link_directories(${CMAKE_SOURCE_DIR}/server/target/release/)
 
-enable_testing()
-
-set(LIBRARIES src/lib/server.hpp)
-
-add_executable(proyecto_estructura
-        src/main.cpp
-        ${LIBRARIES}
+add_executable(proyecto-estructura
+  src/main.cpp
+  src/lib/option.hpp
+  src/lib/result.hpp
+  src/lib/server.hpp
 )
 
-add_executable(
-        proyecto_tests
-        tests/server.cc # Agregamos los tests
-        ${LIBRARIES}
-)
-
-target_link_libraries(proyecto_tests GTest::gtest_main)
 
 if (WIN32)
-    target_link_libraries(proyecto_estructura -static-libgcc -static-libstdc++ -lserver -lntdll -ladvapi32 -luserenv -lkernel32 -lkernel32 -lws2_32 -lbcrypt)
+    target_link_libraries(proyecto-estructura -static-libgcc -static-libstdc++ -lserver -lntdll -ladvapi32 -luserenv -lkernel32 -lkernel32 -lws2_32 -lbcrypt)
 else()
-    target_link_libraries(proyecto_estructura libserver.a)
+    target_link_libraries(proyecto-estructura libserver.a)
 endif (WIN32)
-
-include(GoogleTest)
-gtest_discover_tests(proyecto_tests)
