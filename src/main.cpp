@@ -6,8 +6,6 @@
 #include <thread>
 #include <vector>
 
-#include "lib/option.hpp"
-#include "lib/result.hpp"
 #include "lib/server.hpp"
 
 using namespace std;
@@ -19,22 +17,24 @@ void inthand(int signum) {
   st = 1;
 }
 
-void resolve(shared_ptr<Connection> s, TcpServer &tcp) {
-  if (s->is_null())
-    return;
+void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
   stringstream a((string()));
-  string r = s->get_msg();
+  std::optional<string> r = s->value().get_msg();
 
-  a << "Hola desde C++ " << r << "!" << endl;
+  if (r.has_value()) {
+    a << "Hola desde C++ " << r.value() << "!" << endl;
 
-  if (r == "slow") {
-    this_thread::sleep_for(chrono::seconds(15));
+    if (r == "slow") {
+      this_thread::sleep_for(chrono::seconds(15));
+    }
+
+    if (r == "stop")
+      inthand(0);
+    else
+      tcp.send(s->value(), a.str());
+  } else {
+    tcp.send(s->value(), "Error getting message");
   }
-
-  if (r == "stop")
-    inthand(0);
-  else
-    tcp.send(*s, a.str());
 }
 
 int main() {
@@ -48,9 +48,11 @@ int main() {
     TcpServer server = TcpServer();
 
     while (!st) {
-      shared_ptr<Connection> result = server.recv();
-      threads.emplace_back(
-          thread([result, &server] { resolve(result, server); }));
+      shared_ptr<optional<Connection>> event = server.recv();
+      if (event->has_value()) {
+        threads.emplace_back(
+            thread([event, &server] { resolve(event, server); }));
+      }
     }
   }
 

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <optional>
 
 using namespace std;
 
@@ -37,26 +38,22 @@ class Connection {
 public:
   explicit Connection(Shared s) : shared(s) { null = shared.null; }
 
-  bool is_null() const { return null; }
-
-  Shared &get_shared() { return shared; }
-
   ~Connection() {
     if (!is_null()) {
       drop_shared(shared);
     }
   }
 
-  string get_msg() const {
-    string result;
+  Shared &get_shared() { return shared; }
 
+  [[nodiscard]] bool is_null() const { return null; }
+
+  [[nodiscard]] std::optional<string> get_msg() const {
     if (shared.null || shared.typ != 1) {
-      result = (string)NULL;
+      return std::nullopt;
     } else {
-      result = (char *)shared.value;
+      return std::make_optional(string((char *)shared.value));
     }
-
-    return result;
   }
 };
 
@@ -68,8 +65,8 @@ public:
   TcpServer() : server(start()) {}
   ~TcpServer() { stop(server); }
 
-  shared_ptr<Connection> recv() {
-    return make_shared<Connection>(receive(server));
+  shared_ptr<optional<Connection>> recv() {
+    return make_shared<optional<Connection>>(make_optional(receive(server)));
   }
 
   void send(Connection &s, const string &msg) {
