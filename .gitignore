@@ -32,3 +32,7 @@ proyecto-estructura
 **/cmake-build-minsizerel/
 
 **/cmake-build-default/
+
+proyecto_tests
+
+proyecto_estructura
