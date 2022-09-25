@@ -22,12 +22,11 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
   std::optional<string> r = s->value().get_msg();
 
   if (r.has_value()) {
-    a << "Hola desde C++ " << r.value() << "!" << endl;
+    string & query = r.value();
 
-    if (r == "slow") {
-      this_thread::sleep_for(chrono::seconds(15));
-    }
+    // Here goes the query handling
 
+    // For example, if it is equal to "stop", we turn down the server
     if (r == "stop")
       inthand(0);
     else
