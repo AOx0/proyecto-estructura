@@ -23,6 +23,17 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Agregamos corrosion para compilar rust por default
+FetchContent_Declare(
+        Corrosion
+        GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+        GIT_TAG v0.2.1 # Optionally specify a commit hash, version tag or branch here
+)
+
+FetchContent_MakeAvailable(Corrosion)
+
+corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+
 # For profiling, disable when building the release
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
@@ -30,8 +41,6 @@ FetchContent_MakeAvailable(googletest)
 if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "-static")
 endif (WIN32)
-
-link_directories(${CMAKE_SOURCE_DIR}/server/target/release/)
 
 enable_testing()
 
@@ -50,11 +59,7 @@ add_executable(
 
 target_link_libraries(proyecto_tests GTest::gtest_main)
 
-if (WIN32)
-    target_link_libraries(proyecto_estructura -static-libgcc -static-libstdc++ -lserver -lntdll -ladvapi32 -luserenv -lkernel32 -lkernel32 -lws2_32 -lbcrypt)
-else()
-    target_link_libraries(proyecto_estructura libserver.a)
-endif (WIN32)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)
