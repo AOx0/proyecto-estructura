@@ -38,13 +38,15 @@ corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
-if (WIN32)
-    set(CMAKE_EXE_LINKER_FLAGS "-static")
-endif (WIN32)
-
 enable_testing()
 
-set(LIBRARIES src/lib/server.hpp)
+set(LIBRARIES
+        src/lib/server.hpp
+        src/lib/database.cpp
+        src/lib/database.hpp
+        src/lib/table.cpp
+        src/lib/table.hpp
+)
 
 add_executable(proyecto_estructura
         src/main.cpp
@@ -55,10 +57,9 @@ add_executable(
         proyecto_tests
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
-)
+        tests/table.cc)
 
 target_link_libraries(proyecto_tests GTest::gtest_main)
-
 target_link_libraries(proyecto_estructura PUBLIC tcpserver)
 
 include(GoogleTest)
