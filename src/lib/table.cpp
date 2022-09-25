@@ -43,3 +43,12 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in) {
 bool Table::operator==(const Table &other) const {
   return rows == other.rows;
 }
+
+bool Layout::operator==(const Layout &other) const {
+  int result = 0;
+  result += size == other.size;
+  result += optional == other.optional;
+  result += type == other.type;
+
+  return result;
+}

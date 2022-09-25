@@ -22,20 +22,13 @@ struct Layout {
   bool optional;
   Type type;
 
-  bool operator==(Layout const & other) const {
-    int result = 0;
-    result += size == other.size;
-    result += optional == other.optional;
-    result += type == other.type;
-
-    return result;
-  }
+  bool operator==(Layout const & other) const;
 };
 
 struct Table {
   std::map<std::string, Layout> rows;
 
-  std::vector<std::uint8_t> into_vec() const;
+  [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
 
   static Table from_vec(std::vector<std::uint8_t> const & in);
 

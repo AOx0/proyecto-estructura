@@ -3,7 +3,7 @@
 #include "../src/lib/table.hpp"
 
 
-TEST(Serializer, StructToBytes) {
+TEST(SerDe, StructToBytes) {
   const int SIZE = 8;
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
@@ -17,7 +17,7 @@ TEST(Serializer, StructToBytes) {
 }
 
 
-TEST(Serializer, MultipleEntry_StructToBytes) {
+TEST(SerDe, MultipleEntry_StructToBytes) {
   const uint8_t SIZE = 8;
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
@@ -37,7 +37,7 @@ TEST(Serializer, MultipleEntry_StructToBytes) {
   EXPECT_EQ(expected, result) << "Bad Table struct serialization";
 }
 
-TEST(DeSerializer, BytesToStruct) {
+TEST(SerDe, BytesToStruct) {
   const uint8_t SIZE = 16;
   const Type TYPE = Type::u16;
   const bool OPTIONAL = false;
@@ -55,4 +55,21 @@ TEST(DeSerializer, BytesToStruct) {
   const Table result(Table::from_vec(input));
 
   EXPECT_EQ(expected, result) << "Bad Table struct de-serialization";
+}
+
+TEST(SerDe, StructToBytesAndViceversa ) {
+  const int SIZE = 8;
+  const Type TYPE = Type::i8;
+  const bool OPTIONAL = true;
+
+  const Table input { .rows = { { "@$pq=", { .size = SIZE, .optional = OPTIONAL, .type = TYPE } } } };
+
+  std::vector<uint8_t> expected { '@', '$', 'p', 'q', '=', '\0', TYPE, SIZE, OPTIONAL, '\0' };
+  std::vector<uint8_t> result(input.into_vec());
+
+  EXPECT_EQ(expected, result) << "Bad Table struct serialization";
+
+  const Table result_2(Table::from_vec(result));
+
+  EXPECT_EQ(input, result_2) << "Bad Table struct de-serialization";
 }
