@@ -38,3 +38,5 @@ proyecto_tests
 proyecto_estructura
 
 .DS_Store
+
+cmake_build/

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+#include <optional>
 
 #include "lib/server.hpp"
 
