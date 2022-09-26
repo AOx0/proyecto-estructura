@@ -1,14 +1,14 @@
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
-#include "table.hpp"
 #include "fm.hpp"
+#include "table.hpp"
 
 std::vector<std::uint8_t> Table::into_vec() const {
-  std::vector<std::uint8_t> resultado {};
+  std::vector<std::uint8_t> resultado{};
 
-  for (auto & entry: rows) {
-    const char * str = entry.first.c_str();
+  for (auto &entry : rows) {
+    const char *str = entry.first.c_str();
     size_t i = 0;
     while (str[i] != '\0') {
       resultado.push_back(str[i]);
@@ -24,9 +24,8 @@ std::vector<std::uint8_t> Table::into_vec() const {
   return resultado;
 }
 
-
-Table Table::from_vec(const std::vector<std::uint8_t> & in) {
-  Table t { .rows = { } };
+Table Table::from_vec(const std::vector<std::uint8_t> &in) {
+  Table t{.rows = {}};
 
   size_t i = 0;
   while (in[i] != '\0') {
@@ -35,26 +34,21 @@ Table Table::from_vec(const std::vector<std::uint8_t> & in) {
       name += in[i];
       i++;
     }
-    Type type((Type) in[i + 1]);
-    uint8_t  size(in[i+2]);
-    bool optional(in[i+3]);
-    t.rows[name] = { .size = size, .optional = optional, .type = type  };
-    i+=4;
+    Type type((Type)in[i + 1]);
+    uint8_t size(in[i + 2]);
+    bool optional(in[i + 3]);
+    t.rows[name] = {.size = size, .optional = optional, .type = type};
+    i += 4;
   }
 
   return t;
 }
 
+bool Table::operator==(const Table &other) const { return rows == other.rows; }
 
-bool Table::operator==(const Table &other) const {
-  return rows == other.rows;
-}
-
-
-Table Table::from_file(std::string const & path) {
+Table Table::from_file(std::string const &path) {
   return Table::from_vec(FileManager::read_to_vec(path));
 }
-
 
 bool Layout::operator==(const Layout &other) const {
   int result = 0;

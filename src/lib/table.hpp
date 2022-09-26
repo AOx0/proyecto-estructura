@@ -22,7 +22,7 @@ struct Layout {
   bool optional;
   Type type;
 
-  bool operator==(Layout const & other) const;
+  bool operator==(Layout const &other) const;
 };
 
 struct Table {
@@ -30,11 +30,11 @@ struct Table {
 
   [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
 
-  static Table from_vec(const std::vector<std::uint8_t> & in);
+  static Table from_vec(const std::vector<std::uint8_t> &in);
 
-  static Table from_file(std::string const & path);
+  static Table from_file(std::string const &path);
 
-  bool operator==(Table const & other) const;
+  bool operator==(Table const &other) const;
 };
 
-#endif //TABLE_HPP
+#endif // TABLE_HPP

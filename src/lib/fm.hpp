@@ -1,13 +1,14 @@
 #ifndef FM_HPP
 #define FM_HPP
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <vector>
 
 namespace FileManager {
-  std::vector<uint8_t> read_to_vec(const std::string & path);
-  void write_to_file(const std::string & path, const std::vector<uint8_t> & contents);
-}
+std::vector<uint8_t> read_to_vec(const std::string &path);
+void write_to_file(const std::string &path,
+                   const std::vector<uint8_t> &contents);
+} // namespace FileManager
 
-#endif //FM_HPP
+#endif // FM_HPP
