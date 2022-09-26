@@ -1,8 +1,6 @@
 #ifndef DATABASE_HPP
 #define DATABASE_HPP
 
-struct DataBase {
+struct DataBase {};
 
-};
-
-#endif //DATABASE_HPP
+#endif // DATABASE_HPP
