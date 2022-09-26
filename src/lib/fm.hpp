@@ -3,8 +3,8 @@
 
 #include <fstream>
 #include <iostream>
-#include <vector>
 #include <iterator>
+#include <vector>
 
 namespace FileManager {
 std::vector<uint8_t> read_to_vec(const std::string &path);
