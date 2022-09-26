@@ -8,7 +8,7 @@ build: init
   cmake --build cmake_build
 
 build_release: init
-  cmake --build cmake_build --config Release 
+  cmake --build cmake_build --config Release
 
 test: build
   cd cmake_build && ctest
