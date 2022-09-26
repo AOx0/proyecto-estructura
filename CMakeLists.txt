@@ -46,7 +46,7 @@ set(LIBRARIES
         src/lib/database.hpp
         src/lib/table.cpp
         src/lib/table.hpp
-)
+        src/lib/fm.cpp src/lib/fm.hpp)
 
 add_executable(proyecto_estructura
         src/main.cpp

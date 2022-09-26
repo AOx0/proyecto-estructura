@@ -30,7 +30,9 @@ struct Table {
 
   [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
 
-  static Table from_vec(std::vector<std::uint8_t> const & in);
+  static Table from_vec(const std::vector<std::uint8_t> & in);
+
+  static Table from_file(std::string const & path);
 
   bool operator==(Table const & other) const;
 };

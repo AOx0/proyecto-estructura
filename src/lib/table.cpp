@@ -1,4 +1,8 @@
+#include <iostream>
+#include <fstream>
+
 #include "table.hpp"
+#include "fm.hpp"
 
 std::vector<std::uint8_t> Table::into_vec() const {
   std::vector<std::uint8_t> resultado {};
@@ -20,7 +24,8 @@ std::vector<std::uint8_t> Table::into_vec() const {
   return resultado;
 }
 
-Table Table::from_vec(const std::vector<std::uint8_t> &in) {
+
+Table Table::from_vec(const std::vector<std::uint8_t> & in) {
   Table t { .rows = { } };
 
   size_t i = 0;
@@ -40,9 +45,16 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in) {
   return t;
 }
 
+
 bool Table::operator==(const Table &other) const {
   return rows == other.rows;
 }
+
+
+Table Table::from_file(std::string const & path) {
+  return Table::from_vec(FileManager::read_to_vec(path));
+}
+
 
 bool Layout::operator==(const Layout &other) const {
   int result = 0;

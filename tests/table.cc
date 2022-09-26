@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../src/lib/table.hpp"
-
+#include "../src/lib/fm.hpp"
 
 TEST(SerDe, StructToBytes) {
   const int SIZE = 8;
@@ -57,7 +57,7 @@ TEST(SerDe, BytesToStruct) {
   EXPECT_EQ(expected, result) << "Bad Table struct de-serialization";
 }
 
-TEST(SerDe, StructToBytesAndViceversa ) {
+TEST(SerDe, StructToBytesAndViceversa) {
   const int SIZE = 8;
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
@@ -72,4 +72,21 @@ TEST(SerDe, StructToBytesAndViceversa ) {
   const Table result_2(Table::from_vec(result));
 
   EXPECT_EQ(input, result_2) << "Bad Table struct de-serialization";
+}
+
+TEST(SerDe, SaveLoadFromFile) {
+  const int SIZE = 8;
+  const Type TYPE = Type::i8;
+  const bool OPTIONAL = true;
+
+  const Table expected { .rows = {
+      { "hello", { .size = SIZE, .optional = OPTIONAL, .type = TYPE } },
+      { "hello2", { .size = SIZE, .optional = OPTIONAL, .type = TYPE } }
+  } };
+
+  FileManager::write_to_file("./table1", expected.into_vec());
+
+  Table result = Table::from_file("./table1");
+
+  EXPECT_EQ(expected, result) << "Bad save & load";
 }
