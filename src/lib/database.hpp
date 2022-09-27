@@ -8,13 +8,13 @@
 #include "table.hpp"
 
 struct DataBase {
-    std::vector<std::string> tables;
+  std::vector<std::string> tables;
 
-    std::vector<std::uint8_t> into_vec() const;
+  std::vector<std::uint8_t> into_vec() const;
 
-    static DataBase from_vec(const std::vector<std::uint8_t> & in);
+  static DataBase from_vec(const std::vector<std::uint8_t> &in);
 
-    bool operator==(const DataBase &other) const;
+  bool operator==(const DataBase &other) const;
 };
 
 #endif // DATABASE_HPP
