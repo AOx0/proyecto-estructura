@@ -12,7 +12,7 @@ struct DataBase {
 
   std::vector<std::uint8_t> into_vec() const;
 
-  static DataBase from_vec(const std::vector<std::uint8_t> & in);
+  static DataBase from_vec(const std::vector<std::uint8_t> &in);
 
   bool operator==(const DataBase &other) const;
 };

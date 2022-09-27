@@ -18,10 +18,10 @@ std::vector<std::uint8_t> DataBase::into_vec() const {
   return resultado;
 }
 
-DataBase DataBase::from_vec(const std::vector<std::uint8_t> & in) {
-  DataBase result { .tables = { } };
+DataBase DataBase::from_vec(const std::vector<std::uint8_t> &in) {
+  DataBase result{.tables = {}};
   size_t i = 0;
-  
+
   while (in[i] != '\0') {
     std::string name;
     while (in[i] != '\0') {
@@ -29,7 +29,7 @@ DataBase DataBase::from_vec(const std::vector<std::uint8_t> & in) {
       i++;
     }
     i++;
-    result.tables.push_back(name); 
+    result.tables.push_back(name);
   }
 
   return result;
@@ -38,4 +38,3 @@ DataBase DataBase::from_vec(const std::vector<std::uint8_t> & in) {
 bool DataBase::operator==(const DataBase &other) const {
   return tables == other.tables;
 }
-
