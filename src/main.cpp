@@ -21,7 +21,7 @@ void inthand(int signum) {
 void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
   stringstream a((string()));
   std::optional<string> r = s->value().get_msg();
-  
+
   if (r.has_value()) {
     string &query = r.value();
 
@@ -55,7 +55,7 @@ int main() {
       }
     }
   }
-    
+
   cout << "Finishing CPP..." << endl;
   for (auto &t : threads) {
     t.join();

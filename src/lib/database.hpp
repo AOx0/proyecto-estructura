@@ -13,6 +13,4 @@ struct DataBase {
   std::vector<std::uint8_t> into_vec() const;
 };
 
-
-
 #endif // DATABASE_HPP
