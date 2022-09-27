@@ -8,9 +8,9 @@
 #include "table.hpp"
 
 struct DataBase {
-  std::vector<std::string> tables;
+    std::vector<std::string> tables;
 
-  std::vector<std::uint8_t> into_vec() const;
+    std::vector<std::uint8_t> into_vec() const;
 };
 
 
