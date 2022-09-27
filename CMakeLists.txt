@@ -57,6 +57,7 @@ add_executable(
         proyecto_tests
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
+        tests/database.cc
         tests/table.cc)
 
 target_link_libraries(proyecto_tests GTest::gtest_main)
