@@ -80,7 +80,7 @@ TEST(SerDe, SaveLoadFromFile) {
       .rows = {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
                {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}}};
 
-  FileManager::write_to_file("./table1", expected.into_vec());
+  expected.to_file("./table1");
 
   Table result = Table::from_file("./table1");
 

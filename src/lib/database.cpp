@@ -1,6 +1,8 @@
 #include "database.hpp"
 #include <vector>
 
+#include "fm.hpp"
+
 std::vector<std::uint8_t> DataBase::into_vec() const {
   std::vector<std::uint8_t> resultado{};
 
@@ -37,4 +39,12 @@ DataBase DataBase::from_vec(const std::vector<std::uint8_t> &in) {
 
 bool DataBase::operator==(const DataBase &other) const {
   return tables == other.tables;
+}
+
+DataBase DataBase::from_file(const std::string &path) {
+  return DataBase::from_vec(FileManager::read_to_vec(path));
+}
+
+void DataBase::to_file(const std::string &path) const {
+  FileManager::write_to_file(path, this->into_vec());
 }

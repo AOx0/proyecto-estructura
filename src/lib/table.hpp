@@ -34,6 +34,8 @@ struct Table {
 
   static Table from_file(std::string const &path);
 
+  void to_file(const std::string & path) const;
+
   bool operator==(Table const &other) const;
 };
 

@@ -50,6 +50,10 @@ Table Table::from_file(std::string const &path) {
   return Table::from_vec(FileManager::read_to_vec(path));
 }
 
+void Table::to_file(const std::string &path) const {
+  FileManager::write_to_file(path, this->into_vec());
+}
+
 bool Layout::operator==(const Layout &other) const {
   int result = 0;
   result += size == other.size;
