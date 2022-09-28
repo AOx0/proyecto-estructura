@@ -6,37 +6,37 @@
 #include <vector>
 
 enum Type {
-  u8 = 1,
-  u16 = 2,
-  u64 = 3,
-  i8 = 4,
-  i16 = 5,
-  i64 = 6,
-  f32 = 7,
-  f64 = 8,
-  str = 9
+    u8 = 1,
+    u16 = 2,
+    u64 = 3,
+    i8 = 4,
+    i16 = 5,
+    i64 = 6,
+    f32 = 7,
+    f64 = 8,
+    str = 9
 };
 
 struct Layout {
-  uint8_t size;
-  bool optional;
-  Type type;
+    uint8_t size;
+    bool optional;
+    Type type;
 
-  bool operator==(Layout const &other) const;
+    bool operator==(Layout const &other) const;
 };
 
 struct Table {
-  std::map<std::string, Layout> rows;
+    std::map<std::string, Layout> rows;
 
-  [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
+    [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
 
-  static Table from_vec(const std::vector<std::uint8_t> &in);
+    static Table from_vec(const std::vector<std::uint8_t> &in);
 
-  static Table from_file(std::string const &path);
+    static Table from_file(std::string const &path);
 
-  void to_file(const std::string & path) const;
+    void to_file(const std::string & path) const;
 
-  bool operator==(Table const &other) const;
+    bool operator==(Table const &other) const;
 };
 
 #endif // TABLE_HPP
