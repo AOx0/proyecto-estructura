@@ -14,7 +14,7 @@ struct DataBase {
 
   static DataBase from_vec(const std::vector<std::uint8_t> &in);
 
-  static DataBase from_file(const std::string & path);
+  static DataBase from_file(const std::string &path);
 
   void to_file(const std::string &path) const;
 
