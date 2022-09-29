@@ -12,6 +12,14 @@ project(proyecto_estructura)
 
 set(CMAKE_CXX_STANDARD 20)
 
+if (WIN32)
+    # Windows needs dynamic libraries 100%
+    set(BUILD_SHARED_LIBS ON)
+else()
+    # Unix doesn't
+    set(BUILD_SHARED_LIBS OFF)
+endif(WIN32)
+
 # Agregamos `googltest` para poder escribir pruebas del código
 include(FetchContent)
 FetchContent_Declare(
