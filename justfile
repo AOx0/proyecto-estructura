@@ -2,30 +2,22 @@ default:
   just --list
 
 init:
-  cmake .
+  cmake -S. -B cmake_build
 
-cargo_build_release:
-  cd server && cargo build --release
+build: init
+  cmake --build cmake_build
 
-build: init cargo_build_release
-  cmake --build .
+build_release: init
+  cmake --build cmake_build --config Release
 
-build_release: init cargo_build_release
-  cmake --build . --config Release
-
-test: build clean
-  ctest
+test: build
+  cd cmake_build && ctest
 
 run: build
-  ./proyecto-estructura
+  ./cmake_build/proyecto_estructura
 
 run_release: build_release
-  ./proyecto-estructura
-
-clean_all: clean clean_tests
+  ./cmake_build/proyecto-estructura
 
 clean:
-  rm -rf cmake_install.cmake CMakeFiles CMakeCache.txt Makefile bin _deps lib Testing
-
-clean_tests:
-  rm -rf CTestTestfile.cmake proyecto_tests[1]_include.cmake proyecto_tests[1]_tests.cmake
+  rm -rf cmake_build

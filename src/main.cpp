@@ -2,6 +2,7 @@
 #include <csignal>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -22,7 +23,7 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
   std::optional<string> r = s->value().get_msg();
 
   if (r.has_value()) {
-    string & query = r.value();
+    string &query = r.value();
 
     // Here goes the query handling
 
