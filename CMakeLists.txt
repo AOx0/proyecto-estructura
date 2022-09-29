@@ -12,9 +12,12 @@ project(proyecto_estructura)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Windows must be built with rust stable-x86_64-pc-windows-gnu as target
 if (WIN32)
     # Windows needs dynamic libraries 100%
     set(BUILD_SHARED_LIBS ON)
+    # We do want static libgcc tho
+    set(CMAKE_EXE_LINKER_FLAGS -static)
 else()
     # Unix doesn't
     set(BUILD_SHARED_LIBS OFF)
