@@ -13,11 +13,6 @@ using namespace std;
 
 volatile sig_atomic_t st = 0;
 
-void inthand(int signum) {
-  kill_sign();
-  st = 1;
-}
-
 void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
   stringstream a((string()));
   std::optional<string> r = s->value().get_msg();
@@ -28,8 +23,7 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
     // Here goes the query handling
 
     // For example, if it is equal to "stop", we turn down the server
-    if (r == "stop")
-      inthand(0);
+    if (r == "stop") { kill_sign(); st = 1; }
     else
       tcp.send(s->value(), a.str());
   } else {
@@ -41,8 +35,8 @@ int main() {
   cout << "Starting CppServer 0.1.11 ..." << endl;
   vector<thread> threads;
 
-  signal(SIGINT, inthand);
-  signal(SIGTERM, inthand);
+  signal(SIGINT, [](int value){ kill_sign(); st = 1; });
+  signal(SIGTERM, [](int value){ kill_sign(); st = 1; });
 
   {
     TcpServer server = TcpServer();
