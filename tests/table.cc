@@ -8,8 +8,8 @@ TEST(SerDe, StructToBytes) {
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
 
-  const Table input{
-      .rows = {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}}};
+  std::map<std::string, Layout> map {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
+  const Table input(map);
 
   std::vector<uint8_t> expected{'h',  'e',  'l',  'l',      'o',
                                 '\0', TYPE, SIZE, OPTIONAL, '\0'};
@@ -23,9 +23,9 @@ TEST(SerDe, MultipleEntry_StructToBytes) {
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
 
-  const Table input{
-      .rows = {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
-               {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}}};
+  std::map<std::string, Layout> map {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
+                                     {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
+  const Table input(map);
 
   std::vector<uint8_t> expected{
       'h', 'e', 'l', 'l', 'o', '\0', TYPE, SIZE, OPTIONAL, 'h',
@@ -44,9 +44,10 @@ TEST(SerDe, BytesToStruct) {
                              SIZE, OPTIONAL, 'h',  'e',  'l',      'l',  'o',
                              '2',  '\0',     TYPE, SIZE, OPTIONAL, '\0'};
 
-  const Table expected{
-      .rows = {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
-               {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}}};
+  std::map<std::string, Layout> map{{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
+                                    {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
+  const Table expected(map);
+
   const Table result(Table::from_vec(input));
 
   EXPECT_EQ(expected, result) << "Bad Table struct de-serialization";
@@ -57,8 +58,8 @@ TEST(SerDe, StructToBytesAndViceversa) {
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
 
-  const Table input{
-      .rows = {{"@$pq=", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}}};
+  std::map<std::string, Layout> map{{"@$pq=", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
+  const Table input(map);
 
   std::vector<uint8_t> expected{'@',  '$',  'p',  'q',      '=',
                                 '\0', TYPE, SIZE, OPTIONAL, '\0'};
@@ -76,9 +77,10 @@ TEST(SerDe, SaveLoadFromFile) {
   const Type TYPE = Type::i8;
   const bool OPTIONAL = true;
 
-  const Table expected{
-      .rows = {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
-               {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}}};
+  std::map<std::string, Layout> map{{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
+                                    {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
+
+  const Table expected(map);
 
   expected.to_file("./table1");
 
