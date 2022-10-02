@@ -44,6 +44,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Corrosion)
 
 corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)
 
 # Agregamos fmt, una libreria de formateo de strings moderna
 FetchContent_Declare(
@@ -79,10 +80,10 @@ add_executable(
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
         tests/database.cc
-        tests/table.cc)
+        tests/table.cc tests/fm.cc)
 
-target_link_libraries(proyecto_tests GTest::gtest_main)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt)
+target_link_libraries(proyecto_tests GTest::gtest_main fm)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt fm)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)

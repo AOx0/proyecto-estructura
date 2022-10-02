@@ -48,3 +48,11 @@ DataBase DataBase::from_file(const std::string &path) {
 void DataBase::to_file(const std::string &path) const {
   FileManager::write_to_file(path, this->into_vec());
 }
+
+DataBase DataBase::create(const std::string &path, const std::string &name) {
+  DataBase d{};
+
+  FileManager::write_to_file(path + name + ".db", d.into_vec());
+
+  return d;
+}

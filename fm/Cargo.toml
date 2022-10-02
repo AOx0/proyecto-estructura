@@ -1,5 +1,5 @@
 [package]
-name = "tcpserver"
+name = "fm"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.64.0"
@@ -8,4 +8,6 @@ rust-version = "1.64.0"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
-mio = { version = "0.8.4", features = ["net", "os-poll"] }
+directories = "4.0.1"
+fs_extra = "1.2.0"
+path-absolutize = "3.0.13"

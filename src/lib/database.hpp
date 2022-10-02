@@ -10,7 +10,7 @@
 struct DataBase {
   std::vector<std::string> tables;
 
-  std::vector<std::uint8_t> into_vec() const;
+  [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
 
   static DataBase from_vec(const std::vector<std::uint8_t> &in);
 
@@ -19,6 +19,8 @@ struct DataBase {
   void to_file(const std::string &path) const;
 
   bool operator==(const DataBase &other) const;
+
+  static DataBase create(const std::string &path, const std::string & name);
 };
 
 #endif // DATABASE_HPP
