@@ -73,4 +73,11 @@ public:
     char *m = (char *)msg.c_str();
     communicate(server, s.get_shared(), m);
   }
+
+  void send(Connection &s, stringstream &msg) {
+    string temp(msg.str());
+    char *m = (char *)temp.c_str();
+    msg.str(std::string());
+    communicate(server, s.get_shared(), m);
+  }
 };

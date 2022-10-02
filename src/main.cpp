@@ -1,4 +1,6 @@
-#include <chrono>
+#define SEND(...) tcp.send(s->value(),fmt::format(__VA_ARGS__));
+#define PROCESS(...) std::optional<string> r = s->value().get_msg(); if(r.has_value()) { string &query = r.value(); if (query == "stop") { kill_sign(); st = 1; return; } __VA_ARGS__};SEND("end");
+
 #include <csignal>
 #include <iostream>
 #include <memory>
@@ -6,6 +8,8 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+#include <fmt/core.h>
+#include <fmt/color.h>
 
 #include "lib/server.hpp"
 
@@ -13,22 +17,23 @@ using namespace std;
 
 volatile sig_atomic_t st = 0;
 
-void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
-  std::optional<string> r = s->value().get_msg();
+void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {PROCESS(
+  // We can format the response with fmt::format implicitly by calling the SEND macro
+  SEND(fmt::emphasis::bold, "Wait a minute, {}!\n", "processing...");
 
-  if (r.has_value()) {
-    string &query = r.value();
+  if (query.find("CREATE DATABASE") != string::npos) {
+    // split string r by " "
+    vector<string> v;
+    stringstream ssin(query);
+    while (ssin.good()) {
+      string word;
+      ssin >> word;
+      v.push_back(word);
+    }
 
-    // If the query is "stop", we turn down the server
-    if (r == "stop") { kill_sign(); st = 1; return; }
-
-    // Here goes the query solver
-    tcp.send(s->value(), "Wait a minute, processing...\n");
+    SEND(fmt::emphasis::bold, "Creating database {}\n", v[2]);
   }
-
-  // We must send the message "end" when we are done sending info
-  tcp.send(s->value(), "end");
-}
+)}
 
 int main() {
   cout << "Starting CppServer 0.1.11 ..." << endl;

@@ -38,12 +38,22 @@ FetchContent_MakeAvailable(googletest)
 FetchContent_Declare(
         Corrosion
         GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
-        GIT_TAG v0.2.1 # Optionally specify a commit hash, version tag or branch here
+        GIT_TAG v0.2.1
 )
 
 FetchContent_MakeAvailable(Corrosion)
 
 corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+
+# Agregamos fmt, una libreria de formateo de strings moderna
+FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 9.1.0
+)
+
+FetchContent_MakeAvailable(fmt)
+
 
 # For profiling, disable when building the release
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
@@ -72,7 +82,7 @@ add_executable(
         tests/table.cc)
 
 target_link_libraries(proyecto_tests GTest::gtest_main)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)
