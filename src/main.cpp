@@ -14,21 +14,20 @@ using namespace std;
 volatile sig_atomic_t st = 0;
 
 void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
-  stringstream a((string()));
   std::optional<string> r = s->value().get_msg();
 
   if (r.has_value()) {
     string &query = r.value();
 
-    // Here goes the query handling
+    // If the query is "stop", we turn down the server
+    if (r == "stop") { kill_sign(); st = 1; return; }
 
-    // For example, if it is equal to "stop", we turn down the server
-    if (r == "stop") { kill_sign(); st = 1; }
-    else
-      tcp.send(s->value(), a.str());
-  } else {
-    tcp.send(s->value(), "Error getting message");
+    // Here goes the query solver
+    tcp.send(s->value(), "Wait a minute, processing...\n");
   }
+
+  // We must send the message "end" when we are done sending info
+  tcp.send(s->value(), "end");
 }
 
 int main() {
