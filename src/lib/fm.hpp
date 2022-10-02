@@ -4,7 +4,36 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <utility>
 #include <vector>
+#include <optional>
+
+namespace rfm_ {
+  extern "C" bool exists(char *);
+  extern "C" bool is_dir(char *);
+  extern "C" bool is_file(char *);
+  extern "C" bool is_symlink(char *);
+  extern "C" bool is_absolute(char *);
+  extern "C" bool is_relative(char *);
+  extern "C" bool remove_dir(char *);
+  extern "C" bool remove_file(char *);
+  extern "C" bool create_dir(char *);
+  extern "C" bool create_file(char *);
+  extern "C" bool rename_file(char *, char *);
+  extern "C" char * append(char *, char *);
+  extern "C" bool rename_dir(char *, char *);
+  extern "C" bool copy_file(char *, char *);
+  extern "C" char *get_absolute(char *);
+  extern "C" char *get_parent(char *);
+  extern "C" char *get_file_name(char *);
+  extern "C" char *get_extension(char *);
+  extern "C" char *get_user_home();
+  extern "C" char *get_data_folder();
+  extern "C" char *get_config_folder();
+  extern "C" char *get_working_dir();
+  extern "C" bool *set_working_dir(char *);
+  extern "C" uint64_t get_file_size(char *);
+}
 
 namespace FileManager {
 std::vector<uint8_t> read_to_vec(const std::string &path);
@@ -12,21 +41,177 @@ void write_to_file(const std::string &path,
                    const std::vector<uint8_t> &contents);
 
 
-  namespace Path {
-    extern "C" bool exists(char *);
-    extern "C" bool is_dir(char *);
-    extern "C" bool is_file(char *);
-    extern "C" bool is_symlink(char *);
-    extern "C" bool is_absolute(char *);
-    extern "C" bool is_relative(char *);
-    extern "C" char *get_absolute(char *);
-    extern "C" char *get_parent(char *);
-    extern "C" char *get_file_name(char *);
-    extern "C" char *get_extension(char *);
-    extern "C" char *get_user_home();
-    extern "C" char *get_working_dir();
-    extern "C" bool *set_working_dir(char *);
-  }
+ struct Path {
+   std::string path;
+
+    explicit Path(std::string path) : path(std::move(path)) {}
+
+    Path operator/(std::string const &other) const {
+      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.c_str()));
+      return Path{new_path};
+    }
+
+    Path operator/(Path const &other) const {
+      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.path.c_str()));
+      return Path{new_path};
+    }
+
+    Path operator+(std::string const &other) const {
+      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.c_str()));
+      return Path{new_path};
+    }
+
+    Path operator+(Path const &other) const {
+      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.path.c_str()));
+      return Path{new_path};
+    }
+
+    Path &operator/=(std::string const &other) {
+      path = rfm_::append((char *)path.c_str(), (char *)other.c_str());
+      return *this;
+    }
+
+    Path &operator/=(Path const &other) {
+      path = rfm_::append((char *)path.c_str(), (char *)other.path.c_str());
+      return *this;
+    }
+
+    Path &operator+=(std::string const &other) {
+      path = rfm_::append((char *)path.c_str(), (char *)other.c_str());
+      return *this;
+    }
+
+    Path &operator+=(Path const &other) {
+      path = rfm_::append((char *)path.c_str(), (char *)other.path.c_str());
+      return *this;
+    }
+
+    bool operator==(Path const &other) const {
+      return path == other.path;
+    }
+
+    bool operator!=(Path const &other) const {
+      return path != other.path;
+    }
+
+    static Path get_working_dir() {
+      return Path{rfm_::get_working_dir()};
+    }
+
+    static Path get_user_home() {
+      return Path{rfm_::get_user_home()};
+    }
+
+    static Path get_data_folder() {
+      return Path{rfm_::get_data_folder()};
+    }
+
+    static Path get_config_folder() {
+      return Path{rfm_::get_config_folder()};
+    }
+
+   [[nodiscard]] Path get_absolute() const {
+      return Path{rfm_::get_absolute((char *)path.c_str())};
+    }
+
+   [[nodiscard]] Path get_parent() const {
+      return Path{rfm_::get_parent((char *)path.c_str())};
+    }
+
+   [[nodiscard]] std::string get_file_name() const {
+      return {rfm_::get_file_name((char *)path.c_str())};
+    }
+
+    [[nodiscard]] std::string get_extension() const {
+      return {rfm_::get_extension((char *)path.c_str())};
+    }
+
+   [[nodiscard]]  bool exists() const {
+      return rfm_::exists((char *)path.c_str());
+    }
+
+   [[nodiscard]]  bool is_dir() const {
+      return rfm_::is_dir((char *)path.c_str());
+    }
+
+   [[nodiscard]]  bool is_file() const {
+      return rfm_::is_file((char *)path.c_str());
+    }
+
+   [[nodiscard]]  bool is_symlink() const {
+      return rfm_::is_symlink((char *)path.c_str());
+    }
+
+   [[nodiscard]]  bool is_absolute() const {
+      return rfm_::is_absolute((char *)path.c_str());
+    }
+
+   [[nodiscard]]  bool is_relative() const {
+      return rfm_::is_relative((char *)path.c_str());
+    }
+
+    static bool remove_dir(Path const &path) {
+      return rfm_::remove_dir((char *)path.path.c_str());
+    }
+
+    static bool remove_file(Path const &path) {
+      return rfm_::remove_file((char *)path.path.c_str());
+    }
+
+    static std::optional<Path> create_dir(std::string const &path) {
+      if (rfm_::create_dir((char *)path.c_str())) {
+        return std::make_optional<Path>(path);
+      } else {
+        return std::nullopt;
+      }
+    }
+
+    static std::optional<Path> create_file(std::string const &path) {
+      if (rfm_::create_file((char *)path.c_str())) {
+        return std::make_optional<Path>(path);
+      } else {
+        return std::nullopt;
+      }
+    }
+
+    bool rename_file(Path const &new_path) {
+      auto result = rfm_::rename_file((char *)path.c_str(), (char *)new_path.path.c_str());
+      if (result) {
+        path = new_path.path;
+      }
+      return result;
+    }
+
+    bool rename_dir(Path const &new_path) {
+      auto result = rfm_::rename_dir((char *)path.c_str(), (char *)new_path.path.c_str());
+      if (result) {
+        path = new_path.path;
+      }
+      return result;
+    }
+
+    [[nodiscard]] std::optional<Path> copy_file(Path const &new_path) const {
+      auto result =  rfm_::copy_file((char *)path.c_str(), (char *)new_path.path.c_str());
+      if (result) {
+        return std::make_optional<Path>(new_path);
+      } else {
+        return std::nullopt;
+      }
+    }
+
+    static bool set_working_dir(Path const &path) {
+      return rfm_::set_working_dir((char *)path.path.c_str());
+    }
+
+    bool set_as_working_dir() const {
+     return rfm_::set_working_dir((char *)path.c_str());
+   }
+
+    [[nodiscard]] uint64_t get_file_size() const {
+      return rfm_::get_file_size((char *)path.c_str());
+    }
+ };
+
 } // namespace FileManager
 
 #endif // FM_HPP

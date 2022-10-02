@@ -243,6 +243,155 @@ pub unsafe fn get_user_home() -> *mut c_char {
 }
 
 #[no_mangle]
+pub unsafe fn get_data_folder() -> *mut c_char {
+    directories::BaseDirs::new()
+        .and_then(|dirs| dirs.data_dir().to_str().map(CString::new))
+        .map(|s| match s {
+            Ok(s) => s.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        })
+        .unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
+pub unsafe fn get_config_folder() -> *mut c_char {
+    directories::BaseDirs::new()
+        .and_then(|dirs| dirs.config_dir().to_str().map(CString::new))
+        .map(|s| match s {
+            Ok(s) => s.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        })
+        .unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
+pub unsafe fn remove_dir(path: *const c_char) -> bool {
+    let c_str = CStr::from_ptr(path);
+    let str = c_str.to_str();
+
+    match str {
+        Ok(s) => {
+            let path = std::path::Path::new(s);
+            std::fs::remove_dir_all(path).is_ok()
+        }
+        Err(_) => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn remove_file(path: *const c_char) -> bool {
+    let c_str = CStr::from_ptr(path);
+    let str = c_str.to_str();
+
+    match str {
+        Ok(s) => {
+            let path = std::path::Path::new(s);
+            std::fs::remove_file(path).is_ok()
+        }
+        Err(_) => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn create_dir(path: *const c_char) -> bool {
+    let c_str = CStr::from_ptr(path);
+    let str = c_str.to_str();
+
+    match str {
+        Ok(s) => {
+            let path = std::path::Path::new(s);
+            std::fs::create_dir_all(path).is_ok()
+        }
+        Err(_) => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn create_file(path: *const c_char) -> bool {
+    let c_str = CStr::from_ptr(path);
+    let str = c_str.to_str();
+
+    match str {
+        Ok(s) => {
+            let path = std::path::Path::new(s);
+            std::fs::File::create(path).is_ok()
+        }
+        Err(_) => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn rename_file(old_path: *const c_char, new_path: *const c_char) -> bool {
+    let old_c_str = CStr::from_ptr(old_path);
+    let old_str = old_c_str.to_str();
+
+    let new_c_str = CStr::from_ptr(new_path);
+    let new_str = new_c_str.to_str();
+
+    match (old_str, new_str) {
+        (Ok(old_s), Ok(new_s)) => {
+            let old_path = std::path::Path::new(old_s);
+            let new_path = std::path::Path::new(new_s);
+            std::fs::rename(old_path, new_path).is_ok()
+        }
+        _ => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn rename_dir(old_path: *const c_char, new_path: *const c_char) -> bool {
+    let old_c_str = CStr::from_ptr(old_path);
+    let old_str = old_c_str.to_str();
+
+    let new_c_str = CStr::from_ptr(new_path);
+    let new_str = new_c_str.to_str();
+
+    match (old_str, new_str) {
+        (Ok(old_s), Ok(new_s)) => {
+            let old_path = std::path::Path::new(old_s);
+            let new_path = std::path::Path::new(new_s);
+            std::fs::rename(old_path, new_path).is_ok()
+        }
+        _ => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn copy_file(old_path: *const c_char, new_path: *const c_char) -> bool {
+    let old_c_str = CStr::from_ptr(old_path);
+    let old_str = old_c_str.to_str();
+
+    let new_c_str = CStr::from_ptr(new_path);
+    let new_str = new_c_str.to_str();
+
+    match (old_str, new_str) {
+        (Ok(old_s), Ok(new_s)) => {
+            let old_path = std::path::Path::new(old_s);
+            let new_path = std::path::Path::new(new_s);
+            std::fs::copy(old_path, new_path).is_ok()
+        }
+        _ => false,
+    }
+}
+
+#[no_mangle]
+pub unsafe fn get_file_size(path: *const c_char) -> u64 {
+    let c_str = CStr::from_ptr(path);
+    let str = c_str.to_str();
+
+    match str {
+        Ok(s) => {
+            let path = std::path::Path::new(s);
+            match std::fs::metadata(path) {
+                Ok(m) => m.len(),
+                Err(_) => 0,
+            }
+        }
+        Err(_) => 0,
+    }
+}
+
+#[no_mangle]
 pub unsafe fn append(path: *mut c_char, rhs: *mut c_char) -> *mut c_char {
     let c_str = CStr::from_ptr(path);
     let str = c_str.to_str();
