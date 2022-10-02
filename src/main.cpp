@@ -1,5 +1,6 @@
 #define SEND(...) tcp.send(s->value(),fmt::format(__VA_ARGS__));
-#define PROCESS(...) std::optional<string> r = s->value().get_msg(); if(r.has_value()) { string &query = r.value(); if (query == "stop") { kill_sign(); st = 1; return; } __VA_ARGS__};SEND("end");
+#define PROCESS(...) std::optional<string> r = s->value().get_msg(); if(r.has_value()) { string &query = r.value(); \
+if (query == "stop") { kill_sign(); st = 1; return; } __VA_ARGS__};SEND("end");
 
 #include <csignal>
 #include <iostream>
@@ -17,23 +18,22 @@ using namespace std;
 
 volatile sig_atomic_t st = 0;
 
-void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {PROCESS(
+void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
+PROCESS(
   // We can format the response with fmt::format implicitly by calling the SEND macro
   SEND(fmt::emphasis::bold, "Wait a minute, {}!\n", "processing...");
 
   if (query.find("CREATE DATABASE") != string::npos) {
-    // split string r by " "
-    vector<string> v;
-    stringstream ssin(query);
-    while (ssin.good()) {
-      string word;
-      ssin >> word;
-      v.push_back(word);
-    }
 
-    SEND(fmt::emphasis::bold, "Creating database {}\n", v[2]);
+    // Split query by spaces
+    istringstream iss(query);
+    vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
+
+    // Get database name
+    SEND(fmt::emphasis::bold, "Creating database {}\n", tokens[2]);
   }
-)}
+)
+}
 
 int main() {
   cout << "Starting CppServer 0.1.11 ..." << endl;
