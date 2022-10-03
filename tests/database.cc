@@ -7,14 +7,14 @@ TEST(DB_SerDe, StructToVec) {
                                      '1', '\0', 't', 'a',  'b', 'l',
                                      'a', '_',  '2', '\0', '\0'};
 
-  DataBase input{.tables = {"tabla_1", "tabla_2"}};
+  DataBase input({"tabla_1", "tabla_2"});
   std::vector<std::uint8_t> result(input.into_vec());
 
   EXPECT_EQ(expected, result);
 }
 
 TEST(DB_SerDe, VecToStruct) {
-  DataBase expected{.tables = {"tabla_1", "tabla_2"}};
+  DataBase expected({"tabla_1", "tabla_2"});
 
   std::vector<std::uint8_t> input{'t', 'a', 'b', 'l', 'a', '_', '1',  '\0', 't',
                                   'a', 'b', 'l', 'a', '_', '2', '\0', '\0'};
@@ -24,7 +24,7 @@ TEST(DB_SerDe, VecToStruct) {
 }
 
 TEST(DB_SerDe, SaveLoadFromFile) {
-  DataBase expected{.tables = {"tabla_1", "tabla_2"}};
+  DataBase expected({"tabla_1", "tabla_2"});
 
   std::vector<std::uint8_t> input{'t', 'a', 'b', 'l', 'a', '_', '1',  '\0', 't',
                                   'a', 'b', 'l', 'a', '_', '2', '\0', '\0'};

@@ -25,7 +25,7 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
 
       if (query == "stop") { kill_sign(); st = 1; return; }
 
-      SEND(fmt::emphasis::bold, "Wait a minute, {}!\n", "processing...");
+      SEND("Wait a minute, processing...!\n");
 
       if (query.find("CREATE DATABASE") != string::npos) {
 
@@ -34,9 +34,10 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp) {
         vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
 
         // Get database name
-        SEND(fmt::emphasis::bold, "Creating database {}\n", tokens[2]);
+        SEND("    Creating database {}\n", tokens[2]);
 
-        DataBase::create("data", tokens[2]);
+        // Create database
+        DataBase::create("data/", tokens[2]);
       }
 
 
