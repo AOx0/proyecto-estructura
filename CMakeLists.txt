@@ -79,7 +79,7 @@ set(LIBRARIES
 add_executable(proyecto_estructura
         src/main.cpp
         ${LIBRARIES}
-)
+        src/lib/logger.cpp src/lib/logger.hpp)
 
 add_executable(
         proyecto_tests

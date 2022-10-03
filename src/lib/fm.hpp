@@ -41,6 +41,9 @@ std::vector<uint8_t> read_to_vec(const std::string &path);
 void write_to_file(const std::string &path,
                    const std::vector<uint8_t> &contents);
 
+void append_to_file(const std::string &path,
+                   const std::vector<uint8_t> &contents);
+
 
  struct Path {
    std::string path;
