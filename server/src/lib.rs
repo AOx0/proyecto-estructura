@@ -2,7 +2,7 @@ extern crate core;
 
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::io::{Read, Write};
 use std::os::raw::c_char;
@@ -15,7 +15,7 @@ use std::time::Duration;
 
 pub struct ConnectionState {
     stream: Arc<Mutex<TcpStream>>,
-    response: Arc<Mutex<VecDeque<String>>>,
+    response: Arc<Mutex<String>>,
     c_sender: Arc<Mutex<Sender<String>>>,
     c_receiver: Arc<Mutex<Receiver<String>>>,
     rs_sender: Arc<Mutex<Sender<String>>>,
@@ -117,7 +117,7 @@ impl TcpServer {
                             token,
                             ConnectionState {
                                 stream: Arc::new(Mutex::new(connection)),
-                                response: Arc::new(Mutex::new(VecDeque::new())),
+                                response: Arc::new(Mutex::new("".to_string())),
                                 c_sender: Arc::new(Mutex::new(c_sender)),
                                 c_receiver: Arc::new(Mutex::new(c_receiver)),
                                 rs_sender: Arc::new(Mutex::new(rs_sender)),
@@ -222,44 +222,39 @@ impl TcpServer {
                             let future_response = Arc::clone(&connection.response);
                             let connection = Arc::clone(&connection.stream);
                             move || {
+                                // TODO: Stop receiving while processing
+
                                 // Receive response from private channel
-                                let mut cont = true;
-                                while cont == true && !*END.read().unwrap() {
-                                    let receiver_guard = rs_receiver.lock().unwrap();
-                                    let response = loop {
-                                        if !(*END.read().unwrap()) {
-                                            match receiver_guard
-                                                .recv_timeout(Duration::from_secs_f32(5.0))
-                                            {
-                                                Ok(value) => {
-                                                    break value;
-                                                }
-                                                Err(_) => {
-                                                    continue;
-                                                }
+                                let receiver_guard = rs_receiver.lock().unwrap();
+                                let response = loop {
+                                    if !(*END.read().unwrap()) {
+                                        match receiver_guard
+                                            .recv_timeout(Duration::from_secs_f32(5.0))
+                                        {
+                                            Ok(value) => {
+                                                break value;
                                             }
-                                        } else {
-                                            return;
+                                            Err(_) => {
+                                                continue;
+                                            }
                                         }
-                                    };
-
-                                    println!("Received .. {:?}", response);
-
-                                    if response == "end" {
-                                        cont = false;
+                                    } else {
+                                        return;
                                     }
+                                };
 
-                                    (*future_response.lock().unwrap()).push_back(response);
+                                println!("{:?}", response);
 
-                                    // Register writable event to send response
-                                    registry
-                                        .reregister(
-                                            &mut *connection.lock().unwrap(),
-                                            token,
-                                            Interest::WRITABLE,
-                                        )
-                                        .unwrap();
-                                }
+                                *future_response.lock().unwrap() = response;
+
+                                // Register writable event to send response
+                                registry
+                                    .reregister(
+                                        &mut *connection.lock().unwrap(),
+                                        token,
+                                        Interest::WRITABLE,
+                                    )
+                                    .unwrap();
                             }
                         });
 
@@ -279,31 +274,20 @@ impl TcpServer {
                 return Ok(true);
             }
         } else if event.is_writable() {
-            let data = (*connection.response.lock().unwrap()).pop_front();
-
-            let data = if let Some(data) = data {
-                data
-            } else {
-                return Ok(false);
-            };
-
-            println!("Sending response: {}", data);
-
-            if data == "end" {
-                *connection.is_active.lock().unwrap() = false;
-                registry.reregister(
-                    &mut *connection.stream.lock().unwrap(),
-                    event.token(),
-                    Interest::READABLE,
-                )?;
-                return Ok(false);
-            }
+            let data = connection.response.lock().unwrap().clone();
 
             let write = connection.stream.lock().unwrap().write(data.as_bytes());
 
             match write {
                 Ok(n) if n < data.len() => return Err(std::io::ErrorKind::WriteZero.into()),
-                Ok(_) => {}
+                Ok(_) => {
+                    *connection.is_active.lock().unwrap() = false;
+                    registry.reregister(
+                        &mut *connection.stream.lock().unwrap(),
+                        event.token(),
+                        Interest::READABLE,
+                    )?
+                }
 
                 Err(ref err) if Self::would_block(err) => {}
 
@@ -494,7 +478,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
 #[no_mangle]
 pub extern "C" fn start() -> Tcp {
-    println!("Starting TcpServer 0.1.14 ...");
+    println!("Starting TcpServer 0.1.13 ...");
 
     // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();

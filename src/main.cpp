@@ -20,8 +20,10 @@ volatile sig_atomic_t st = 0;
 #define WARN(...) log->warn(fmt::format(__VA_ARGS__))
 #define ERROR(...) log->error(fmt::format(__VA_ARGS__))
 
-void resolve(const shared_ptr<optional<Connection>>& s, TcpServer &tcp, const shared_ptr<Logger> & log) {
-#define SEND(...) tcp.send(s->value(),fmt::format(__VA_ARGS__))
+void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logger> log) {
+#define SEND(...) send << fmt::format(__VA_ARGS__)
+
+    stringstream send;
 
     std::optional<string> r = s->value().get_msg();
     if(r.has_value()) {
@@ -47,7 +49,7 @@ void resolve(const shared_ptr<optional<Connection>>& s, TcpServer &tcp, const sh
 
 
     }
-    SEND("end");
+    tcp.send(s->value(),send);
 }
 
 int main() {
