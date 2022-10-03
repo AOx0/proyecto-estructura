@@ -51,37 +51,61 @@ void resolve(const shared_ptr<optional<Connection>>& s, TcpServer &tcp, const sh
 }
 
 int main() {
-  cout << "Starting CppServer 0.1.11 ..." << endl;
   vector<thread> threads;
   FileManager::Path data_path(FileManager::Path::get_project_dir("com", "up", "toi"));
   if(const char* env_p = std::getenv("TOI_DATA_PATH"))
     data_path = env_p;
 
+  if (!data_path.exists()) {
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} does not exist", data_path.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path.", data_path.path));
+    if (!data_path.create_as_dir()) {
+      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
+      return 1;
+    }
+  } else if (data_path.exists() && !data_path.is_file()) {
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Removing file {}", data_path.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} does not exist", data_path.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path.", data_path.path));
+    if (!data_path.create_as_dir()) {
+      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
+      return 1;
+    }
+  }
+
+  // Create logger.
   shared_ptr<Logger> log(make_shared<Logger>(data_path/"log.log"));
 
-  data_path /= "data";
+  LOG("Logger initialized!");
 
-  if (!data_path.exists() || !data_path.is_dir()) {
+  FileManager::Path app_data (data_path/"data");
 
-    // If data_path is a file, remove it
-    if (data_path.exists() && !data_path.is_dir()) {
-      // remove and handle error in case it return false
-      if (!data_path.remove()) {
-        ERROR("Failed to remove file {}", data_path.path);
-        return 1;
-      }
+  if (!app_data.exists()) {
+    Logger::show(LOG_TYPE_::WARN, fmt::format("App data path {} does not exist", app_data.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating app data path.", app_data.path));
+    if (!app_data.create_as_dir()) {
+      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", app_data.path));
+      return 1;
     }
-
-    if (!data_path.create_as_dir()) {
-      ERROR("Cannot create data directory: {}", data_path.path);
+  } else if (app_data.exists() && !app_data.is_file()) {
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Removing file {}", app_data.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("App data path {} does not exist", app_data.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating app data path.", app_data.path));
+    if (!app_data.create_as_dir()) {
+      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", app_data.path));
       return 1;
     }
   }
 
   LOG("Data path {}", data_path.path);
+  LOG("App data path {}", app_data.path);
+  LOG("Logger path {}", log->path_.path);
 
   signal(SIGINT, [](int value){ kill_sign(); st = 1; });
   signal(SIGTERM, [](int value){ kill_sign(); st = 1; });
+
+
+  LOG("Starting CppServer 0.1.11");
 
   {
     TcpServer server = TcpServer();

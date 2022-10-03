@@ -224,7 +224,7 @@ impl TcpServer {
                             move || {
                                 // Receive response from private channel
                                 let mut cont = true;
-                                while cont == true {
+                                while cont == true && !*END.read().unwrap() {
                                     let receiver_guard = rs_receiver.lock().unwrap();
                                     let response = loop {
                                         if !(*END.read().unwrap()) {

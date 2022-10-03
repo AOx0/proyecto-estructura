@@ -34,6 +34,7 @@ namespace rfm_ {
   extern "C" char *get_project_dir(char *, char *,char *);
   extern "C" bool *set_working_dir(char *);
   extern "C" uint64_t get_file_size(char *);
+  extern "C" void drop_csring(char *);
 }
 
 namespace FileManager {
@@ -45,48 +46,57 @@ void append_to_file(const std::string &path,
                    const std::vector<uint8_t> &contents);
 
 
- struct Path {
+struct Path {
+private:
+  static std::string get_string(char * rs_cstring) {
+    std::string result(rs_cstring);
+    rfm_::drop_csring(rs_cstring);
+
+    return result;
+  }
+
+public:
    std::string path;
 
     explicit Path(std::string path) : path(std::move(path)) {}
 
     Path operator/(std::string const &other) const {
-      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.c_str()));
+      std::string new_path(get_string(rfm_::append((char *)path.c_str(), (char *)other.c_str())));
       return Path{new_path};
     }
 
     Path operator/(Path const &other) const {
-      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.path.c_str()));
+      std::string new_path(get_string(rfm_::append((char *)path.c_str(), (char *)other.path.c_str())));
       return Path{new_path};
     }
 
     Path operator+(std::string const &other) const {
-      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.c_str()));
+      std::string new_path(get_string(rfm_::append((char *)path.c_str(), (char *)other.c_str())));
       return Path{new_path};
     }
 
     Path operator+(Path const &other) const {
-      std::string new_path(rfm_::append((char *)path.c_str(), (char *)other.path.c_str()));
+      std::string new_path(get_string(rfm_::append((char *)path.c_str(), (char *)other.path.c_str())));
       return Path{new_path};
     }
 
     Path &operator/=(std::string const &other) {
-      path = rfm_::append((char *)path.c_str(), (char *)other.c_str());
+      path = get_string(rfm_::append((char *)path.c_str(), (char *)other.c_str()));
       return *this;
     }
 
     Path &operator/=(Path const &other) {
-      path = rfm_::append((char *)path.c_str(), (char *)other.path.c_str());
+      path = get_string(rfm_::append((char *)path.c_str(), (char *)other.path.c_str()));
       return *this;
     }
 
     Path &operator+=(std::string const &other) {
-      path = rfm_::append((char *)path.c_str(), (char *)other.c_str());
+      path = get_string(rfm_::append((char *)path.c_str(), (char *)other.c_str()));
       return *this;
     }
 
     Path &operator+=(Path const &other) {
-      path = rfm_::append((char *)path.c_str(), (char *)other.path.c_str());
+      path = get_string(rfm_::append((char *)path.c_str(), (char *)other.path.c_str()));
       return *this;
     }
 
@@ -104,40 +114,40 @@ void append_to_file(const std::string &path,
     }
 
     static Path get_project_dir(std::string const &project_name, std::string const &author_name, std::string const &version) {
-      std::string path(rfm_::get_project_dir((char *)project_name.c_str(), (char *)author_name.c_str(), (char *)version.c_str()));
+      std::string path(get_string(rfm_::get_project_dir((char *)project_name.c_str(), (char *)author_name.c_str(), (char *)version.c_str())));
       return Path{path};
     }
 
     static Path get_working_dir() {
-      return Path{rfm_::get_working_dir()};
+      return Path{get_string(rfm_::get_working_dir())};
     }
 
     static Path get_user_home() {
-      return Path{rfm_::get_user_home()};
+      return Path{get_string(rfm_::get_user_home())};
     }
 
     static Path get_data_folder() {
-      return Path{rfm_::get_data_folder()};
+      return Path{get_string(rfm_::get_data_folder())};
     }
 
     static Path get_config_folder() {
-      return Path{rfm_::get_config_folder()};
+      return Path{get_string(rfm_::get_config_folder())};
     }
 
    [[nodiscard]] Path get_absolute() const {
-      return Path{rfm_::get_absolute((char *)path.c_str())};
+      return Path{get_string(rfm_::get_absolute((char *)path.c_str()))};
     }
 
    [[nodiscard]] Path get_parent() const {
-      return Path{rfm_::get_parent((char *)path.c_str())};
+      return Path{get_string(rfm_::get_parent((char *)path.c_str()))};
     }
 
    [[nodiscard]] std::string get_file_name() const {
-      return {rfm_::get_file_name((char *)path.c_str())};
+      return {get_string(rfm_::get_file_name((char *)path.c_str()))};
     }
 
     [[nodiscard]] std::string get_extension() const {
-      return {rfm_::get_extension((char *)path.c_str())};
+      return {get_string(rfm_::get_extension((char *)path.c_str()))};
     }
 
    [[nodiscard]]  bool exists() const {

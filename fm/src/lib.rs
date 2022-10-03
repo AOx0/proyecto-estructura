@@ -4,6 +4,15 @@ use path_absolutize::*;
 use std::ffi::{c_char, CStr, CString};
 
 #[no_mangle]
+pub unsafe fn drop_csring(c_str: *mut c_char) {
+    if c_str.is_null() {
+        return;
+    }
+
+    let _ = CString::from_raw(c_str);
+}
+
+#[no_mangle]
 pub unsafe fn exists(path: *const c_char) -> bool {
     if path.is_null() {
         return false;

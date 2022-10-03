@@ -48,7 +48,7 @@ Logger::Logger(Logger::Path path) : path_(std::move(path)) {
   // Check if path exists, create if not and set path_
   if (!path_.exists())  {
     if (!path_.create_as_file()){
-      show(LOG_TYPE_::ERROR, "Could not create log file" );
+      show(LOG_TYPE_::ERROR, fmt::format("Could not create log file at {}", path_.path) );
       exit(1);
     }
   }

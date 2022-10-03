@@ -43,13 +43,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Corrosion)
 
-if (CMAKE_BUILD_TYPE MATCHES DEBUG)
-    corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
-    corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)
-else()
-    corrosion_import_crate(MANIFEST_PATH server/Cargo.toml PROFILE release)
-    corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml PROFILE release)
-endif (CMAKE_BUILD_TYPE MATCHES DEBUG)
+corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)
 
 
 # Agregamos fmt, una libreria de formateo de strings moderna
@@ -63,8 +58,8 @@ FetchContent_MakeAvailable(fmt)
 
 
 # For profiling, disable when building the release
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
 enable_testing()
 

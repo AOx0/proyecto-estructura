@@ -21,9 +21,9 @@ struct Logger {
 
   Path path_;
   std::mutex mtx_;
-private:
-  inline void show(LOG_TYPE_ type, const std::string &msg);
+  static void show(LOG_TYPE_ type, const std::string &msg);
 
+private:
   // static method to convert a string to a vec of uint_8
   static std::vector<std::uint8_t> to_vec(const std::string &str);
 public:
