@@ -6,6 +6,8 @@
 #include <utility>
 #include <fmt/core.h>
 #include <fmt/color.h>
+#include <mutex>
+
 #include "fm.hpp"
 
 enum LOG_TYPE_ {
