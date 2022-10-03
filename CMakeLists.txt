@@ -38,12 +38,29 @@ FetchContent_MakeAvailable(googletest)
 FetchContent_Declare(
         Corrosion
         GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
-        GIT_TAG v0.2.1 # Optionally specify a commit hash, version tag or branch here
+        GIT_TAG v0.2.1
 )
 
 FetchContent_MakeAvailable(Corrosion)
 
-corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+    corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+    corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)
+else()
+    corrosion_import_crate(MANIFEST_PATH server/Cargo.toml PROFILE release)
+    corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml PROFILE release)
+endif (CMAKE_BUILD_TYPE MATCHES DEBUG)
+
+
+# Agregamos fmt, una libreria de formateo de strings moderna
+FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 9.1.0
+)
+
+FetchContent_MakeAvailable(fmt)
+
 
 # For profiling, disable when building the release
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
@@ -62,17 +79,17 @@ set(LIBRARIES
 add_executable(proyecto_estructura
         src/main.cpp
         ${LIBRARIES}
-)
+        src/lib/logger.cpp src/lib/logger.hpp)
 
 add_executable(
         proyecto_tests
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
         tests/database.cc
-        tests/table.cc)
+        tests/table.cc tests/fm.cc)
 
-target_link_libraries(proyecto_tests GTest::gtest_main)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver)
+target_link_libraries(proyecto_tests GTest::gtest_main fm)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt fm)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)

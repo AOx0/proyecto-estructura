@@ -25,7 +25,7 @@ std::vector<std::uint8_t> Table::into_vec() const {
 }
 
 Table Table::from_vec(const std::vector<std::uint8_t> &in) {
-  Table t{.rows = {}};
+  std::map<std::string, Layout> rows;
 
   size_t i = 0;
   while (in[i] != '\0') {
@@ -37,11 +37,11 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in) {
     Type type((Type)in[i + 1]);
     uint8_t size(in[i + 2]);
     bool optional(in[i + 3]);
-    t.rows[name] = {.size = size, .optional = optional, .type = type};
+    rows[name] = {.size = size, .optional = optional, .type = type};
     i += 4;
   }
 
-  return t;
+  return rows;
 }
 
 bool Table::operator==(const Table &other) const { return rows == other.rows; }
@@ -61,4 +61,10 @@ bool Layout::operator==(const Layout &other) const {
   result += type == other.type;
 
   return result;
+}
+
+Table Table::createTable(std::string & name, std::map<std::string, Layout> & layout, std::string & path) {
+  Table  t (layout);
+  FileManager::write_to_file(path, t.into_vec());
+  return t;
 }

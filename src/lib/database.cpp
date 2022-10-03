@@ -21,7 +21,7 @@ std::vector<std::uint8_t> DataBase::into_vec() const {
 }
 
 DataBase DataBase::from_vec(const std::vector<std::uint8_t> &in) {
-  DataBase result{.tables = {}};
+  DataBase result({});
   size_t i = 0;
 
   while (in[i] != '\0') {
@@ -47,4 +47,19 @@ DataBase DataBase::from_file(const std::string &path) {
 
 void DataBase::to_file(const std::string &path) const {
   FileManager::write_to_file(path, this->into_vec());
+}
+
+DataBase DataBase::create(const std::string &path, const std::string &name) {
+  using P = FileManager::Path;
+
+  DataBase d({});
+
+  auto p(P::create_dir(path));
+
+  if (p.has_value()) {
+    *p += (name + "_info.tdb");
+    FileManager::write_to_file(p->path, d.into_vec());
+  }
+
+  return d;
 }

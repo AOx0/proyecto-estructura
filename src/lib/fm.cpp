@@ -30,3 +30,13 @@ void FileManager::write_to_file(const std::string &path,
 
   file.close();
 }
+
+void FileManager::append_to_file(const std::string &path,
+                                const std::vector<uint8_t> &contents) {
+  std::ofstream file;
+  file.open(path, std::ios::out | std::ios::binary | std::ios::app);
+
+  file.write(reinterpret_cast<const char *>(contents.data()), contents.size());
+
+  file.close();
+}

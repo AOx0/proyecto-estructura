@@ -4,6 +4,8 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <shared_mutex>
+#include <mutex>
 
 enum Type {
   u8 = 1,
@@ -27,6 +29,26 @@ struct Layout {
 
 struct Table {
   std::map<std::string, Layout> rows;
+  std::shared_mutex mtx_;
+
+  // Move constructor
+  // Move constructors should be marked with except
+  Table ( Table && rhs ) noexcept {
+    std::unique_lock<std::shared_mutex> lock(rhs.mtx_);
+    rows = std::move(rhs.rows);
+  }
+
+  // Move operator
+  Table & operator= (Table && rhs) noexcept {
+    if (this != &rhs) {
+      std::unique_lock lock_rhs(rhs.mtx_);
+      std::unique_lock lock_this(mtx_);
+      std::lock(lock_rhs, lock_this);
+      rows = std::move(rhs.rows);
+    }
+
+    return *this;
+  }
 
   [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
 
@@ -37,6 +59,10 @@ struct Table {
   void to_file(const std::string &path) const;
 
   bool operator==(Table const &other) const;
+
+  Table (std::map<std::string, Layout> & layout) : rows(std::move(layout)), mtx_() {}
+
+  static Table createTable(std::string & name, std::map<std::string, Layout> & layout, std::string & path);
 };
 
 #endif // TABLE_HPP

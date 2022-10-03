@@ -13,11 +13,12 @@ build_release: init
 test: build
   cd cmake_build && ctest
 
-run: build
-  ./cmake_build/proyecto_estructura
+run: build && exec
 
-run_release: build_release
-  ./cmake_build/proyecto-estructura
+run_release: build_release && exec
+
+exec:
+    ./cmake_build/proyecto_estructura
 
 clean:
   rm -rf cmake_build
