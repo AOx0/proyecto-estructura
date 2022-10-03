@@ -43,8 +43,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Corrosion)
 
-corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
-corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)
+if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+    corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)
+    corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)
+else()
+    corrosion_import_crate(MANIFEST_PATH server/Cargo.toml PROFILE release)
+    corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml PROFILE release)
+endif (CMAKE_BUILD_TYPE MATCHES DEBUG)
+
 
 # Agregamos fmt, una libreria de formateo de strings moderna
 FetchContent_Declare(
