@@ -31,6 +31,7 @@ namespace rfm_ {
   extern "C" char *get_data_folder();
   extern "C" char *get_config_folder();
   extern "C" char *get_working_dir();
+  extern "C" char *get_project_dir(char *, char *,char *);
   extern "C" bool *set_working_dir(char *);
   extern "C" uint64_t get_file_size(char *);
 }
@@ -86,12 +87,22 @@ void write_to_file(const std::string &path,
       return *this;
     }
 
+   Path &operator=(std::string const &other) {
+     path = other;
+     return *this;
+   }
+
     bool operator==(Path const &other) const {
       return path == other.path;
     }
 
     bool operator!=(Path const &other) const {
       return path != other.path;
+    }
+
+    static Path get_project_dir(std::string const &project_name, std::string const &author_name, std::string const &version) {
+      std::string path(rfm_::get_project_dir((char *)project_name.c_str(), (char *)author_name.c_str(), (char *)version.c_str()));
+      return Path{path};
     }
 
     static Path get_working_dir() {
@@ -173,6 +184,24 @@ void write_to_file(const std::string &path,
         return std::nullopt;
       }
     }
+
+   [[nodiscard]] bool remove() const {
+      if (is_dir()) {
+        return rfm_::remove_dir((char *)path.c_str());
+      } else if (is_file()) {
+        return rfm_::remove_file((char *)path.c_str());
+      } else {
+        return false;
+      }
+   }
+
+    [[nodiscard]] bool create_as_dir() const {
+     return rfm_::create_dir((char *)path.c_str());
+   }
+
+   [[nodiscard]] bool create_as_file() const {
+     return rfm_::create_file((char *)path.c_str());
+   }
 
     bool rename_file(Path const &new_path) {
       auto result = rfm_::rename_file((char *)path.c_str(), (char *)new_path.path.c_str());

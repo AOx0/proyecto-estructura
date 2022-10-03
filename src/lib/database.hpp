@@ -9,10 +9,10 @@
 #include "table.hpp"
 
 struct DataBase {
-  std::shared_ptr<std::atomic_int32_t> using_db = 0;
+  std::shared_ptr<std::atomic_int32_t> using_db;
   std::vector<std::string> tables;
 
-  DataBase (std::vector<std::string> tables) : tables(std::move(tables)), using_db(0) {}
+  DataBase (std::vector<std::string> tables) : tables(std::move(tables)), using_db(std::shared_ptr<std::atomic_int32_t>{0}) {}
 
   // Move constructor
   // Move constructors should be marked with except

@@ -89,7 +89,7 @@ add_executable(
         tests/table.cc tests/fm.cc)
 
 target_link_libraries(proyecto_tests GTest::gtest_main fm)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt fm)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt fm)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)
