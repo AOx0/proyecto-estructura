@@ -119,9 +119,10 @@ int main() {
             thread([event, &server, log] { resolve(event, server, log); }));
       }
     }
+    
+    WARN("Shutting down server");
   }
 
-  WARN("Shutting down server");
   for (auto &t : threads) {
     t.join();
   }

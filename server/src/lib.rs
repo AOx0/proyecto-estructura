@@ -98,7 +98,7 @@ impl TcpServer {
                             }
                         };
 
-                        //println!("Accepted connection from: {}", address);
+                        ////println!("Accepted connection from: {}", address);
 
                         let token = Self::next(&mut self.unique_token);
                         self.poll
@@ -165,7 +165,7 @@ impl TcpServer {
         rx: &mut Sender<usize>,
         threads: &mut HashMap<Token, JoinHandle<()>>,
     ) -> std::io::Result<bool> {
-        //println!("{:?}", event);
+        ////println!("{:?}", event);
 
         if event.is_readable() && !*connection.is_active.lock().unwrap() {
             let mut connection_closed = false;
@@ -199,7 +199,7 @@ impl TcpServer {
                 *connection.is_active.lock().unwrap() = true;
                 let received_data = &received_data[..bytes_read];
                 if let Ok(str_buf) = from_utf8(received_data) {
-                    //println!("Received data: {}", str_buf.trim_end());
+                    ////println!("Received data: {}", str_buf.trim_end());
 
                     if str_buf.trim_end().to_lowercase().contains("exit") {
                         connection_closed = true;
@@ -243,7 +243,7 @@ impl TcpServer {
                                     }
                                 };
 
-                                println!("{:?}", response);
+                                //println!("{:?}", response);
 
                                 *future_response.lock().unwrap() = response;
 
@@ -260,17 +260,17 @@ impl TcpServer {
 
                         let a = threads.insert(event.token(), t);
                         if let Some(a) = a {
-                            println!("Joining past thread...");
+                            //println!("Joining past thread...");
                             a.join().unwrap();
                         }
                     }
                 } else {
-                    //println!("Received (none UTF-8) data: {:?}", received_data);
+                    ////println!("Received (none UTF-8) data: {:?}", received_data);
                 }
             }
 
             if connection_closed {
-                //println!("Connection closed");
+                ////println!("Connection closed");
                 return Ok(true);
             }
         } else if event.is_writable() {
@@ -303,9 +303,9 @@ impl TcpServer {
     }
 
     fn stop(self) {
-        println!("        Joining threads...");
+        //println!("        Joining threads...");
         for t in self.threads.into_iter() {
-            println!("            Joining thread...");
+            //println!("            Joining thread...");
             t.1.join().expect("TODO: panic message");
         }
     }
@@ -345,7 +345,7 @@ impl Drop for Shared {
                         let _ = CString::from_raw(self.value as *mut i8);
                     }
                     _ => {
-                        println!("Wrong type u8 descriptor {} for {:p}", self.typ, self.value)
+                        //println!("Wrong type u8 descriptor {} for {:p}", self.typ, self.value)
                     }
                 }
             }
@@ -381,15 +381,15 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
             match result {
                 Ok(_) => {}
                 Err(error) => {
-                    println!("Failed to send trough channel: {:?}", error);
+                    //println!("Failed to send trough channel: {:?}", error);
                 }
             }
         }
         Err(_) => {
-            println!(
-                "Something bad happened while converting to string {:?}",
-                msg
-            )
+            //println!(
+            //    "Something bad happened while converting to string {:?}",
+            //    msg
+            //)
         }
     }
 }
@@ -497,7 +497,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
             }
         }
         Err(err) => {
-            println!("Failed to make CString: {:?}", err);
+            //println!("Failed to make CString: {:?}", err);
             Shared {
                 null: true,
                 value: null_mut::<u8>(),
@@ -510,7 +510,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
 #[no_mangle]
 pub extern "C" fn start() -> Tcp {
-    println!("Starting TcpServer 0.1.13 ...");
+    //println!("Starting TcpServer 0.1.13 ...");
 
     // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();
@@ -525,7 +525,7 @@ pub extern "C" fn start() -> Tcp {
         || {
             let mut server = TcpServer::new(cx2, channels);
             server.run_server();
-            println!("    Stopping server...");
+            //println!("    Stopping server...");
             server.stop();
         }
     })));
@@ -541,53 +541,53 @@ pub extern "C" fn start() -> Tcp {
 
 #[no_mangle]
 pub extern "C" fn stop(state: Tcp) {
-    println!("Finishing from rust...");
+    //println!("Finishing from rust...");
 
-    println!("    Setting end rwlock to true...");
+    //println!("    Setting end rwlock to true...");
     match END.write() {
         Ok(mut value) => {
             *value = true;
         }
         Err(err) => {
-            println!("Failed to lock Mutex: {:?}", err);
+            //println!("Failed to lock Mutex: {:?}", err);
         }
     }
 
-    println!("    Getting runtime...");
+    //println!("    Getting runtime...");
     let runtime =
         unsafe { Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>)).unwrap() };
     let join = runtime.join();
 
     unsafe {
-        println!("    Dropping channels...");
-        let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
-        println!("    Dropping recv_signal...");
-        let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
+        //println!("    Dropping channels...");
+        //let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+        //println!("    Dropping recv_signal...");
+        //let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
     }
 
-    println!("    Waiting for runtime...");
+    //println!("    Waiting for runtime...");
     match join {
         Ok(_) => {
-            println!("        Done!");
+            //println!("        Done!");
         }
         Err(err) => {
-            println!("Failed to join Rust Runtime: {:?}", err)
+            //println!("Failed to join Rust Runtime: {:?}", err)
         }
     }
 
 
-    println!("Done from rust!");
+    //println!("Done from rust!");
 }
 
 #[no_mangle]
 extern "C" fn kill_sign() {
-    println!("    Setting end rwlock to true...");
+    //println!("    Setting end rwlock to true...");
     match END.write() {
         Ok(mut value) => {
             *value = true;
         }
         Err(err) => {
-            println!("Failed to lock Mutex: {:?}", err);
+            //println!("Failed to lock Mutex: {:?}", err);
         }
     }
 }
