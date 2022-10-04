@@ -118,16 +118,6 @@ int main() {
         threads.emplace_back(
             thread([event, &server, log] { resolve(event, server, log); }));
       }
-
-      // Try to join threads and remove from vector
-      for (auto it = threads.begin(); it != threads.end();) {
-        if (it->joinable()) {
-          it->join();
-          it = threads.erase(it);
-        } else {
-          ++it;
-        }
-      }
     }
   }
 

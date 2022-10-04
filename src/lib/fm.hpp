@@ -245,7 +245,7 @@ public:
       return rfm_::set_working_dir((char *)path.path.c_str());
     }
 
-    bool set_as_working_dir() const {
+    [[nodiscard]] bool set_as_working_dir() const {
      return rfm_::set_working_dir((char *)path.c_str());
    }
 

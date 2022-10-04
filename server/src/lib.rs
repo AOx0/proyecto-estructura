@@ -526,6 +526,13 @@ pub extern "C" fn stop(state: Tcp) {
         unsafe { Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>)).unwrap() };
     let join = runtime.join();
 
+    unsafe {
+        println!("    Dropping channels...");
+        let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+        println!("    Dropping recv_signal...");
+        let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
+    }
+
     println!("    Waiting for runtime...");
     match join {
         Ok(_) => {
@@ -536,12 +543,7 @@ pub extern "C" fn stop(state: Tcp) {
         }
     }
 
-    unsafe {
-        println!("    Dropping channels...");
-        let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
-        println!("    Dropping recv_signal...");
-        //let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
-    }
+
     println!("Done from rust!");
 }
 
