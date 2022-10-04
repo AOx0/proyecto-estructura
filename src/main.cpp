@@ -49,7 +49,7 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logg
 
 
     }
-    tcp.send(s->value(),send);
+    tcp.send(s->value(),send.str());
 }
 
 int main() {
