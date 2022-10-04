@@ -65,12 +65,19 @@ int main() {
       Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
       return 1;
     }
-  } else if (data_path.exists() && !data_path.is_file()) {
+  } else if (data_path.is_file()) {
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} exist but is a file", data_path.path));
+
     Logger::show(LOG_TYPE_::WARN, fmt::format("Removing file {}", data_path.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} does not exist", data_path.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path.", data_path.path));
+    // remove data path
+    if (!data_path.remove()) {
+      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to remove file {}", data_path.path));
+      return 1;
+    }
+
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path folder.", data_path.path));
     if (!data_path.create_as_dir()) {
-      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
+      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create folder {}", data_path.path));
       return 1;
     }
   }
@@ -89,19 +96,25 @@ int main() {
       ERROR("Failed to create file {}", app_data.path);
       return 1;
     }
-  } else if (app_data.exists() && !app_data.is_file()) {
+  } else if (app_data.is_file()) {
+    WARN("App data path {} does exist but is a file", app_data.path);
+
     WARN("Removing file {}", app_data.path);
-    WARN("App data path {} does not exist", app_data.path);
-    WARN("Creating app data path.", app_data.path);
+    if (!app_data.remove()) {
+      ERROR("Failed to remove file {}", app_data.path);
+      return 1;
+    }
+
+    WARN("Creating app data path folder.", app_data.path);
     if (!app_data.create_as_dir()) {
-      ERROR("Failed to create file {}", app_data.path);
+      ERROR("Failed to create dir {}", app_data.path);
       return 1;
     }
   }
 
-  LOG("Data path {}", data_path.path);
-  LOG("App data path {}", app_data.path);
-  LOG("Logger path {}", log->path_.path);
+  LOG("Data path     : {}", data_path.path);
+  LOG("App data path : {}", app_data.path);
+  LOG("Logger path   : {}", log->path_.path);
 
   LOG("Setting working directory to {}", data_path.path);
 
