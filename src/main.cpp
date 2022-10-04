@@ -41,7 +41,7 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logg
         vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
 
         // Get database name
-        LOG("    Creating database {}", tokens[2]);
+        LOG("Creating database {}", tokens[2]);
 
         // Create database
         DataBase::create("data/", tokens[2]);
@@ -83,18 +83,18 @@ int main() {
   FileManager::Path app_data (data_path/"data");
 
   if (!app_data.exists()) {
-    Logger::show(LOG_TYPE_::WARN, fmt::format("App data path {} does not exist", app_data.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating app data path.", app_data.path));
+    WARN("App data path {} does not exist", app_data.path);
+    WARN("Creating app data path.", app_data.path);
     if (!app_data.create_as_dir()) {
-      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", app_data.path));
+      ERROR("Failed to create file {}", app_data.path);
       return 1;
     }
   } else if (app_data.exists() && !app_data.is_file()) {
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Removing file {}", app_data.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("App data path {} does not exist", app_data.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating app data path.", app_data.path));
+    WARN("Removing file {}", app_data.path);
+    WARN("App data path {} does not exist", app_data.path);
+    WARN("Creating app data path.", app_data.path);
     if (!app_data.create_as_dir()) {
-      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", app_data.path));
+      ERROR("Failed to create file {}", app_data.path);
       return 1;
     }
   }
@@ -103,13 +103,20 @@ int main() {
   LOG("App data path {}", app_data.path);
   LOG("Logger path {}", log->path_.path);
 
-  signal(SIGINT, [](int value){ kill_sign(); st = 1; });
-  signal(SIGTERM, [](int value){ kill_sign(); st = 1; });
+  LOG("Setting working directory to {}", data_path.path);
+
+  if (!FileManager::Path::set_working_dir(data_path)) {
+    ERROR("Failed to set working directory to {}", data_path.path);
+    return 1;
+  }
+
+  signal(SIGINT, [](int value){ kill_sign(); st = 1;  });
+  signal(SIGTERM, [](int value){ kill_sign(); st = 1;  });
 
 
-  LOG("Starting CppServer 0.1.11");
-
+  LOG("Starting CppServer 0.1.14");
   {
+    LOG("Starting TcpServer 0.1.11");
     TcpServer server = TcpServer();
 
     while (!st) {
