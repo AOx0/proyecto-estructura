@@ -1,5 +1,7 @@
 extern crate core;
 
+/// Concurrent TCP listener server in Rust.
+
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
@@ -13,16 +15,30 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
+/// Each client is represented by a `ConnectionState` struct.
+///
+/// Everything is stored in Mutexes to allow for concurrent access.
+/// We do this because we want ot be able to access this struct from the C++ runtime, which is
+/// it may be accessed in any point of time.
 pub struct ConnectionState {
-    stream: Arc<Mutex<TcpStream>>,
-    response: Arc<Mutex<String>>,
-    c_sender: Arc<Mutex<Sender<String>>>,
-    c_receiver: Arc<Mutex<Receiver<String>>>,
-    rs_sender: Arc<Mutex<Sender<String>>>,
-    rs_receiver: Arc<Mutex<Receiver<String>>>,
-    is_active: Arc<Mutex<bool>>,
+    /// The `TcpStream` of the client for we to read and write.
+    pub stream: Arc<Mutex<TcpStream>>,
+    /// The answer to the query.
+    pub response: Arc<Mutex<String>>,
+    ///  This sends messages to the client from c code to the `rs_receiver`
+    pub c_sender: Arc<Mutex<Sender<String>>>,
+    /// This receives messages from the client in c code to the `rs_sender`
+    pub c_receiver: Arc<Mutex<Receiver<String>>>,
+    /// This sends messages to the client from rust code received from the TcpStream
+    pub rs_sender: Arc<Mutex<Sender<String>>>,
+    /// This receives messages from the client in rust code from the `c_sender`.
+    pub rs_receiver: Arc<Mutex<Receiver<String>>>,
+    /// We store if the client has a query in progress. If it does, we
+    /// don't want to read from the TcpStream until the query is finished.
+    pub is_active: Arc<Mutex<bool>>,
 }
 
+/// Holds all connections and information of the tcp server.
 pub struct TcpServer {
     listener: TcpListener,
     poll: Poll,
@@ -311,42 +327,41 @@ impl TcpServer {
     }
 }
 
-// Bridge
 
+/// C binding to share the TCP server information with C++.
 #[repr(C)]
 pub struct Tcp {
-    /// Apuntador al tiempo de ejecución del servidor (JoinHandle<()>)
+    /// Pointer to the servers' runtime (JoinHandle<()>)
     pub runtime: *mut u8,
-    /// Apuntador a el receiver de continuar con el mensaje recibido
+    /// Pointer to a signal receiver to get notification about new messages
     pub recv_signal: *mut u8,
-    /// Apuntador al diccionario de estado de canales
+    /// Pointer to the hashmap of the servers' connections
     pub channels: *mut u8,
 }
 
+
+/// C binding to share data between c++ and rust
 #[repr(C)]
 pub struct Shared {
-    // Pointer to an Allocated value
-    value: *mut u8,
-    // Type of the value
-    typ: u8,
-    // Is null?
-    null: bool,
-    // Token
-    token: usize,
+    /// Pointer to an Allocated value of type `typ`
+    pub value: *mut u8,
+    /// Type of the value that is received for correct casting at runtime. Possible values: ( 1 (`CString`) )
+    pub typ: u8,
+    /// Is this struct null because an error happened?
+    pub null: bool,
+    /// Token of the tcp connection that sent the message
+    pub token: usize,
 }
 
 impl Drop for Shared {
     fn drop(&mut self) {
         if !self.null {
             unsafe {
-                match self.typ {
-                    1 => {
-                        // Drop CString
-                        let _ = CString::from_raw(self.value as *mut i8);
-                    }
-                    _ => {
-                        //println!("Wrong type u8 descriptor {} for {:p}", self.typ, self.value)
-                    }
+                if self.typ == 1 {
+                    // Drop CString
+                    let _ = CString::from_raw(self.value as *mut i8);
+                } else {
+                    //println!("Wrong type u8 descriptor {} for {:p}", self.typ, self.value)
                 }
             }
         }
@@ -359,39 +374,35 @@ impl Drop for Shared {
 pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut c_char) {
     let msg = CStr::from_ptr(msg);
 
-    match msg.to_str() {
-        Ok(value) => {
-            let channels =
-                Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+    if let Ok(value) = msg.to_str() {
+        let channels = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
 
-            let result = {
-                let mut channel = channels.write().unwrap();
+        {
+            let channel_lock = channels.write();
+
+            if let Ok(mut channel) = channel_lock {
                 let channel_result = channel.get_mut(&Token(shared.token));
 
-                if channel_result.is_none() {
-                    return;
-                }
+                if let Some(channel) = channel_result {
+                    let channel = channel.c_sender.lock();
 
-                let channel = channel_result.unwrap().c_sender.lock().unwrap();
-                channel.send(value.to_owned())
-            };
+                    // Handle channel error
+                    if let Ok(channel) = channel {
 
-            state.channels = Arc::into_raw(channels) as *mut u8;
-
-            match result {
-                Ok(_) => {}
-                Err(error) => {
-                    //println!("Failed to send trough channel: {:?}", error);
+                        // Send message to channel and handle error
+                        if channel.send(value.to_owned()).is_err() {
+                            return;
+                        }
+                    }
                 }
             }
         }
-        Err(_) => {
-            //println!(
-            //    "Something bad happened while converting to string {:?}",
-            //    msg
-            //)
-        }
+
+        state.channels = Arc::into_raw(channels) as *mut u8;
+    } else  {
+        //println!("Error converting {:?} to string", msg)
     }
+
 }
 
 ///# Safety
@@ -400,7 +411,22 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
     let receiver = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
     let token = loop {
-        if !(*END.read().unwrap()) {
+        let runtime_on = {
+            // read END value with error handling
+            let end = END.read();
+            if end.is_err() {
+                return Shared {
+                    null: true,
+                    value: null_mut::<u8>(),
+                    typ: 0,
+                    token: 0,
+                };
+            }
+            let end = end.unwrap();
+            !(*end)
+        };
+
+        if runtime_on {
             match receiver.recv_timeout(Duration::from_secs_f32(5.0)) {
                 Ok(value) => {
                     break value;
@@ -451,7 +477,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
         let channel = channel.unwrap();
 
         loop {
-            if {
+            let runtime_on = {
                 // read END value with error handling
                 let end = END.read();
                 if end.is_err() {
@@ -464,7 +490,9 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
                 }
                 let end = end.unwrap();
                 !(*end)
-            } {
+            };
+
+            if runtime_on {
                 match channel.recv_timeout(Duration::from_secs_f32(5.0)) {
                     Ok(value) => {
                         break value;
@@ -496,7 +524,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
                 token,
             }
         }
-        Err(err) => {
+        Err(_) => {
             //println!("Failed to make CString: {:?}", err);
             Shared {
                 null: true,
@@ -544,37 +572,26 @@ pub extern "C" fn stop(state: Tcp) {
     //println!("Finishing from rust...");
 
     //println!("    Setting end rwlock to true...");
-    match END.write() {
-        Ok(mut value) => {
-            *value = true;
-        }
-        Err(err) => {
-            //println!("Failed to lock Mutex: {:?}", err);
-        }
+    if let Ok(mut value) = END.write() {
+        *value = true;
     }
 
     //println!("    Getting runtime...");
     let runtime =
-        unsafe { Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>)).unwrap() };
+        unsafe {
+            let result = Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>));
+            if result.is_err() {
+                //println!("Failed to get runtime: {:?}", err);
+                return;
+            }
+            result.unwrap()
+        };
     let join = runtime.join();
 
-    unsafe {
-        //println!("    Dropping channels...");
-        //let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
-        //println!("    Dropping recv_signal...");
-        //let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
-    }
-
     //println!("    Waiting for runtime...");
-    match join {
-        Ok(_) => {
-            //println!("        Done!");
-        }
-        Err(err) => {
-            //println!("Failed to join Rust Runtime: {:?}", err)
-        }
+    if join.is_ok() {
+        //println!("        Done!");
     }
-
 
     //println!("Done from rust!");
 }
@@ -582,13 +599,8 @@ pub extern "C" fn stop(state: Tcp) {
 #[no_mangle]
 extern "C" fn kill_sign() {
     //println!("    Setting end rwlock to true...");
-    match END.write() {
-        Ok(mut value) => {
-            *value = true;
-        }
-        Err(err) => {
-            //println!("Failed to lock Mutex: {:?}", err);
-        }
+    if let Ok(mut value) = END.write() {
+        *value = true;
     }
 }
 
