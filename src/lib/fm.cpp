@@ -23,20 +23,16 @@ std::vector<uint8_t> FileManager::read_to_vec(const std::string &path) {
 
 void FileManager::write_to_file(const std::string &path,
                                 const std::vector<uint8_t> &contents) {
-  std::ofstream file;
-  file.open(path, std::ios::out | std::ios::binary);
+  std::ofstream file(path, std::ios::out | std::ios::binary);
 
-  file.write(reinterpret_cast<const char *>(contents.data()), contents.size());
-
+  file.write((const char *)&contents[0], (std::streamsize)contents.size());
   file.close();
 }
 
 void FileManager::append_to_file(const std::string &path,
-                                const std::vector<uint8_t> &contents) {
-  std::ofstream file;
-  file.open(path, std::ios::out | std::ios::binary | std::ios::app);
+                                const std::vector<unsigned char> &contents) {
+  std::ofstream file(path.c_str(), std::ios::out | std::ios::binary | std::ios::app);
 
-  file.write(reinterpret_cast<const char *>(contents.data()), contents.size());
-
+  file.write((const char *)&contents[0], (std::streamsize)contents.size());
   file.close();
 }

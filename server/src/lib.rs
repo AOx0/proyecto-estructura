@@ -425,14 +425,46 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
     let result = {
         let mut channel = channels.write().unwrap();
-        let channel = channel
-            .get_mut(&Token(token))
-            .unwrap()
-            .c_receiver
-            .lock()
-            .unwrap();
+       // get token from channel with unwrap handling
+        let channel_result = channel.get_mut(&Token(token));
+
+        if channel_result.is_none() {
+            return Shared {
+                null: true,
+                value: null_mut::<u8>(),
+                typ: 0,
+                token: 0,
+            };
+        }
+
+        let channel = channel_result.unwrap().c_receiver.lock();
+
+        if channel.is_err() {
+            return Shared {
+                null: true,
+                value: null_mut::<u8>(),
+                typ: 0,
+                token: 0,
+            };
+        }
+
+        let channel = channel.unwrap();
+
         loop {
-            if !(*END.read().unwrap()) {
+            if {
+                // read END value with error handling
+                let end = END.read();
+                if end.is_err() {
+                    return Shared {
+                        null: true,
+                        value: null_mut::<u8>(),
+                        typ: 0,
+                        token: 0,
+                    };
+                }
+                let end = end.unwrap();
+                !(*end)
+            } {
                 match channel.recv_timeout(Duration::from_secs_f32(5.0)) {
                     Ok(value) => {
                         break value;
