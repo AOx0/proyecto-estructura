@@ -29,8 +29,6 @@ Logger::Logger(Logger::Path path) : path_(std::move(path)) {
   if (path_.exists()) {
     Path backup (path_.get_parent() + ("old_" + path_.get_file_name()));
 
-    std::cout << backup.path << std::endl;
-
     if (backup.exists()) {
       // remove and handle if error
       if (!backup.remove()) {
