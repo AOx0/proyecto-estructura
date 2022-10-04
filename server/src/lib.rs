@@ -1,11 +1,10 @@
-extern crate core;
+extern crate alloc;
 
-/// Concurrent TCP listener server in Rust.
-
+use alloc::ffi::CString;
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
+use std::ffi::{CStr};
 use std::io::{Read, Write};
 use std::os::raw::c_char;
 use std::ptr::null_mut;
@@ -171,6 +170,14 @@ impl TcpServer {
                     }
                 }
             }
+        }
+
+        // deregister all channels
+        for (token, state) in self.channels.read().unwrap().iter() {
+            let _ = self.poll
+              .registry()
+              .deregister(&mut *state.stream.lock().unwrap());
+            self.threads.remove(token);
         }
     }
 
@@ -405,45 +412,53 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
 
 }
 
+macro_rules! get_message {
+    ($receiver:expr) => {
+        {
+            loop {
+                let runtime_on = {
+                    // read END value with error handling
+                    let end = END.read();
+                    if end.is_err() {
+                        return Shared {
+                            null: true,
+                            value: null_mut::<u8>(),
+                            typ: 0,
+                            token: 0,
+                        };
+                    }
+                    let end = end.unwrap();
+                    !(*end)
+                };
+
+                if runtime_on {
+                    match $receiver.recv_timeout(Duration::from_secs_f32(5.0)) {
+                        Ok(value) => {
+                            break value;
+                        }
+                        Err(_) => {
+                            continue;
+                        }
+                    }
+                } else {
+                    return Shared {
+                        null: true,
+                        value: null_mut::<u8>(),
+                        typ: 0,
+                        token: 0,
+                    };
+                }
+            }
+        }
+    };
+}
+
 ///# Safety
 ///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
     let receiver = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
-    let token = loop {
-        let runtime_on = {
-            // read END value with error handling
-            let end = END.read();
-            if end.is_err() {
-                return Shared {
-                    null: true,
-                    value: null_mut::<u8>(),
-                    typ: 0,
-                    token: 0,
-                };
-            }
-            let end = end.unwrap();
-            !(*end)
-        };
-
-        if runtime_on {
-            match receiver.recv_timeout(Duration::from_secs_f32(5.0)) {
-                Ok(value) => {
-                    break value;
-                }
-                Err(_) => {
-                    continue;
-                }
-            }
-        } else {
-            return Shared {
-                null: true,
-                value: null_mut::<u8>(),
-                typ: 0,
-                token: 0,
-            };
-        }
-    };
+    let token = get_message!(receiver);
 
     state.recv_signal = Arc::into_raw(receiver) as *mut u8;
 
@@ -476,40 +491,7 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
 
         let channel = channel.unwrap();
 
-        loop {
-            let runtime_on = {
-                // read END value with error handling
-                let end = END.read();
-                if end.is_err() {
-                    return Shared {
-                        null: true,
-                        value: null_mut::<u8>(),
-                        typ: 0,
-                        token: 0,
-                    };
-                }
-                let end = end.unwrap();
-                !(*end)
-            };
-
-            if runtime_on {
-                match channel.recv_timeout(Duration::from_secs_f32(5.0)) {
-                    Ok(value) => {
-                        break value;
-                    }
-                    Err(_) => {
-                        continue;
-                    }
-                }
-            } else {
-                return Shared {
-                    null: true,
-                    value: null_mut::<u8>(),
-                    typ: 0,
-                    token: 0,
-                };
-            }
-        }
+        get_message!(channel)
     };
 
     state.channels = Arc::into_raw(channels) as *mut u8;
@@ -569,6 +551,13 @@ pub extern "C" fn start() -> Tcp {
 
 #[no_mangle]
 pub extern "C" fn stop(state: Tcp) {
+    unsafe {
+        //println!("    Dropping channels...");
+        let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+        //println!("    Dropping recv_signal...");
+        let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
+    }
+
     //println!("Finishing from rust...");
 
     //println!("    Setting end rwlock to true...");

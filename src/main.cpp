@@ -30,7 +30,14 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logg
 
       string &query = r.value();
 
-      if (query == "stop") { kill_sign(); st = 1; return; }
+      if (query == "stop") {
+        Logger::show(LOG_TYPE_::WARN, fmt::format("Received 'stop' message"));
+        Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!"));
+        Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer"));
+        kill_sign();
+        st = 1;
+        return;
+      };
 
       SEND("Wait a minute, processing...!\n");
 
@@ -60,7 +67,7 @@ int main() {
 
   if (!data_path.exists()) {
     Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} does not exist", data_path.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path.", data_path.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path folder"));
     if (!data_path.create_as_dir()) {
       Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
       return 1;
@@ -75,7 +82,7 @@ int main() {
       return 1;
     }
 
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path folder.", data_path.path));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path folder"));
     if (!data_path.create_as_dir()) {
       Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create folder {}", data_path.path));
       return 1;
@@ -123,8 +130,23 @@ int main() {
     return 1;
   }
 
-  signal(SIGINT, [](int value){ kill_sign(); st = 1;  });
-  signal(SIGTERM, [](int value){ kill_sign(); st = 1;  });
+  signal(SIGINT, [](int value){
+    cout << endl;
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Received SIGINT"));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!"));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer"));
+    kill_sign();
+    st = 1;
+  });
+
+  signal(SIGTERM, [](int value){
+    cout << endl;
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Received SIGTERM"));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!"));
+    Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer"));
+    kill_sign();
+    st = 1;
+  });
 
 
   LOG("Starting CppServer 0.1.14");
@@ -140,9 +162,10 @@ int main() {
       }
     }
     
-    WARN("Shutting down server");
+    WARN("Shutting down TcpServer");
   }
 
+  Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down CppServer"));
   for (auto &t : threads) {
     t.join();
   }
