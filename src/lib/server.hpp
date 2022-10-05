@@ -13,21 +13,15 @@ struct Shared {
   size_t token;
 };
 
-struct Tcp {
-  uint8_t *runtime;
-  uint8_t *recv_signal;
-  uint8_t *channels;
-};
-
-extern "C" void communicate(Tcp &, Shared &s, char *);
+extern "C" void communicate(void *, Shared &s, char *);
 
 extern "C" void drop_shared(Shared s);
 
-extern "C" Shared receive(Tcp &);
+extern "C" Shared receive(void *);
 
-extern "C" Tcp start();
+extern "C" void * start();
 
-extern "C" void stop(Tcp);
+extern "C" void stop(void *);
 
 extern "C" void kill_sign();
 
@@ -59,7 +53,7 @@ public:
 
 class TcpServer {
 protected:
-  Tcp server;
+  void * server;
 
 public:
   TcpServer() : server(start()) {}

@@ -4,8 +4,9 @@ use alloc::ffi::CString;
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
-use std::ffi::{CStr};
+use std::ffi::{CStr, c_void};
 use std::io::{Read, Write};
+use std::mem::swap;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::str::from_utf8;
@@ -334,19 +335,6 @@ impl TcpServer {
     }
 }
 
-
-/// C binding to share the TCP server information with C++.
-#[repr(C)]
-pub struct Tcp {
-    /// Pointer to the servers' runtime (JoinHandle<()>)
-    pub runtime: *mut u8,
-    /// Pointer to a signal receiver to get notification about new messages
-    pub recv_signal: *mut u8,
-    /// Pointer to the hashmap of the servers' connections
-    pub channels: *mut u8,
-}
-
-
 /// C binding to share data between c++ and rust
 #[repr(C)]
 pub struct Shared {
@@ -378,14 +366,14 @@ impl Drop for Shared {
 ///# Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut c_char) {
+pub unsafe extern "C" fn communicate(state: *mut c_void, shared: &Shared, msg: *mut c_char) {
     let msg = CStr::from_ptr(msg);
 
     if let Ok(value) = msg.to_str() {
-        let channels = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
-
+        let state = state as *mut Tcp;
+        let state = state.as_mut().unwrap();
         {
-            let channel_lock = channels.write();
+            let channel_lock = state.channels.write();
 
             if let Ok(mut channel) = channel_lock {
                 let channel_result = channel.get_mut(&Token(shared.token));
@@ -405,7 +393,6 @@ pub unsafe extern "C" fn communicate(state: &mut Tcp, shared: &Shared, msg: *mut
             }
         }
 
-        state.channels = Arc::into_raw(channels) as *mut u8;
     } else  {
         //println!("Error converting {:?} to string", msg)
     }
@@ -456,18 +443,19 @@ macro_rules! get_message {
 ///# Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
-    let receiver = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
-    let token = get_message!(receiver);
+pub unsafe extern "C" fn receive(state_ptr: *mut c_void) -> Shared {
 
-    state.recv_signal = Arc::into_raw(receiver) as *mut u8;
+    let state = state_ptr as *mut Tcp;
 
-    let channels = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
+    let state = state.as_mut().unwrap();
+
+    let token = get_message!(*state.recv_signal.lock().unwrap());
+
 
     let result = {
-        let mut channel = channels.write().unwrap();
-       // get token from channel with unwrap handling
-        let channel_result = channel.get_mut(&Token(token));
+        let mut channels = state.channels.write().unwrap(); 
+        // get token from channel with unwrap handling
+        let channel_result = channels.get_mut(&Token(token));
 
         if channel_result.is_none() {
             return Shared {
@@ -494,8 +482,6 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
         get_message!(channel)
     };
 
-    state.channels = Arc::into_raw(channels) as *mut u8;
-
     match CString::new(result) {
         Ok(value) => {
             let v = CString::into_raw(value);
@@ -518,19 +504,30 @@ pub unsafe extern "C" fn receive(state: &mut Tcp) -> Shared {
     }
 }
 
+
+/// C binding to share the TCP server information with C++.
+pub struct Tcp {
+    /// Pointer to the servers' runtime (JoinHandle<()>)
+    pub runtime: Option<JoinHandle<()>>,
+    /// Pointer to a signal receiver to get notification about new messages
+    pub recv_signal: Arc<Mutex<Receiver<usize>>>,
+    /// Pointer to the hashmap of the servers' connections
+    pub channels: Arc<RwLock<HashMap<Token, ConnectionState>>>,
+}
+
 #[no_mangle]
-pub extern "C" fn start() -> Tcp {
+pub extern "C" fn start() -> *mut c_void {
     //println!("Starting TcpServer 0.1.13 ...");
 
     // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();
-    let rx2 = Arc::into_raw(Arc::new(rx2));
+    let rx2 = Arc::new(Mutex::new(rx2));
 
     // Creamos el diccionario de estado para las conexiones establecidas
     let channels = Arc::new(RwLock::new(HashMap::new()));
 
     // Spawn del server
-    let runtime = Arc::into_raw(Arc::new(spawn({
+    let runtime = spawn({
         let channels = Arc::clone(&channels);
         || {
             let mut server = TcpServer::new(cx2, channels);
@@ -538,27 +535,23 @@ pub extern "C" fn start() -> Tcp {
             //println!("    Stopping server...");
             server.stop();
         }
-    })));
+    });
 
-    let channels = Arc::into_raw(channels);
+    let pointer = Box::new(Tcp {
+        runtime: Some(runtime),
+        recv_signal: rx2,
+        channels,
+    });
 
-    Tcp {
-        runtime: runtime as *mut u8,
-        recv_signal: rx2 as *mut u8,
-        channels: channels as *mut u8,
-    }
+    Box::into_raw(pointer) as *mut c_void
 }
 
 #[no_mangle]
-pub extern "C" fn stop(state: Tcp) {
-    unsafe {
-        //println!("    Dropping channels...");
-        let _ = Arc::from_raw(state.channels as *const RwLock<HashMap<Token, ConnectionState>>);
-        //println!("    Dropping recv_signal...");
-        let _ = Arc::from_raw(state.recv_signal as *const Receiver<usize>);
-    }
-
+pub extern "C" fn stop(state: *mut c_void) {
     //println!("Finishing from rust...");
+
+    let mut state = unsafe { Box::from_raw(state as *mut Tcp) };
+
 
     //println!("    Setting end rwlock to true...");
     if let Ok(mut value) = END.write() {
@@ -566,22 +559,11 @@ pub extern "C" fn stop(state: Tcp) {
     }
 
     //println!("    Getting runtime...");
-    let runtime =
-        unsafe {
-            let result = Arc::try_unwrap(Arc::from_raw(state.runtime as *const JoinHandle<()>));
-            if result.is_err() {
-                //println!("Failed to get runtime: {:?}", err);
-                return;
-            }
-            result.unwrap()
-        };
-    let join = runtime.join();
+    let mut runtime = None;
 
-    //println!("    Waiting for runtime...");
-    if join.is_ok() {
-        //println!("        Done!");
-    }
+    swap(&mut state.runtime, &mut runtime);
 
+    runtime.unwrap().join().unwrap();
     //println!("Done from rust!");
 }
 
