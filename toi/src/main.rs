@@ -1,7 +1,7 @@
 use std::{io::{Write, Read}, process::exit};
 use text_io::*;
 use clap::Parser;
-use mio::net::TcpStream;
+use std::net::{TcpStream, SocketAddr};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -19,9 +19,8 @@ fn main()  {
     let Args { ip, port } = Args::parse();
 
     let address = format!("{}:{}", ip, port);
-    let address = address.parse().unwrap();
+    let address: SocketAddr = address.parse().unwrap();
    
-    'main : loop {
         let stream = TcpStream::connect(address);
 
         if stream.is_err() {
@@ -34,7 +33,7 @@ fn main()  {
         loop {
             let mut buf = [0; 512*4];
 
-            let message: Result<String, _> = try_read!("{}");
+            let message: Result<String, _> = try_read!("{}\n");
 
             if let Ok(msg) = message {
                 if !msg.is_ascii() {
@@ -47,8 +46,8 @@ fn main()  {
 
                 if let Ok(_) = stream.write(bytes) {
 
-                    if msg == "exit" {
-                        break 'main;
+                    if msg == "exit" || msg == "stop" {
+                        break;
                     }
                     // Receive response
                     if let Ok(_) = stream.read(&mut buf) {
@@ -63,9 +62,8 @@ fn main()  {
                     }
                 } else {
                     println!("Error while writing to TcpStream. Is the server on?");
-                    continue 'main;
+                    continue;
                 }
             }
         }
-    }
 }
