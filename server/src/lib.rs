@@ -146,14 +146,16 @@ impl TcpServer {
                         // Manejo de posible mensaje desde una conexión activa de TCP
                         let done = if let Some(state) = self.channels.read().unwrap().get(&token) {
                             // Manejamos cualquiera que sea el mensaje recibido.
-                            Self::handle_connection_event(
+                            match Self::handle_connection_event(
                                 self.poll.registry().try_clone().unwrap(),
                                 state,
                                 event,
                                 &mut self.query_sender,
                                 &mut self.threads,
-                            )
-                            .unwrap()
+                            ) {
+                                Ok(value) => value,
+                                Err(_) => true,
+                            }
                         } else {
                             false
                         };
