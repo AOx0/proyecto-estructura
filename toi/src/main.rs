@@ -30,15 +30,7 @@ fn main()  {
         }
 
         let mut stream = stream.unwrap();
-
-        if stream.write("Hey".as_bytes()).is_err() {
-            continue;
-        }
-
-        if stream.write("Hey".as_bytes()).is_err() {
-            continue;
-        }
-        
+ 
         loop {
             let mut buf = [0; 512*4];
 

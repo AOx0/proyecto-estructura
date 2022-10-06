@@ -72,7 +72,7 @@ impl TcpServer {
         channels: Arc<RwLock<HashMap<Token, ConnectionState>>>,
     ) -> TcpServer {
         let mut result = TcpServer {
-            listener: TcpListener::bind("127.0.0.1:9999".parse().unwrap())
+            listener: TcpListener::bind("0.0.0.0:9999".parse().unwrap())
                 .expect("Failed to init listener"),
             poll: Poll::new().expect("Failed to init poll"),
             events: Events::with_capacity(1024),
