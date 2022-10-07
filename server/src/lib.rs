@@ -271,7 +271,7 @@ impl TcpServer {
 
                                 //println!("{:?}", response);
 
-                                *future_response.lock().unwrap() = response;
+                                *future_response.lock().unwrap() = response + "\0";
 
                                 // Register writable event to send response
                                 registry
