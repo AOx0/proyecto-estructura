@@ -27,6 +27,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut buf = vec![0; 1024 * 2];
         let msg: String = try_read!("{}\n")?;
 
+        if msg.is_empty() {
+            continue;
+        }
+
         if !msg.is_ascii() {
             println!("Message must be ascii");
             continue;
