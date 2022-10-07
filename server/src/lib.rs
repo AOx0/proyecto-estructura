@@ -122,7 +122,7 @@ impl TcpServer {
                             .register(
                                 &mut connection,
                                 token,
-                                Interest::READABLE.add(Interest::WRITABLE),
+                                Interest::READABLE,
                             )
                             .unwrap();
 
@@ -248,8 +248,6 @@ impl TcpServer {
                             let future_response = Arc::clone(&connection.response);
                             let connection = Arc::clone(&connection.stream);
                             move || {
-                                // TODO: Stop receiving while processing
-
                                 // Receive response from private channel
                                 let receiver_guard = rs_receiver.lock().unwrap();
                                 let response = loop {
@@ -269,9 +267,9 @@ impl TcpServer {
                                     }
                                 };
 
-                                //println!("{:?}", response);
+                                // println!("{:?}", response);
 
-                                *future_response.lock().unwrap() = response + "\0";
+                                *future_response.lock().unwrap() = response;
 
                                 // Register writable event to send response
                                 registry
@@ -301,6 +299,8 @@ impl TcpServer {
             }
         } else if event.is_writable() {
             let data = connection.response.lock().unwrap().clone();
+
+            //println!("Sending from tcp: {:?}", data);
 
             let write = connection.stream.lock().unwrap().write(data.as_bytes());
 
@@ -342,24 +342,27 @@ impl TcpServer {
 pub struct Shared {
     /// Pointer to an Allocated value of type `typ`
     pub value: *mut u8,
-    /// Type of the value that is received for correct casting at runtime. Possible values: ( 1 (`CString`) )
-    pub typ: u8,
     /// Is this struct null because an error happened?
     pub null: bool,
     /// Token of the tcp connection that sent the message
     pub token: usize,
 }
 
+impl Shared {
+    fn null() -> Self {
+        Shared {
+            null: true,
+            value: null_mut::<u8>(),
+            token: 0,
+        }
+    }
+}
+
 impl Drop for Shared {
     fn drop(&mut self) {
         if !self.null {
             unsafe {
-                if self.typ == 1 {
-                    // Drop CString
-                    let _ = CString::from_raw(self.value as *mut i8);
-                } else {
-                    //println!("Wrong type u8 descriptor {} for {:p}", self.typ, self.value)
-                }
+                let _ = CString::from_raw(self.value as *mut i8);
             }
         }
     }
@@ -368,56 +371,41 @@ impl Drop for Shared {
 ///# Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn communicate(state: *mut c_void, shared: &Shared, msg: *mut c_char) {
+pub unsafe extern "C" fn communicate(state_ptr: *mut c_void, shared: &Shared, msg: *const c_char) -> bool {
     let msg = CStr::from_ptr(msg);
 
     if let Ok(value) = msg.to_str() {
-        let state = state as *mut Tcp;
-        let state = state.as_mut().unwrap();
-        {
-            let channel_lock = state.channels.write();
 
-            if let Ok(mut channel) = channel_lock {
-                let channel_result = channel.get_mut(&Token(shared.token));
+        let state = (state_ptr as *mut Tcp).as_mut().unwrap();
 
-                if let Some(channel) = channel_result {
-                    let channel = channel.c_sender.lock();
+        if let Ok(mut channel) = state.channels.write() {
+            let channel_result = channel.get_mut(&Token(shared.token));
 
-                    // Handle channel error
-                    if let Ok(channel) = channel {
+            if let Some(channel) = channel_result {
+                let channel = channel.c_sender.lock();
 
-                        // Send message to channel and handle error
-                        if channel.send(value.to_owned()).is_err() {
-                            return;
-                        }
-                    }
+                // Handle channel error
+                if let Ok(channel) = channel {
+                    // Send message to channel and handle error
+                    return channel.send(value.to_owned()).is_ok();
                 }
             }
         }
-
-    } else  {
-        //println!("Error converting {:?} to string", msg)
     }
 
+    return false;
 }
 
 macro_rules! get_message {
     ($receiver:expr) => {
         {
             loop {
-                let runtime_on = {
-                    // read END value with error handling
-                    let end = END.read();
-                    if end.is_err() {
-                        return Shared {
-                            null: true,
-                            value: null_mut::<u8>(),
-                            typ: 0,
-                            token: 0,
-                        };
+                let runtime_on = loop {
+                    if let Ok(end) = END.read() {
+                        break !(*end);
                     }
-                    let end = end.unwrap();
-                    !(*end)
+
+                     return Shared::null();
                 };
 
                 if runtime_on {
@@ -430,12 +418,7 @@ macro_rules! get_message {
                         }
                     }
                 } else {
-                    return Shared {
-                        null: true,
-                        value: null_mut::<u8>(),
-                        typ: 0,
-                        token: 0,
-                    };
+                    return Shared::null();
                 }
             }
         }
@@ -447,63 +430,31 @@ macro_rules! get_message {
 #[no_mangle]
 pub unsafe extern "C" fn receive(state_ptr: *mut c_void) -> Shared {
 
-    let state = state_ptr as *mut Tcp;
-
-    let state = state.as_mut().unwrap();
-
+    let state = (state_ptr as *mut Tcp).as_mut().unwrap();
     let token = get_message!(*state.recv_signal.lock().unwrap());
 
-
-    let result = {
-        let mut channels = state.channels.write().unwrap(); 
-        // get token from channel with unwrap handling
-        let channel_result = channels.get_mut(&Token(token));
-
-        if channel_result.is_none() {
-            return Shared {
-                null: true,
-                value: null_mut::<u8>(),
-                typ: 0,
-                token: 0,
-            };
+    let result = loop {
+        if let Ok(mut channels) = state.channels.write() {
+            if let Some(channel) = channels.get_mut(&Token(token)) {
+                if let Ok(channel) = channel.c_receiver.lock() {
+                    break get_message!(channel);
+                }
+            }
         }
 
-        let channel = channel_result.unwrap().c_receiver.lock();
-
-        if channel.is_err() {
-            return Shared {
-                null: true,
-                value: null_mut::<u8>(),
-                typ: 0,
-                token: 0,
-            };
-        }
-
-        let channel = channel.unwrap();
-
-        get_message!(channel)
+        return Shared::null();
     };
 
-    match CString::new(result) {
-        Ok(value) => {
-            let v = CString::into_raw(value);
-            Shared {
-                null: false,
-                value: v as *mut u8,
-                typ: 1,
-                token,
-            }
-        }
-        Err(_) => {
-            //println!("Failed to make CString: {:?}", err);
-            Shared {
-                null: true,
-                value: null_mut::<u8>(),
-                typ: 0,
-                token: 0,
-            }
-        }
+    if let Ok(value) = CString::new(result) {
+        let v = CString::into_raw(value);
+        return Shared {
+            null: false,
+            value: v as *mut u8,
+            token,
+        };
     }
+
+    return Shared::null();
 }
 
 

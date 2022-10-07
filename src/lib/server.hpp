@@ -8,12 +8,11 @@ using namespace std;
 
 struct Shared {
   uint8_t *value;
-  uint8_t typ;
   bool null;
   size_t token;
 };
 
-extern "C" void communicate(void *, Shared &s, char *);
+extern "C" bool communicate(void *, Shared &s, const char *);
 
 extern "C" void drop_shared(Shared s);
 
@@ -43,7 +42,7 @@ public:
   [[nodiscard]] bool is_null() const { return null; }
 
   [[nodiscard]] std::optional<string> get_msg() const {
-    if (shared.null || shared.typ != 1) {
+    if (shared.null) {
       return std::nullopt;
     } else {
       return std::make_optional(string((char *)shared.value));
@@ -59,12 +58,12 @@ public:
   TcpServer() : server(start()) {}
   ~TcpServer() { stop(server); }
 
-  shared_ptr<optional<Connection>> recv() {
-    return make_shared<optional<Connection>>(make_optional(receive(server)));
+  shared_ptr<Connection> recv() {
+    return make_shared<Connection>(receive(server));
   }
 
-  void send(Connection &s, const string &msg) {
-    char *m = (char *)msg.c_str();
-    communicate(server, s.get_shared(), m);
+  bool send(Connection &s, const string &msg) {
+    auto m = msg.c_str();
+    return communicate(server, s.get_shared(), m);
   }
 };

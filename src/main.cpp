@@ -20,15 +20,17 @@ volatile sig_atomic_t st = 0;
 #define WARN(...) log->warn(fmt::format(__VA_ARGS__))
 #define ERROR(...) log->error(fmt::format(__VA_ARGS__))
 
-void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logger> log) {
+void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<Logger> & log) {
 #define SEND(...) send << fmt::format(__VA_ARGS__)
 
     stringstream send;
 
-    std::optional<string> r = s->value().get_msg();
+    std::optional<string> r = s->get_msg();
     if(r.has_value()) {
 
       string &query = r.value();
+
+      //LOG("Query: \"{}\"", query);
 
       if (query == "stop") {
         Logger::show(LOG_TYPE_::WARN, fmt::format("Received 'stop' message"));
@@ -37,7 +39,7 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logg
         kill_sign();
         st = 1;
         return;
-      };
+      }
 
       SEND("Wait a minute, processing...!\n");
 
@@ -56,7 +58,12 @@ void resolve(shared_ptr<optional<Connection>> s, TcpServer &tcp, shared_ptr<Logg
 
 
     }
-    tcp.send(s->value(),send.str());
+
+    if (!tcp.send(*s,send.str())) {
+      ERROR("Failed to send response: \"{}\"", send.str());
+    } else {
+      //WARN("Sent response: \"{}\"", send.str());
+    }
 }
 
 int main() {
@@ -155,11 +162,9 @@ int main() {
     TcpServer server = TcpServer();
 
     while (!st) {
-      shared_ptr<optional<Connection>> event = server.recv();
-      if (event->has_value()) {
-        threads.emplace_back(
-            thread([event, &server, log] { resolve(event, server, log); }));
-      }
+      shared_ptr<Connection> event = server.recv();
+      threads.emplace_back(
+          thread([event, &server, log] { resolve(event, server, log); }));
     }
     
     WARN("Shutting down TcpServer");

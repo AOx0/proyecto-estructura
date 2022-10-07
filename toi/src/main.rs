@@ -24,7 +24,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = TcpStream::connect(format!("{ip}:{port}"))?;
 
     loop {
-        let mut msg: String = try_read!("{}\n")?;
+        let mut buf = vec![0; 1024 * 2];
+        let msg: String = try_read!("{}\n")?;
 
         if !msg.is_ascii() {
             println!("Message must be ascii");
@@ -37,8 +38,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
 
-        stream.read_to_string(&mut msg)?;
-        print!("{msg}");
+        let n = stream.read(&mut buf)?;
+
+        if n == 0 {
+            println!("Server closed connection");
+            break;
+        }
+
+        print!("{}", std::str::from_utf8(&buf[..n])?);
     }
 
     Ok(())
