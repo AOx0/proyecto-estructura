@@ -6,9 +6,9 @@ use std::{
 };
 use text_io::*;
 
-/// Simple program to greet a person
+/// DB Client
 #[derive(Parser, Debug)]
-#[command(author, version, about = "DB Client for Toi", long_about = None)]
+#[command(author, version, about, long_about = None)]
 struct Args {
     /// The ip to connect to
     #[arg(required = true)]
@@ -23,28 +23,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut stream = TcpStream::connect(format!("{ip}:{port}"))?;
 
-    let mut msg: String;
-    let mut buf;
     loop {
-        buf = vec![0; 512 * 4];
-        msg = try_read!("{}\n")?;
+        let mut msg: String = try_read!("{}\n")?;
 
         if !msg.is_ascii() {
             println!("Message must be ascii");
             continue;
         }
 
-        let _ = stream.write(msg.as_bytes())?;
+        stream.write_all(msg.as_bytes())?;
 
         if msg == "exit" || msg == "stop" {
             break;
         }
 
-        let _ = stream.read(&mut buf)?;
-
-        let response = String::from_utf8(buf.to_vec())?;
-
-        print!("{response}");
+        stream.read_to_string(&mut msg)?;
+        print!("{msg}");
     }
 
     Ok(())
