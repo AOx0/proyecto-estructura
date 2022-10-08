@@ -20,6 +20,13 @@ volatile sig_atomic_t st = 0;
 #define LOG(...) log->log(fmt::format(__VA_ARGS__))
 #define WARN(...) log->warn(fmt::format(__VA_ARGS__))
 #define ERROR(...) log->error(fmt::format(__VA_ARGS__))
+#define KILL_MSG(msg) { \
+  Logger::show(LOG_TYPE_::WARN, fmt::format("Received {}", msg)); \
+  Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!")); \
+  Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer")); \
+  kill_sign(); \
+  st = 1; \
+}
 
 void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<Logger> & log) {
 #define SEND(...) send << fmt::format(__VA_ARGS__)
@@ -37,11 +44,7 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
       query.erase(query.find_last_not_of(' ') + 1);
 
       if (query == "stop") {
-        Logger::show(LOG_TYPE_::WARN, fmt::format("Received 'stop' message"));
-        Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!"));
-        Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer"));
-        kill_sign();
-        st = 1;
+        KILL_MSG("'stop' message");
         return;
       }
 
@@ -149,20 +152,12 @@ int main() {
 
   signal(SIGINT, [](int value){
     cout << endl;
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Received SIGINT"));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!"));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer"));
-    kill_sign();
-    st = 1;
+    KILL_MSG("SIGINT");
   });
 
   signal(SIGTERM, [](int value){
     cout << endl;
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Received SIGTERM"));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!"));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer"));
-    kill_sign();
-    st = 1;
+    KILL_MSG("SIGTERM");
   });
 
 
