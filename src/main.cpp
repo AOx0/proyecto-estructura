@@ -11,6 +11,7 @@
 #include "lib/database.hpp"
 #include "lib/fm.hpp"
 #include "lib/logger.hpp"
+#include "lib/analyzer/tokenizer.hpp"
 
 using namespace std;
 
@@ -26,11 +27,14 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
     stringstream send;
 
     std::optional<string> r = s->get_msg();
-    if(r.has_value()) {
+    while (r.has_value()) {
+      string query (r.value());
 
-      string &query = r.value();
+      LOG("Received query: \"{}\"", query);
 
-      //LOG("Query: \"{}\"", query);
+      // remove trailing spaces from start and end
+      query.erase(0, query.find_first_not_of(' '));
+      query.erase(query.find_last_not_of(' ') + 1);
 
       if (query == "stop") {
         Logger::show(LOG_TYPE_::WARN, fmt::format("Received 'stop' message"));
@@ -41,7 +45,12 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
         return;
       }
 
-      SEND("Wait a minute, processing...!\n");
+      if (!Tokenizer::validate(query)) {
+        SEND("Error: Invalid query\n");
+        break;
+      } else {
+        SEND("Wait a minute, processing...!\n");
+      }
 
       if (query.find("CREATE DATABASE") != string::npos) {
 
@@ -54,15 +63,16 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
 
         // Create database
         DataBase::create("data/", tokens[2]);
+        break;
       }
 
-
+      break;
     }
 
     if (!tcp.send(*s,send.str())) {
       ERROR("Failed to send response: \"{}\"", send.str());
     } else {
-      //WARN("Sent response: \"{}\"", send.str());
+      LOG("Sent response: \"{}\"", send.str());
     }
 }
 
