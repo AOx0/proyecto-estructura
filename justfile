@@ -11,7 +11,7 @@ build_release: init
   cmake --build cmake_build --config Release
 
 test: build
-  cd cmake_build && ctest
+  cd cmake_build && ctest --output-on-failure
 
 run: build && exec
 

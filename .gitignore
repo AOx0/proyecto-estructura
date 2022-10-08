@@ -42,3 +42,5 @@ proyecto_estructura
 cmake_build/
 
 table1
+
+Testing/Temporary/
