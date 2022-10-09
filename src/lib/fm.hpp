@@ -34,7 +34,7 @@ namespace rfm_ {
   extern "C" char *get_project_dir(char *, char *,char *);
   extern "C" bool *set_working_dir(char *);
   extern "C" uint64_t get_file_size(char *);
-  extern "C" void drop_csring(char *);
+  extern "C" void drop_cstring(char *);
 }
 
 namespace FileManager {
@@ -50,7 +50,7 @@ struct Path {
 private:
   static std::string get_string(char * rs_cstring) {
     std::string result(rs_cstring);
-    rfm_::drop_csring(rs_cstring);
+    rfm_::drop_cstring(rs_cstring);
 
     return result;
   }

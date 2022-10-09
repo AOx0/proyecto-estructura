@@ -3,281 +3,147 @@
 use path_absolutize::*;
 use std::ffi::{c_char, CStr, CString};
 
+macro_rules! null_guard {
+    [$($var:expr$(,)*),* => $return_var:expr] => {
+        $(
+            if $var.is_null() {
+                return $return_var ;
+            }
+        )*
+    };
+}
+
+macro_rules! try_str {
+    [$var:expr => $return_var:expr] => {
+        match CStr::from_ptr($var).to_str() {
+            Ok(s) => s,
+            Err(_) => return $return_var,
+        }
+    };
+}
+
+macro_rules! try_cstring {
+    [$var:expr => $return_var:expr] => {
+        match CString::new($var) {
+            Ok(s) => s,
+            Err(_) => return $return_var,
+        }
+    };
+}
+
 #[no_mangle]
-pub unsafe fn drop_csring(c_str: *mut c_char) {
-    if c_str.is_null() {
-        return;
-    }
+pub unsafe fn drop_cstring(c_str: *mut c_char) {
+    null_guard![c_str => {}];
 
     let _ = CString::from_raw(c_str);
 }
 
 #[no_mangle]
 pub unsafe fn exists(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            path.exists()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    path.exists()
 }
 
 #[no_mangle]
 pub unsafe fn is_dir(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            path.is_dir()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    path.is_dir()
 }
 
 #[no_mangle]
 pub unsafe fn is_file(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            path.is_file()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    path.is_file()
 }
 
 #[no_mangle]
 pub unsafe fn is_symlink(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            path.is_symlink()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    path.is_symlink()
 }
 
 #[no_mangle]
 pub unsafe fn is_absolute(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            path.is_absolute()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    path.is_absolute()
 }
 
 #[no_mangle]
 pub unsafe fn is_relative(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            path.is_relative()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    path.is_relative()
 }
 
 #[no_mangle]
 pub unsafe fn get_absolute(path: *const c_char) -> *mut c_char {
-    if path.is_null() {
-        return std::ptr::null_mut();
+    null_guard![path => std::ptr::null_mut()];
+
+    let path = std::path::Path::new(try_str![path => std::ptr::null_mut()]);
+
+    if let Ok(p) = path.absolutize() {
+        if let Some(s) = p.to_str() {
+            return try_cstring![s => std::ptr::null_mut()].into_raw();
+        }
     }
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    let result = match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            let absolute = path.absolutize();
-
-            match absolute {
-                Ok(p) => {
-                    let s = p.to_str();
-                    match s {
-                        Some(s) => CString::new(s),
-                        None => {
-                            return std::ptr::null_mut();
-                        }
-                    }
-                }
-                Err(_) => {
-                    return std::ptr::null_mut();
-                }
-            }
-        }
-        Err(_) => {
-            return std::ptr::null_mut();
-        }
-    };
-
-    match result {
-        Ok(r) => r.into_raw(),
-        Err(_) => std::ptr::null_mut(),
-    }
+    std::ptr::null_mut()
 }
 
 #[no_mangle]
 pub unsafe fn get_parent(path: *const c_char) -> *mut c_char {
-    if path.is_null() {
-        return std::ptr::null_mut();
+    null_guard![path => std::ptr::null_mut()];
+
+    let path = std::path::Path::new(try_str![path => std::ptr::null_mut()]);
+
+    if let Some(path) = path.parent() {
+        if let Some(str) = path.to_str() {
+            return try_cstring![str => std::ptr::null_mut()].into_raw();
+        }
     }
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    let result = match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            let parent = path.parent();
-
-            match parent {
-                Some(p) => {
-                    let s = p.to_str();
-                    match s {
-                        Some(s) => CString::new(s),
-                        None => {
-                            return std::ptr::null_mut();
-                        }
-                    }
-                }
-                None => {
-                    return std::ptr::null_mut();
-                }
-            }
-        }
-        Err(_) => {
-            return std::ptr::null_mut();
-        }
-    };
-
-    match result {
-        Ok(r) => r.into_raw(),
-        Err(_) => std::ptr::null_mut(),
-    }
+    std::ptr::null_mut()
 }
 
 #[no_mangle]
 pub unsafe fn get_file_name(path: *const c_char) -> *mut c_char {
-    if path.is_null() {
-        return std::ptr::null_mut();
+    null_guard![path => std::ptr::null_mut()];
+
+    let path = std::path::Path::new(try_str![path => std::ptr::null_mut()]);
+
+    if let Some(path) = path.file_name() {
+        if let Some(str) = path.to_str() {
+            return try_cstring![str => std::ptr::null_mut()].into_raw();
+        }
     }
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    let result = match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            let file_name = path.file_name();
-
-            match file_name {
-                Some(p) => {
-                    let s = p.to_str();
-                    match s {
-                        Some(s) => CString::new(s),
-                        None => {
-                            return std::ptr::null_mut();
-                        }
-                    }
-                }
-                None => {
-                    return std::ptr::null_mut();
-                }
-            }
-        }
-        Err(_) => {
-            return std::ptr::null_mut();
-        }
-    };
-
-    match result {
-        Ok(r) => r.into_raw(),
-        Err(_) => std::ptr::null_mut(),
-    }
+    std::ptr::null_mut()
 }
 
 #[no_mangle]
 pub unsafe fn get_extension(path: *const c_char) -> *mut c_char {
-    if path.is_null() {
-        return std::ptr::null_mut();
+    null_guard![path => std::ptr::null_mut()];
+
+    let path = std::path::Path::new(try_str![path => std::ptr::null_mut()]);
+
+    if let Some(path) = path.extension() {
+        if let Some(str) = path.to_str() {
+            return try_cstring![str => std::ptr::null_mut()].into_raw();
+        }
     }
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    let result = match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            let extension = path.extension();
-
-            match extension {
-                Some(p) => {
-                    let s = p.to_str();
-                    match s {
-                        Some(s) => CString::new(s),
-                        None => {
-                            return std::ptr::null_mut();
-                        }
-                    }
-                }
-                None => {
-                    return std::ptr::null_mut();
-                }
-            }
-        }
-        Err(_) => {
-            return std::ptr::null_mut();
-        }
-    };
-
-    match result {
-        Ok(r) => r.into_raw(),
-        Err(_) => std::ptr::null_mut(),
-    }
+    std::ptr::null_mut()
 }
 
 #[no_mangle]
@@ -308,43 +174,13 @@ pub unsafe fn get_project_dir(
     org: *mut c_char,
     app: *mut c_char,
 ) -> *mut c_char {
-    // Check if qualifier is a null pointer
-    let qualifier = if qualifier.is_null() {
-        return std::ptr::null_mut();
-    } else {
-        let c_str = CStr::from_ptr(qualifier);
-        let str = c_str.to_str();
-        match str {
-            Ok(s) => s,
-            Err(_) => return std::ptr::null_mut(),
-        }
-    };
+    null_guard![qualifier, org, app => std::ptr::null_mut()];
 
-    // Check if org is a null pointer
-    let org = if org.is_null() {
-        return std::ptr::null_mut();
-    } else {
-        let c_str = CStr::from_ptr(org);
-        let str = c_str.to_str();
-        match str {
-            Ok(s) => s,
-            Err(_) => return std::ptr::null_mut(),
-        }
-    };
+    let qua = try_str![qualifier => std::ptr::null_mut()];
+    let org = try_str![org => std::ptr::null_mut()];
+    let app = try_str![app => std::ptr::null_mut()];
 
-    // Check if app is a null pointer
-    let app = if app.is_null() {
-        return std::ptr::null_mut();
-    } else {
-        let c_str = CStr::from_ptr(app);
-        let str = c_str.to_str();
-        match str {
-            Ok(s) => s,
-            Err(_) => return std::ptr::null_mut(),
-        }
-    };
-
-    directories::ProjectDirs::from(qualifier, org, app)
+    directories::ProjectDirs::from(qua, org, app)
         .and_then(|dirs| dirs.data_dir().to_str().map(CString::new))
         .map(|s| match s {
             Ok(s) => s.into_raw(),
@@ -366,201 +202,89 @@ pub unsafe fn get_config_folder() -> *mut c_char {
 
 #[no_mangle]
 pub unsafe fn remove_dir(path: *const c_char) -> bool {
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
+    null_guard![path => false];
 
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            std::fs::remove_dir_all(path).is_ok()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    std::fs::remove_dir_all(path).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn remove_file(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            std::fs::remove_file(path).is_ok()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    std::fs::remove_file(path).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn create_dir(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            std::fs::create_dir_all(path).is_ok()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    std::fs::create_dir_all(path).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn create_file(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            std::fs::File::create(path).is_ok()
-        }
-        Err(_) => false,
-    }
+    let path = std::path::Path::new(try_str![path => false]);
+    std::fs::File::create(path).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn rename_file(old_path: *const c_char, new_path: *const c_char) -> bool {
-    if old_path.is_null() || new_path.is_null() {
-        return false;
-    }
+    null_guard![old_path, new_path => false];
 
-    let old_c_str = CStr::from_ptr(old_path);
-    let old_str = old_c_str.to_str();
+    let old = std::path::Path::new(try_str![old_path => false]);
+    let new = std::path::Path::new(try_str![new_path => false]);
 
-    let new_c_str = CStr::from_ptr(new_path);
-    let new_str = new_c_str.to_str();
-
-    match (old_str, new_str) {
-        (Ok(old_s), Ok(new_s)) => {
-            let old_path = std::path::Path::new(old_s);
-            let new_path = std::path::Path::new(new_s);
-            std::fs::rename(old_path, new_path).is_ok()
-        }
-        _ => false,
-    }
+    std::fs::rename(old, new).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn rename_dir(old_path: *const c_char, new_path: *const c_char) -> bool {
-    if old_path.is_null() || new_path.is_null() {
-        return false;
-    }
+    null_guard![old_path, new_path => false];
 
-    let old_c_str = CStr::from_ptr(old_path);
-    let old_str = old_c_str.to_str();
+    let old = std::path::Path::new(try_str![old_path => false]);
+    let new = std::path::Path::new(try_str![new_path => false]);
 
-    let new_c_str = CStr::from_ptr(new_path);
-    let new_str = new_c_str.to_str();
-
-    match (old_str, new_str) {
-        (Ok(old_s), Ok(new_s)) => {
-            let old_path = std::path::Path::new(old_s);
-            let new_path = std::path::Path::new(new_s);
-            std::fs::rename(old_path, new_path).is_ok()
-        }
-        _ => false,
-    }
+    std::fs::rename(old, new).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn copy_file(old_path: *const c_char, new_path: *const c_char) -> bool {
-    if old_path.is_null() || new_path.is_null() {
-        return false;
-    }
+    null_guard![old_path, new_path => false];
 
-    let old_c_str = CStr::from_ptr(old_path);
-    let old_str = old_c_str.to_str();
+    let old = std::path::Path::new(try_str![old_path => false]);
+    let new = std::path::Path::new(try_str![new_path => false]);
 
-    let new_c_str = CStr::from_ptr(new_path);
-    let new_str = new_c_str.to_str();
-
-    match (old_str, new_str) {
-        (Ok(old_s), Ok(new_s)) => {
-            let old_path = std::path::Path::new(old_s);
-            let new_path = std::path::Path::new(new_s);
-            std::fs::copy(old_path, new_path).is_ok()
-        }
-        _ => false,
-    }
+    std::fs::copy(old, new).is_ok()
 }
 
 #[no_mangle]
 pub unsafe fn get_file_size(path: *const c_char) -> u64 {
-    if path.is_null() {
-        return 0;
-    }
+    null_guard![path => 0];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            match std::fs::metadata(path) {
-                Ok(m) => m.len(),
-                Err(_) => 0,
-            }
-        }
+    let path = std::path::Path::new(try_str![path => 0]);
+    match std::fs::metadata(path) {
+        Ok(m) => m.len(),
         Err(_) => 0,
     }
 }
 
 #[no_mangle]
 pub unsafe fn append(path: *mut c_char, rhs: *mut c_char) -> *mut c_char {
-    if path.is_null() || rhs.is_null() {
-        return std::ptr::null_mut();
+    null_guard![path, rhs => std::ptr::null_mut()];
+
+    let path = std::path::Path::new(try_str![path => std::ptr::null_mut()]);
+    let rhs = std::path::Path::new(try_str![rhs => std::ptr::null_mut()]);
+
+    if let Some(s) = path.join(rhs).to_str() {
+        return try_cstring![s => std::ptr::null_mut()].into_raw();
     }
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    let result = match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            let c_str = CStr::from_ptr(rhs);
-            let str = c_str.to_str();
-
-            match str {
-                Ok(s) => {
-                    let rhs = std::path::Path::new(s);
-                    let new_path = path.join(rhs);
-
-                    let s = new_path.to_str();
-                    match s {
-                        Some(s) => CString::new(s),
-                        None => {
-                            return std::ptr::null_mut();
-                        }
-                    }
-                }
-                Err(_) => {
-                    return std::ptr::null_mut();
-                }
-            }
-        }
-        Err(_) => {
-            return std::ptr::null_mut();
-        }
-    };
-
-    match result {
-        Ok(r) => r.into_raw(),
-        Err(_) => std::ptr::null_mut(),
-    }
+    std::ptr::null_mut()
 }
 
 #[no_mangle]
@@ -585,18 +309,7 @@ pub fn get_working_dir() -> *mut c_char {
 
 #[no_mangle]
 pub unsafe fn set_working_dir(path: *const c_char) -> bool {
-    if path.is_null() {
-        return false;
-    }
+    null_guard![path => false];
 
-    let c_str = CStr::from_ptr(path);
-    let str = c_str.to_str();
-
-    match str {
-        Ok(s) => {
-            let path = std::path::Path::new(s);
-            std::env::set_current_dir(path).is_ok()
-        }
-        Err(_) => false,
-    }
+    std::env::set_current_dir(std::path::Path::new(try_str![path => false])).is_ok()
 }
