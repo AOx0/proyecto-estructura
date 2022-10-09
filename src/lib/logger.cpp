@@ -37,7 +37,7 @@ Logger::Logger(Logger::Path path) : path_(std::move(path)) {
       }
     }
 
-    if (!rfm_::rename_file((char *) path_.path.c_str(), (char *) backup.path.c_str())) {
+    if (!rfm_::rename_((char *) path_.path.c_str(), (char *) backup.path.c_str())) {
       show(LOG_TYPE_::ERROR, "Error renaming log file" );
       exit(1);
     }

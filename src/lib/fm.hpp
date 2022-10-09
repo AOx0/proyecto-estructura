@@ -19,19 +19,18 @@ namespace rfm_ {
   extern "C" bool remove_file(char *);
   extern "C" bool create_dir(char *);
   extern "C" bool create_file(char *);
-  extern "C" bool rename_file(char *, char *);
+  extern "C" bool rename_(char *, char *);
   extern "C" char * append(char *, char *);
-  extern "C" bool rename_dir(char *, char *);
-  extern "C" bool copy_file(char *, char *);
+  extern "C" bool copy(char *, char *);
   extern "C" char *get_absolute(char *);
-  extern "C" char *get_parent(char *);
-  extern "C" char *get_file_name(char *);
+  extern "C" char *parent(char *);
+  extern "C" char *file_name(char *);
   extern "C" char *get_extension(char *);
   extern "C" char *get_user_home();
   extern "C" char *get_data_folder();
   extern "C" char *get_config_folder();
   extern "C" char *get_working_dir();
-  extern "C" char *get_project_dir(char *, char *,char *);
+  extern "C" char *project_dir(char *, char *,char *);
   extern "C" bool *set_working_dir(char *);
   extern "C" uint64_t get_file_size(char *);
   extern "C" void drop_cstring(char *);
@@ -114,7 +113,7 @@ public:
     }
 
     static Path get_project_dir(std::string const &project_name, std::string const &author_name, std::string const &version) {
-      std::string path(get_string(rfm_::get_project_dir((char *)project_name.c_str(), (char *)author_name.c_str(), (char *)version.c_str())));
+      std::string path(get_string(rfm_::project_dir((char *)project_name.c_str(), (char *)author_name.c_str(), (char *)version.c_str())));
       return Path{path};
     }
 
@@ -139,11 +138,11 @@ public:
     }
 
    [[nodiscard]] Path get_parent() const {
-      return Path{get_string(rfm_::get_parent((char *)path.c_str()))};
+      return Path{get_string(rfm_::parent((char *)path.c_str()))};
     }
 
    [[nodiscard]] std::string get_file_name() const {
-      return {get_string(rfm_::get_file_name((char *)path.c_str()))};
+      return {get_string(rfm_::file_name((char *)path.c_str()))};
     }
 
     [[nodiscard]] std::string get_extension() const {
@@ -217,7 +216,7 @@ public:
    }
 
     bool rename_file(Path const &new_path) {
-      auto result = rfm_::rename_file((char *)path.c_str(), (char *)new_path.path.c_str());
+      auto result = rfm_::rename_((char *)path.c_str(), (char *)new_path.path.c_str());
       if (result) {
         path = new_path.path;
       }
@@ -225,7 +224,7 @@ public:
     }
 
     bool rename_dir(Path const &new_path) {
-      auto result = rfm_::rename_dir((char *)path.c_str(), (char *)new_path.path.c_str());
+      auto result = rfm_::rename_((char *)path.c_str(), (char *)new_path.path.c_str());
       if (result) {
         path = new_path.path;
       }
@@ -233,7 +232,7 @@ public:
     }
 
     [[nodiscard]] std::optional<Path> copy_file(Path const &new_path) const {
-      auto result =  rfm_::copy_file((char *)path.c_str(), (char *)new_path.path.c_str());
+      auto result =  rfm_::copy((char *)path.c_str(), (char *)new_path.path.c_str());
       if (result) {
         return std::make_optional<Path>(new_path);
       } else {
