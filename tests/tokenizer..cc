@@ -14,16 +14,16 @@ TEST(Tokenizer, Tokenize) {
 TEST(Tokenizer, ValidateQuery) {
   const std::string in = R"(SELECT * FROM "tabla_1" WHERE "columna_1" == 1;)";
 
-  bool result(Tokenizer::validate(in));
+  auto result(Tokenizer::validate(in));
 
   // Even though the query is not valid, it is syntactically correct
-  EXPECT_TRUE(result) << "Bad tokenization";
+  EXPECT_TRUE(std::get<0>(result)) << "Bad tokenization";
 }
 
 TEST(Tokenizer, ValidateQuery2) {
   const std::string in = R"(SELECT * FROM tabla_1 WHERE columna_1 == "daniel";)";
 
-  bool result(Tokenizer::validate(in));
+  auto result(Tokenizer::validate(in));
 
-  EXPECT_TRUE(result) << "Bad tokenization";
+  EXPECT_TRUE(std::get<0>(result)) << "Bad tokenization";
 }

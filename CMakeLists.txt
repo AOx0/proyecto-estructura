@@ -86,7 +86,7 @@ add_executable(
         tests/database.cc
         tests/table.cc tests/fm.cc tests/tokenizer..cc)
 
-target_link_libraries(proyecto_tests GTest::gtest_main fm)
+target_link_libraries(proyecto_tests GTest::gtest_main fmt::fmt-header-only fm)
 target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt-header-only fm)
 
 include(GoogleTest)

@@ -52,8 +52,10 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
         return;
       }
 
-      if (!Tokenizer::validate(query)) {
+      auto result = Tokenizer::validate(query);
+      if (!std::get<0>(result)) {
         SEND("Error: Invalid query\n");
+        SEND("Error: Invalid {}\n", std::get<1>(result).value());
         break;
       } else {
         SEND("Wait a minute, processing...!\n");

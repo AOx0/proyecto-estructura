@@ -1,5 +1,7 @@
 #include "tokenizer.hpp"
+
 #include <regex>
+#include <fmt/core.h>
 
 std::vector<std::string> Tokenizer::tokenize(const std::string &in) {
 std::vector<std::string> resultado{};
@@ -53,7 +55,7 @@ void Tokenizer::make_tokens_explicit(std::string &str) {
     }
   }
 
-  //Replace "=  =" with "==" with a modern C++ algorithm
+  // Here we rejoin equality operators that were made 'explicit'. Example "=  =" with "=="
   str = std::regex_replace(str, std::regex("=  ="), "==");
   str = std::regex_replace(str, std::regex("!  ="), "!=");
   str = std::regex_replace(str, std::regex("<  ="), "<=");
@@ -61,7 +63,8 @@ void Tokenizer::make_tokens_explicit(std::string &str) {
 
 }
 
-bool Tokenizer::validate(const std::string &in) {
+
+std::tuple<bool, std::optional<std::string>> Tokenizer::validate(const std::string &in) {
   const static std::vector<std::string> valid_tokens = {
       "(", ")", ";", "*"
   };
@@ -135,74 +138,57 @@ bool Tokenizer::validate(const std::string &in) {
     } else if (std::regex_match(token, std::regex("[a-zA-Z_][a-zA-Z0-9_]*"))) {
       current_type = TokenType::IDENTIFIER;
     } else {
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token: {} {}", token)));
     }
 
     // It is invalid if we have to operators together
     if (current_type == TokenType::OPERATOR && last_type == TokenType::OPERATOR) {
-      // Print that the token is invalid
-      std::cout << "Invalid found two operators: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid found two operators: {} {}", token, token)));
     }
 
     // It is invalid if we have two identifiers together
     if (current_type == TokenType::IDENTIFIER && last_type == TokenType::IDENTIFIER) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, found two identifiers: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, found two identifiers: {} {}", token, token)));
     }
 
     // It is invalid if we have two types together
     if (current_type == TokenType::TYPE && last_type == TokenType::TYPE) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, found two types: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, found two types: {} {}", token, token)));
     }
 
     // It is invalid if we have two strings together
     if (current_type == TokenType::STRING && last_type == TokenType::STRING) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, found two strings: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, found two strings: {} {}", token, token)));
     }
 
     // It is invalid if we have two tokens together
     if (current_type == TokenType::TOKEN && last_type == TokenType::TOKEN) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, found two strings: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, found two tokens: {} {}", token, token)));
     }
 
     // It is invalid if we have two numbers together
     if (current_type == TokenType::NUMBER && last_type == TokenType::NUMBER) {
-      // Print that the token is invalid
       std::cout << "Invalid token, found two numbers: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, found two numbers: {} {}", token, token)));
     }
 
     // It is invalid if we have an operator followed by a non value or identifier token
     if (last_type == TokenType::OPERATOR && !( current_type == TokenType::IDENTIFIER || current_type == TokenType::NUMBER || current_type == TokenType::STRING)) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, expected literal (number, string) or identifier after an operator: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, expected literal (number, string) or identifier after an operator: {}", token)));
     }
 
     // It is invalid if we have an operator preceded by a non value or identifier token
     if (current_type == TokenType::OPERATOR && !( last_type == TokenType::IDENTIFIER || last_type == TokenType::NUMBER || last_type == TokenType::STRING)) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, expected literal (number, string) or identifier before an operator: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, expected literal (number, string) or identifier before an operator: {}", token)));
     }
 
     // If last is a type and current is not an identifier or a str or a number then it is invalid
     if (last_type == TokenType::TYPE && current_type != TokenType::IDENTIFIER) {
-      // Print that the token is invalid
-      std::cout << "Invalid token, expected identifier after type: " << token << std::endl;
-      return false;
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token, expected identifier after type: {}", token)));
     }
 
     last_type = current_type;
   }
 
-  return true;
+  return  std::make_tuple(true, std::nullopt);
 }
