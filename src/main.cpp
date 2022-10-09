@@ -39,6 +39,10 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
 
       LOG("Received query: \"{}\"", query);
 
+      Tokenizer::make_tokens_explicit(query);
+
+      LOG("Query: \"{}\"", query);
+
       // remove trailing spaces from start and end
       query.erase(0, query.find_first_not_of(' '));
       query.erase(query.find_last_not_of(' ') + 1);
