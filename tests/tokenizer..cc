@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "../src/lib/analyzer/tokenizer.hpp"
+#include "../src/lib/analyzer.hpp"
 
 TEST(Tokenizer, Tokenize) {
   const std::string in = R"(SELECT * FROM "tabla_1" WHERE "columna_1" == 1;)";

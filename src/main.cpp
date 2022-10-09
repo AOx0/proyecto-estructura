@@ -11,7 +11,7 @@
 #include "lib/database.hpp"
 #include "lib/fm.hpp"
 #include "lib/logger.hpp"
-#include "lib/analyzer/tokenizer.hpp"
+#include "lib/analyzer.hpp"
 
 using namespace std;
 
