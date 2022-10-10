@@ -3,7 +3,7 @@
 #include <regex>
 #include <fmt/core.h>
 
-std::vector<std::string> Tokenizer::tokenize(const std::string &in) {
+std::vector<std::string> Parser::tokenize(const std::string &in) {
 std::vector<std::string> resultado{};
 
   // replace tabs and new lines by spaces
@@ -45,7 +45,7 @@ enum TokenType {
   NONE
 };
 
-void Tokenizer::make_tokens_explicit(std::string &str) {
+void Parser::make_tokens_explicit(std::string &str) {
 
   for (size_t i = 0; i < str.size(); i++) {
     if (str[i] == '=' || str[i] == '!' || str[i] == '<' || str[i] == '>' || str[i] == '(' || str[i] == ')' || str[i] == ',' || str[i] == ';') {
@@ -64,7 +64,7 @@ void Tokenizer::make_tokens_explicit(std::string &str) {
 }
 
 
-std::tuple<bool, std::optional<std::string>> Tokenizer::validate(const std::string &in) {
+std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string &in) {
   const static std::vector<std::string> valid_tokens = {
       "(", ")", ";", "*"
   };
@@ -83,7 +83,7 @@ std::tuple<bool, std::optional<std::string>> Tokenizer::validate(const std::stri
       "u16", "u32", "u64", "str", "f32", "f64", "bool"
   };
 
-  auto tokens = Tokenizer::tokenize(in);
+  auto tokens = Parser::tokenize(in);
   // Check token by token if it is in the
   // list of valid tokens
 

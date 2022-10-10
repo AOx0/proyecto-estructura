@@ -39,7 +39,7 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
 
       LOG("Received query: \"{}\"", query);
 
-      Tokenizer::make_tokens_explicit(query);
+      Parser::make_tokens_explicit(query);
 
       LOG("Query: \"{}\"", query);
 
@@ -52,7 +52,7 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
         return;
       }
 
-      auto result = Tokenizer::validate(query);
+      auto result = Parser::validate(query);
       if (!std::get<0>(result)) {
         SEND("Error: Invalid query\n");
         SEND("Error: Invalid {}\n", std::get<1>(result).value());

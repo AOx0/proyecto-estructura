@@ -72,7 +72,11 @@ set(LIBRARIES
         src/lib/fm.cpp
         src/lib/fm.hpp
         src/lib/analyzer/tokenizer.cpp
-        src/lib/analyzer/tokenizer.hpp src/lib/analyzer.hpp)
+        src/lib/analyzer/tokenizer.hpp 
+        src/lib/analyzer/parser.cpp
+        src/lib/analyzer/parser.hpp 
+        src/lib/analyzer.hpp
+  )
 
 add_executable(proyecto_estructura
         src/main.cpp
