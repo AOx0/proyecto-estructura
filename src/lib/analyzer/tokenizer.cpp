@@ -131,14 +131,14 @@ std::tuple<bool, std::optional<std::string>> Tokenizer::validate(const std::stri
       current_type = TokenType::KEYWORD;
     } else if (found_in_types) {
       current_type = TokenType::TYPE;
-    } else if (std::regex_match(token, std::regex("[0-9]+"))) {
+    } else if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]*)(\\.([0-9]+))?)"))) {
       current_type = TokenType::NUMBER;
     } else if (std::regex_match(token, std::regex("\".*\""))) {
       current_type = TokenType::STRING;
     } else if (std::regex_match(token, std::regex("[a-zA-Z_][a-zA-Z0-9_]*"))) {
       current_type = TokenType::IDENTIFIER;
     } else {
-      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token: {} {}", token)));
+      return  std::make_tuple(false, std::make_optional(fmt::format("Invalid token: {}", token)));
     }
 
     // It is invalid if we have to operators together
