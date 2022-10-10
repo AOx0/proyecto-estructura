@@ -11,7 +11,7 @@
 #include "lib/database.hpp"
 #include "lib/fm.hpp"
 #include "lib/logger.hpp"
-#include "lib/analyzer/tokenizer.hpp"
+#include "lib/analyzer.hpp"
 
 using namespace std;
 
@@ -39,6 +39,10 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
 
       LOG("Received query: \"{}\"", query);
 
+      Tokenizer::make_tokens_explicit(query);
+
+      LOG("Query: \"{}\"", query);
+
       // remove trailing spaces from start and end
       query.erase(0, query.find_first_not_of(' '));
       query.erase(query.find_last_not_of(' ') + 1);
@@ -48,8 +52,10 @@ void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<
         return;
       }
 
-      if (!Tokenizer::validate(query)) {
+      auto result = Tokenizer::validate(query);
+      if (!std::get<0>(result)) {
         SEND("Error: Invalid query\n");
+        SEND("Error: Invalid {}\n", std::get<1>(result).value());
         break;
       } else {
         SEND("Wait a minute, processing...!\n");
