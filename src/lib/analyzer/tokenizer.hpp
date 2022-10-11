@@ -7,7 +7,7 @@
 #include <optional>
 #include <memory>
 
-namespace Tokenizer {
+namespace Parser {
   std::vector<std::string> tokenize(const std::string &in);
 
   std::tuple<bool, std::optional<std::string>> validate(const std::string &in);

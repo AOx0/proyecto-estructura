@@ -25,14 +25,14 @@ void FileManager::write_to_file(const std::string &path,
                                 const std::vector<uint8_t> &contents) {
   std::ofstream file(path, std::ios::out | std::ios::binary);
 
-  file.write((const char *)&contents[0], (std::streamsize)contents.size());
+  file.write((const char *) &contents[0], (std::streamsize) contents.size());
   file.close();
 }
 
 void FileManager::append_to_file(const std::string &path,
-                                const std::vector<unsigned char> &contents) {
+                                 const std::vector<unsigned char> &contents) {
   std::ofstream file(path.c_str(), std::ios::out | std::ios::binary | std::ios::app);
 
-  file.write((const char *)&contents[0], (std::streamsize)contents.size());
+  file.write((const char *) &contents[0], (std::streamsize) contents.size());
   file.close();
 }

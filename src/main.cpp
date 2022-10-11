@@ -28,67 +28,67 @@ volatile sig_atomic_t st = 0;
   st = 1; \
 }
 
-void resolve(const shared_ptr<Connection> & s, TcpServer &tcp, const shared_ptr<Logger> & log) {
+void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log) {
 #define SEND(...) send << fmt::format(__VA_ARGS__)
 
-    stringstream send;
+  stringstream send;
 
-    std::optional<string> r = s->get_msg();
-    while (r.has_value()) {
-      string query (r.value());
+  std::optional<string> r = s->get_msg();
+  while (r.has_value()) {
+    string query(r.value());
 
-      LOG("Received query: \"{}\"", query);
+    LOG("Received query: \"{}\"", query);
 
-      Tokenizer::make_tokens_explicit(query);
+    Parser::make_tokens_explicit(query);
 
-      LOG("Query: \"{}\"", query);
+    LOG("Query: \"{}\"", query);
 
-      // remove trailing spaces from start and end
-      query.erase(0, query.find_first_not_of(' '));
-      query.erase(query.find_last_not_of(' ') + 1);
+    // remove trailing spaces from start and end
+    query.erase(0, query.find_first_not_of(' '));
+    query.erase(query.find_last_not_of(' ') + 1);
 
-      if (query == "stop") {
-        KILL_MSG("'stop' message");
-        return;
-      }
+    if (query == "stop") {
+      KILL_MSG("'stop' message");
+      return;
+    }
 
-      auto result = Tokenizer::validate(query);
-      if (!std::get<0>(result)) {
-        SEND("Error: Invalid query\n");
-        SEND("Error: Invalid {}\n", std::get<1>(result).value());
-        break;
-      } else {
-        SEND("Wait a minute, processing...!\n");
-      }
+    auto result = Parser::validate(query);
+    if (!std::get<0>(result)) {
+      SEND("Error: Invalid query\n");
+      SEND("Error: Invalid {}\n", std::get<1>(result).value());
+      break;
+    } else {
+      SEND("Wait a minute, processing...!\n");
+    }
 
-      if (query.find("CREATE DATABASE") != string::npos) {
+    if (query.find("CREATE DATABASE") != string::npos) {
 
-        // Split query by spaces
-        istringstream iss(query);
-        vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
+      // Split query by spaces
+      istringstream iss(query);
+      vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
 
-        // Get database name
-        LOG("Creating database {}", tokens[2]);
+      // Get database name
+      LOG("Creating database {}", tokens[2]);
 
-        // Create database
-        DataBase::create("data/", tokens[2]);
-        break;
-      }
-
+      // Create database
+      DataBase::create("data/", tokens[2]);
       break;
     }
 
-    if (!tcp.send(*s,send.str())) {
-      ERROR("Failed to send response: \"{}\"", send.str());
-    } else {
-      LOG("Sent response: \"{}\"", send.str());
-    }
+    break;
+  }
+
+  if (!tcp.send(*s, send.str())) {
+    ERROR("Failed to send response: \"{}\"", send.str());
+  } else {
+    LOG("Sent response: \"{}\"", send.str());
+  }
 }
 
 int main() {
   vector<thread> threads;
   FileManager::Path data_path(FileManager::Path::get_project_dir("com", "up", "toi"));
-  if(const char* env_p = std::getenv("TOI_DATA_PATH"))
+  if (const char *env_p = std::getenv("TOI_DATA_PATH"))
     data_path = env_p;
 
   if (!data_path.exists()) {
@@ -116,11 +116,11 @@ int main() {
   }
 
   // Create logger.
-  shared_ptr<Logger> log(make_shared<Logger>(data_path/"log.log"));
+  shared_ptr<Logger> log(make_shared<Logger>(data_path / "log.log"));
 
   LOG("Logger initialized!");
 
-  FileManager::Path app_data (data_path/"data");
+  FileManager::Path app_data(data_path / "data");
 
   if (!app_data.exists()) {
     WARN("App data path {} does not exist", app_data.path);
@@ -156,12 +156,12 @@ int main() {
     return 1;
   }
 
-  signal(SIGINT, [](int value){
+  signal(SIGINT, [](int value) {
     cout << endl;
     KILL_MSG("SIGINT");
   });
 
-  signal(SIGTERM, [](int value){
+  signal(SIGTERM, [](int value) {
     cout << endl;
     KILL_MSG("SIGTERM");
   });
@@ -177,12 +177,12 @@ int main() {
       threads.emplace_back(
           thread([event, &server, log] { resolve(event, server, log); }));
     }
-    
+
     WARN("Shutting down TcpServer");
   }
 
   Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down CppServer"));
-  for (auto &t : threads) {
+  for (auto &t: threads) {
     t.join();
   }
 }
