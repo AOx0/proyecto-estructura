@@ -6,13 +6,13 @@ using namespace Parser;
 
 TEST(Parser, CompareCheck) {
   std::vector<Token> expected{
-    Keyword{.variant = KeywordE::SELECT},
-    Symbol{.variant = SymbolE::ALL},
+    Keyword{KeywordE::SELECT},
+    Symbol{SymbolE::ALL},
   };
 
   std::vector<Token> expected2{
-      Keyword{.variant = KeywordE::SELECT},
-      Symbol{.variant = SymbolE::ALL},
+      Keyword{KeywordE::SELECT},
+      Symbol{SymbolE::ALL},
   };
 
 
@@ -21,8 +21,8 @@ TEST(Parser, CompareCheck) {
 
 TEST(Parser, TranslateToEnums) {
   std::vector<Token> expected{
-      Keyword{.variant = KeywordE::SELECT},
-      Symbol{.variant = SymbolE::ALL},
+      Keyword{KeywordE::SELECT},
+      Symbol{SymbolE::ALL},
   };
 
   std::vector<Token> result (parse("SELECT *"));
@@ -32,14 +32,14 @@ TEST(Parser, TranslateToEnums) {
 
 TEST(Parser, TranslateToEnums2) {
   std::vector<Token> expected{
-      Keyword{.variant = KeywordE::SELECT},
-      Symbol{.variant = SymbolE::ALL},
-      Keyword{.variant = KeywordE::FROM},
-      Identifier{.value = "tabla"},
-      Keyword{.variant = KeywordE::WHERE},
-      Identifier{.value = "name"},
-      Operator{.variant = OperatorE::EQUAL},
-      String{.value = "Daniel"},
+      Keyword{KeywordE::SELECT},
+      Symbol{SymbolE::ALL},
+      Keyword{KeywordE::FROM},
+      Identifier{"tabla"},
+      Keyword{KeywordE::WHERE},
+      Identifier{"name"},
+      Operator{OperatorE::EQUAL},
+      String{"Daniel"},
   };
 
   std::vector<Token> result (parse(R"(SELECT * FROM tabla WHERE name == "Daniel")"));
