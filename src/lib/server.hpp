@@ -18,7 +18,7 @@ extern "C" void drop_shared(Shared s);
 
 extern "C" Shared receive(void *);
 
-extern "C" void * start();
+extern "C" void *start();
 
 extern "C" void stop(void *);
 
@@ -45,17 +45,18 @@ public:
     if (shared.null) {
       return std::nullopt;
     } else {
-      return std::make_optional(string((char *)shared.value));
+      return std::make_optional(string((char *) shared.value));
     }
   }
 };
 
 class TcpServer {
 protected:
-  void * server;
+  void *server;
 
 public:
   TcpServer() : server(start()) {}
+
   ~TcpServer() { stop(server); }
 
   shared_ptr<Connection> recv() {

@@ -13,17 +13,18 @@ struct DataBase {
   std::shared_ptr<std::atomic_int32_t> using_db;
   std::vector<std::string> tables;
 
-  DataBase (std::vector<std::string> tables) : tables(std::move(tables)), using_db(std::shared_ptr<std::atomic_int32_t>{0}) {}
+  DataBase(std::vector<std::string> tables) : tables(std::move(tables)),
+                                              using_db(std::shared_ptr<std::atomic_int32_t>{0}) {}
 
   // Move constructor
   // Move constructors should be marked with except
-  DataBase ( DataBase && rhs ) noexcept {
+  DataBase(DataBase &&rhs) noexcept {
     tables = std::move(rhs.tables);
     using_db = rhs.using_db;
   }
 
   // Move operator
-  DataBase & operator= (DataBase && rhs) noexcept {
+  DataBase &operator=(DataBase &&rhs) noexcept {
     if (this != &rhs) {
       tables = std::move(rhs.tables);
       using_db = rhs.using_db;
@@ -42,7 +43,7 @@ struct DataBase {
 
   bool operator==(const DataBase &other) const;
 
-  static DataBase create(const std::string &path, const std::string & name);
+  static DataBase create(const std::string &path, const std::string &name);
 };
 
 #endif // DATABASE_HPP

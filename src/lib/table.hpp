@@ -33,13 +33,13 @@ struct Table {
 
   // Move constructor
   // Move constructors should be marked with except
-  Table ( Table && rhs ) noexcept {
+  Table(Table &&rhs) noexcept {
     std::unique_lock<std::shared_mutex> lock(rhs.mtx_);
     rows = std::move(rhs.rows);
   }
 
   // Move operator
-  Table & operator= (Table && rhs) noexcept {
+  Table &operator=(Table &&rhs) noexcept {
     if (this != &rhs) {
       std::unique_lock lock_rhs(rhs.mtx_);
       std::unique_lock lock_this(mtx_);
@@ -60,9 +60,9 @@ struct Table {
 
   bool operator==(Table const &other) const;
 
-  Table (std::map<std::string, Layout> & layout) : rows(std::move(layout)), mtx_() {}
+  Table(std::map<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
 
-  static Table createTable(std::string & name, std::map<std::string, Layout> & layout, std::string & path);
+  static Table createTable(std::string &name, std::map<std::string, Layout> &layout, std::string &path);
 };
 
 #endif // TABLE_HPP

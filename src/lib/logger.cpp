@@ -19,7 +19,7 @@ void Logger::show(LOG_TYPE_ type, const std::string &msg) {
 
 std::vector<std::uint8_t> Logger::to_vec(const std::string &str) {
   std::vector<std::uint8_t> result;
-  for (auto &c : str) {
+  for (auto &c: str) {
     result.push_back(c);
   }
   return result;
@@ -27,26 +27,26 @@ std::vector<std::uint8_t> Logger::to_vec(const std::string &str) {
 
 Logger::Logger(Logger::Path path) : path_(std::move(path)) {
   if (path_.exists()) {
-    Path backup (path_.get_parent() + ("old_" + path_.get_file_name()));
+    Path backup(path_.get_parent() + ("old_" + path_.get_file_name()));
 
     if (backup.exists()) {
       // remove and handle if error
       if (!backup.remove()) {
-        show(LOG_TYPE_::ERROR, "Error removing old backup file" );
+        show(LOG_TYPE_::ERROR, "Error removing old backup file");
         exit(1);
       }
     }
 
     if (!rfm_::rename_((char *) path_.path.c_str(), (char *) backup.path.c_str())) {
-      show(LOG_TYPE_::ERROR, "Error renaming log file" );
+      show(LOG_TYPE_::ERROR, "Error renaming log file");
       exit(1);
     }
   }
 
   // Check if path exists, create if not and set path_
-  if (!path_.exists())  {
-    if (!path_.create_as_file()){
-      show(LOG_TYPE_::ERROR, fmt::format("Could not create log file at {}", path_.path) );
+  if (!path_.exists()) {
+    if (!path_.create_as_file()) {
+      show(LOG_TYPE_::ERROR, fmt::format("Could not create log file at {}", path_.path));
       exit(1);
     }
   }

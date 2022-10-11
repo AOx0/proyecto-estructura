@@ -6,7 +6,7 @@
 std::vector<std::uint8_t> DataBase::into_vec() const {
   std::vector<std::uint8_t> resultado{};
 
-  for (auto &table : tables) {
+  for (auto &table: tables) {
     const char *str = table.c_str();
     size_t i = 0;
     while (str[i] != '\0') {
