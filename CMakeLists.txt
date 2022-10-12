@@ -56,6 +56,12 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(fmt)
 
+FetchContent_Declare(
+        Result
+        GIT_REPOSITORY  https://github.com/bitwizeshift/result.git
+        GIT_TAG         v1.0.0
+)
+FetchContent_MakeAvailable(Result)
 
 # For profiling, disable when building the release
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
@@ -76,22 +82,26 @@ set(LIBRARIES
         src/lib/analyzer/parser.cpp
         src/lib/analyzer/parser.hpp 
         src/lib/analyzer.hpp
-  )
+        src/lib/analyzer/automata.cpp
+        src/lib/analyzer/automata.hpp
+        src/lib/logger.cpp
+        src/lib/logger.hpp
+)
 
 add_executable(proyecto_estructura
         src/main.cpp
         ${LIBRARIES}
-        src/lib/logger.cpp src/lib/logger.hpp)
+        )
 
 add_executable(
         proyecto_tests
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
         tests/database.cc
-        tests/table.cc tests/fm.cc tests/tokenizer..cc tests/parser.cc)
+        tests/table.cc tests/fm.cc tests/tokenizer..cc tests/parser.cc tests/automata.cc)
 
-target_link_libraries(proyecto_tests GTest::gtest_main fmt::fmt-header-only fm)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt-header-only fm)
+target_link_libraries(proyecto_tests GTest::gtest_main fmt::fmt-header-only fm Result::Result)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt-header-only fm Result::Result)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)

@@ -1,20 +1,25 @@
 #include "logger.hpp"
 
-void Logger::show(LOG_TYPE_ type, const std::string &msg) {
+std::string Logger::show(LOG_TYPE_ type, const std::string &msg) {
   // match type
+  std::string result;
   switch (type) {
     case INFO:
-      fmt::print(fg(fmt::terminal_color::bright_white), "INF :: ");
+      result += fmt::format(fg(fmt::terminal_color::bright_white), "INF :: ");
       break;
     case WARN:
-      fmt::print(fg(fmt::terminal_color::yellow), "WRN :: ");
+      result += fmt::format(fg(fmt::terminal_color::yellow), "WRN :: ");
       break;
     case ERROR:
-      fmt::print(fg(fmt::terminal_color::red), "ERR :: ");
+      result += fmt::format(fg(fmt::terminal_color::red), "ERR :: ");
+      break;
+    case NONE:
       break;
   }
 
-  fmt::print(fg(fmt::terminal_color::bright_white), "{}\n", msg);
+  result += fmt::format(fg(fmt::terminal_color::bright_white), "{}\n", msg);
+  fmt::print(result);
+  return result;
 }
 
 std::vector<std::uint8_t> Logger::to_vec(const std::string &str) {
