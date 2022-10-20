@@ -71,16 +71,27 @@ namespace Parser {
     double value;
   };
 
-  struct Identifier {
+  struct Name {
     std::string value;
   };
+
+  struct Unknown {
+    std::string value;
+  };
+
+  struct NameAndSub {
+    std::string name;
+    std::string sub;
+  };
+
+  using Identifier = std::variant<Name, NameAndSub>;
 
   struct Int {
     std::uint64_t value;
   };
   using Numbers = std::variant<Double, Int>;
 
-  using Token = std::variant<Operator, Keyword, Type, Symbol, String, Numbers, Identifier>;
+  using Token = std::variant<Operator, Keyword, Type, Symbol, String, Numbers, Identifier, Unknown>;
 
   std::vector<Token> parse(const std::string &in);
 

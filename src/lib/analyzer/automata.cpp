@@ -25,15 +25,27 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
         switch (keyword.variant) {
           case Parser::KeywordE::CREATE:
           {
-            if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)) {
-              if (std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::DATABASE &&
+            if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
+                && std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::DATABASE &&
                   std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::TABLE) {
-                std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected DATABASE or TABLE after keyword CREATE.");
-                result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token CREATE (Pos: {}) in query:\n    \"{}\"", token_number, original));
-                return cpp::fail(result);
-              } else {
-                token_number++;
-              }
+              std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected DATABASE or TABLE after keyword CREATE.");
+              result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token CREATE (Pos: {}) in query:\n    \"{}\"", token_number, original));
+              return cpp::fail(result);
+            } else {
+              token_number++;
+            }
+          }
+            break;
+          case Parser::KeywordE::DELETE:
+          {
+            if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
+                && std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::DATABASE &&
+                  std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::TABLE) {
+              std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected DATABASE or TABLE after keyword DELETE.");
+              result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token DELETE (Pos: {}) in query:\n    \"{}\"", token_number, original));
+              return cpp::fail(result);
+            } else {
+              token_number++;
             }
           }
             break;
@@ -60,6 +72,11 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
       },
       [&](const Parser::Operator &op) -> cpp::result<void, std::string> {
         return {};
+      },
+      [&](const Parser::Unknown &unknown) -> cpp::result<void, std::string> {
+        std::string result = Logger::show(LOG_TYPE_::ERROR, "Found unknown token.");
+        result += Logger::show(LOG_TYPE_::NONE, fmt::format("Token (Pos: {}) in query:\n    \"{}\"", token_number, original));
+        return cpp::fail(result);
       }
   };
 
