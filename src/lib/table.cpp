@@ -3,6 +3,7 @@
 
 #include "fm.hpp"
 #include "table.hpp"
+#include "fmt/core.h"
 
 std::vector<std::uint8_t> Table::into_vec() const {
   std::vector<std::uint8_t> resultado{};
@@ -63,8 +64,10 @@ bool Layout::operator==(const Layout &other) const {
   return result;
 }
 
-Table Table::createTable(std::string &name, std::map<std::string, Layout> &layout, std::string &path) {
+Table Table::createTable(std::string database, std::string &name, std::map<std::string, Layout> &layout, std::string &path) {
   Table t(layout);
-  FileManager::write_to_file(path, t.into_vec());
+  FileManager::Path table_folder = FileManager::Path::get_working_dir().operator+(fmt::format("{}", name));
+  FileManager::Path table_info = table_folder + "schema";
+  FileManager::write_to_file(table_info.path, t.into_vec());
   return t;
 }

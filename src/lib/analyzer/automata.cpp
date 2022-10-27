@@ -1,10 +1,13 @@
 #include "automata.hpp"
 
 #include "../logger.hpp"
+#include "../table.hpp"
+#include "../database.hpp"
 
 
-cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> Automata::get_action_struct(std::vector<Parser::Token> in, std::string original) {
+cpp::result<std::variant<Automata::CreateDatabase>, std::string> Automata::get_action_struct(std::vector<Parser::Token> in, std::string original) {
   Context ctx = Context::Unknown;
+  std::optional<std::variant<Automata::CreateDatabase>> variant = std::nullopt;
   size_t token_number = 1;
   std::optional<Parser::Token> next = std::nullopt;
   std::optional<Parser::Token> curr = std::nullopt;
@@ -12,16 +15,6 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
 
   auto visitor = overload{
       [&](const Parser::Keyword &keyword) -> cpp::result<void, std::string> {
-        if (Context::Unknown == ctx) {
-          switch (keyword.variant) {
-            case Parser::KeywordE::CREATE:
-              ctx = Context::CreateDatabaseE;
-              break;
-            default:
-              break;
-          }
-        }
-
         switch (keyword.variant) {
           case Parser::KeywordE::CREATE:
           {
@@ -32,6 +25,15 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
               result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token CREATE (Pos: {}) in query:\n    \"{}\"", token_number, original));
               return cpp::fail(result);
             } else {
+              if (ctx == Context::Unknown) {
+                if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
+                    && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::DATABASE) {
+                  ctx = Context::CreateDatabaseE;
+                } else if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
+                           && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::TABLE) {
+                  ctx = Context::CreateTableE;
+                }
+              }
               token_number++;
             }
           }
@@ -45,6 +47,15 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
               result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token DELETE (Pos: {}) in query:\n    \"{}\"", token_number, original));
               return cpp::fail(result);
             } else {
+              if (ctx == Context::Unknown) {
+                if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
+                    && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::DATABASE) {
+                  ctx = Context::DeleteDatabaseE;
+                } else if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
+                           && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::TABLE) {
+                  ctx = Context::DeleteTableE;
+                }
+              }
               token_number++;
             }
           }
@@ -68,6 +79,17 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
         return {};
       },
       [&](const Parser::Identifier &identifier) -> cpp::result<void, std::string> {
+        if (ctx == Context::CreateDatabaseE) {
+          if (std::holds_alternative<Parser::Name>(identifier)) {
+            std::string name = std::get<Parser::Name>(identifier).value;
+            variant = std::variant<Automata::CreateDatabase>(Automata::CreateDatabase{name});
+            return {};
+          } else {
+            std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected database name after keyword CREATE DATABASE.");
+            result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token CREATE DATABASE (Pos: {}) in query:\n    \"{}\"", token_number, original));
+            return cpp::fail(result);
+          }
+        }
         return {};
       },
       [&](const Parser::Operator &op) -> cpp::result<void, std::string> {
@@ -99,5 +121,9 @@ cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> 
     }
   }
 
-  return {std::nullopt};
+  if (variant.has_value()) {
+    return variant.value();
+  } else {
+    return cpp::fail("Unknown query.");
+  }
 }

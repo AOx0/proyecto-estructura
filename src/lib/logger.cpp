@@ -17,9 +17,13 @@ std::string Logger::show(LOG_TYPE_ type, const std::string &msg) {
       break;
   }
 
-  result += fmt::format(fg(fmt::terminal_color::bright_white), "{}\n", msg);
+  result += fmt::format(fg(fmt::terminal_color::bright_white), "{}", msg);
   fmt::print(result);
   return result;
+}
+
+std::string Logger::show_ln(LOG_TYPE_ type, const std::string &msg) {
+  return show(type, msg + "\n");
 }
 
 std::vector<std::uint8_t> Logger::to_vec(const std::string &str) {
@@ -37,13 +41,13 @@ Logger::Logger(Logger::Path path) : path_(std::move(path)) {
     if (backup.exists()) {
       // remove and handle if error
       if (!backup.remove()) {
-        show(LOG_TYPE_::ERROR, "Error removing old backup file");
+        show_ln(LOG_TYPE_::ERROR, "Error removing old backup file");
         exit(1);
       }
     }
 
     if (!rfm_::rename_((char *) path_.path.c_str(), (char *) backup.path.c_str())) {
-      show(LOG_TYPE_::ERROR, "Error renaming log file");
+      show_ln(LOG_TYPE_::ERROR, "Error renaming log file");
       exit(1);
     }
   }
@@ -51,7 +55,7 @@ Logger::Logger(Logger::Path path) : path_(std::move(path)) {
   // Check if path exists, create if not and set path_
   if (!path_.exists()) {
     if (!path_.create_as_file()) {
-      show(LOG_TYPE_::ERROR, fmt::format("Could not create log file at {}", path_.path));
+      show_ln(LOG_TYPE_::ERROR, fmt::format("Could not create log file at {}", path_.path));
       exit(1);
     }
   }
@@ -62,19 +66,19 @@ void Logger::log(const std::string &msg) {
   std::lock_guard<std::mutex> lock(mtx_);
 
   FileManager::append_to_file(path_.path, to_vec(fmt::format("INF :: {}\n", msg)));
-  show(LOG_TYPE_::INFO, msg);
+  show_ln(LOG_TYPE_::INFO, msg);
 }
 
 void Logger::warn(const std::string &msg) {
   std::lock_guard<std::mutex> lock(mtx_);
 
   FileManager::append_to_file(path_.path, to_vec(fmt::format("WRN :: {}\n", msg)));
-  show(LOG_TYPE_::WARN, msg);
+  show_ln(LOG_TYPE_::WARN, msg);
 }
 
 void Logger::error(const std::string &msg) {
   std::lock_guard<std::mutex> lock(mtx_);
 
   FileManager::append_to_file(path_.path, to_vec(fmt::format("ERR :: {}\n", msg)));
-  show(LOG_TYPE_::ERROR, msg);
+  show_ln(LOG_TYPE_::ERROR, msg);
 }

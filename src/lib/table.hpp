@@ -6,6 +6,9 @@
 #include <vector>
 #include <shared_mutex>
 #include <mutex>
+#include <result.hpp>
+
+#include "linkedList.hpp"
 
 enum Type {
   u8 = 1,
@@ -27,7 +30,16 @@ struct Layout {
   bool operator==(Layout const &other) const;
 };
 
+struct TableInstance {
+  KeyValueList<std::string, std::tuple<Layout,void*>> data;
+
+  /*TableInstance(std::string table_name) : data(KeyValueList<std::string, std::tuple<Layout,void*>>()) {}
+
+  };*/
+};
+
 struct Table {
+  std::optional<TableInstance> instance;
   std::map<std::string, Layout> rows;
   std::shared_mutex mtx_;
 
@@ -62,7 +74,7 @@ struct Table {
 
   Table(std::map<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
 
-  static Table createTable(std::string &name, std::map<std::string, Layout> &layout, std::string &path);
+  static Table createTable(std::string database, std::string &name, std::map<std::string, Layout> &layout, std::string &path);
 };
 
 #endif // TABLE_HPP

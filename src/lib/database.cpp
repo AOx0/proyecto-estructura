@@ -49,7 +49,7 @@ void DataBase::to_file(const std::string &path) const {
   FileManager::write_to_file(path, this->into_vec());
 }
 
-DataBase DataBase::create(const std::string &path, const std::string &name) {
+cpp::result<DataBase, std::string> DataBase::create(const std::string &path, const std::string &name) {
   using P = FileManager::Path;
 
   DataBase d({});
@@ -58,8 +58,15 @@ DataBase DataBase::create(const std::string &path, const std::string &name) {
 
   if (p.has_value()) {
     *p += (name + "_info.tdb");
-    FileManager::write_to_file(p->path, d.into_vec());
+    if (p->exists()) {
+      return cpp::fail("Database already exists");
+    } else {
+      FileManager::write_to_file(p->path, d.into_vec());
+      return d;
+    }
+  } else {
+    return cpp::fail("Failed getting path for the database");
   }
 
-  return d;
+  return cpp::fail("Something went bad while creating database");
 }

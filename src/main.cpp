@@ -21,15 +21,16 @@ volatile sig_atomic_t st = 0;
 #define WARN(...) log->warn(fmt::format(__VA_ARGS__))
 #define ERROR(...) log->error(fmt::format(__VA_ARGS__))
 #define KILL_MSG(msg) { \
-  Logger::show(LOG_TYPE_::WARN, fmt::format("Received {}", msg)); \
-  Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down everything!")); \
-  Logger::show(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer")); \
+  Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Received {}", msg)); \
+  Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Shutting down everything!")); \
+  Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Sending kill sign to TcpServer")); \
   kill_sign(); \
   st = 1; \
 }
 
 void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log) {
 #define SEND(...) send << fmt::format(__VA_ARGS__)
+#define SEND_ERROR(...)  send << Logger::show(LOG_TYPE_::ERROR, fmt::format(__VA_ARGS__))
 
   stringstream send;
 
@@ -54,27 +55,28 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
 
     auto result = Parser::validate(query);
     if (!std::get<0>(result)) {
-      SEND("Error: Invalid query\n");
-      SEND("Error: Invalid {}\n", std::get<1>(result).value());
+      SEND_ERROR("Invalid query\n");
+      SEND_ERROR("Invalid {}\n", std::get<1>(result).value());
       break;
+    }
+
+    auto ast = Parser::parse(query);
+    auto args = Automata::get_action_struct(ast, query);
+
+    if (args.has_value()) {
+      if (holds_alternative<Automata::CreateDatabase>(args.value())) {
+        auto arg = get<Automata::CreateDatabase>(args.value());
+        LOG("Creating database {}", arg.name);
+        auto db_result = DataBase::create("data/", arg.name);
+        if (db_result.has_value()) {
+          SEND("Database {} created\n", arg.name);
+        } else {
+          SEND_ERROR("{}\n", db_result.error());
+        }
+      }
     } else {
-      SEND("Wait a minute, processing...!\n");
+      SEND_ERROR("{}\n", args.error());
     }
-
-    if (query.find("CREATE DATABASE") != string::npos) {
-
-      // Split query by spaces
-      istringstream iss(query);
-      vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
-
-      // Get database name
-      LOG("Creating database {}", tokens[2]);
-
-      // Create database
-      DataBase::create("data/", tokens[2]);
-      break;
-    }
-
     break;
   }
 
@@ -92,25 +94,25 @@ int main() {
     data_path = env_p;
 
   if (!data_path.exists()) {
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} does not exist", data_path.path));
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path folder"));
+    Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Data path {} does not exist", data_path.path));
+    Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Creating data path folder"));
     if (!data_path.create_as_dir()) {
-      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
+      Logger::show_ln(LOG_TYPE_::ERROR, fmt::format("Failed to create file {}", data_path.path));
       return 1;
     }
   } else if (data_path.is_file()) {
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Data path {} exist but is a file", data_path.path));
+    Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Data path {} exist but is a file", data_path.path));
 
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Removing file {}", data_path.path));
+    Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Removing file {}", data_path.path));
     // remove data path
     if (!data_path.remove()) {
-      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to remove file {}", data_path.path));
+      Logger::show_ln(LOG_TYPE_::ERROR, fmt::format("Failed to remove file {}", data_path.path));
       return 1;
     }
 
-    Logger::show(LOG_TYPE_::WARN, fmt::format("Creating data path folder"));
+    Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Creating data path folder"));
     if (!data_path.create_as_dir()) {
-      Logger::show(LOG_TYPE_::ERROR, fmt::format("Failed to create folder {}", data_path.path));
+      Logger::show_ln(LOG_TYPE_::ERROR, fmt::format("Failed to create folder {}", data_path.path));
       return 1;
     }
   }
@@ -181,7 +183,7 @@ int main() {
     WARN("Shutting down TcpServer");
   }
 
-  Logger::show(LOG_TYPE_::WARN, fmt::format("Shutting down CppServer"));
+  Logger::show_ln(LOG_TYPE_::WARN, fmt::format("Shutting down CppServer"));
   for (auto &t: threads) {
     t.join();
   }

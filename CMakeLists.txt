@@ -86,7 +86,8 @@ set(LIBRARIES
         src/lib/analyzer/automata.hpp
         src/lib/logger.cpp
         src/lib/logger.hpp
-)
+        src/lib/linkedList.cpp
+        src/lib/linkedList.hpp)
 
 add_executable(proyecto_estructura
         src/main.cpp

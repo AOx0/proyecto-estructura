@@ -23,7 +23,7 @@ namespace Automata {
   };
 
   struct CreateDatabase {
-    std::string nombre;
+    std::string name;
   };
 
   struct DeleteTable {
@@ -42,10 +42,13 @@ namespace Automata {
 
   enum Context {
     CreateDatabaseE,
+    CreateTableE,
+    DeleteDatabaseE,
+    DeleteTableE,
     Unknown [[maybe_unused]]
   };
 
-  cpp::result<std::optional<std::variant<Automata::CreateDatabase>>, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
+  cpp::result<std::variant<Automata::CreateDatabase>, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
 }
 
 #endif //AUTOMATA_HPP

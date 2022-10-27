@@ -6,6 +6,7 @@
 #include <vector>
 #include <atomic>
 #include <memory>
+#include <result.hpp>
 
 #include "table.hpp"
 
@@ -43,7 +44,7 @@ struct DataBase {
 
   bool operator==(const DataBase &other) const;
 
-  static DataBase create(const std::string &path, const std::string &name);
+  static cpp::result<DataBase, std::string> create(const std::string &path, const std::string &name);
 };
 
 #endif // DATABASE_HPP
