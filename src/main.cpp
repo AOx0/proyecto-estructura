@@ -76,6 +76,10 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         auto arg = get<Automata::DeleteDatabase>(args.value());
         LOG("Deleting database {}", arg.name);
         SEND("Database {} deleted\n", arg.name);
+      } else if (holds_alternative<Automata::DeleteTable>(args.value())) {
+        auto arg = get<Automata::DeleteTable>(args.value());
+        LOG("Deleting table {} from database {}", arg.table, arg.database);
+        SEND("Deleting table {} from database {}\n", arg.table, arg.database);
       }
     } else {
       SEND_ERROR("{}\n", args.error());

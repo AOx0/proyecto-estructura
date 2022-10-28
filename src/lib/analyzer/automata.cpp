@@ -95,18 +95,21 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
         return {};
       },
       [&](const Identifier &identifier) -> cpp::result<void, std::string> {
-        if (ctx == Context::CreateDatabaseE || ctx == Context::DeleteDatabaseE) {
+        if (ctx == Context::CreateDatabaseE || ctx == Context::DeleteDatabaseE || ctx == Context::DeleteTableE) {
           // If there is not a next token it is an error, there should be a semicolon
           if (!next.has_value())
             return cpp::fail(fmt::format(
                 "Expected semicolon after database name but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                 token_number, to_string(*curr), original));
+          if (!same_variant_and_value(next.value(), Token{Symbol{SymbolE::SEMICOLON}}))
+            return cpp::fail(fmt::format(
+                "Expected semicolon after database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
         }
 
         if (ctx == Context::CreateDatabaseE) {
           if (std::holds_alternative<Name>(identifier)) {
             std::string name = std::get<Name>(identifier).value;
-
             variant = {Automata::CreateDatabase{name}};
             return {};
           } else {
@@ -117,12 +120,21 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
         } else if (ctx == Context::DeleteDatabaseE) {
           if (std::holds_alternative<Name>(identifier)) {
             std::string name = std::get<Name>(identifier).value;
-
             variant = {Automata::DeleteDatabase{name}};
             return {};
           } else {
             return cpp::fail(fmt::format(
                 "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, to_string(*curr), original));
+          }
+        } else if (ctx == Context::DeleteTableE) {
+          if (std::holds_alternative<NameAndSub>(identifier)) {
+            auto data = std::get<NameAndSub>(identifier);
+            variant = {Automata::DeleteTable{data.name, data.sub}};
+            return {};
+          } else {
+            return cpp::fail(fmt::format(
+                "Expected table name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
         }

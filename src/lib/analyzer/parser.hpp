@@ -129,37 +129,37 @@ namespace Parser {
 
     switch (x) {
       case TypeE::I8:
-        ss << "I8";
+        ss << "i8";
         break;
       case TypeE::I16:
-        ss << "I16";
+        ss << "i16";
         break;
       case TypeE::I32:
-        ss << "I32";
+        ss << "i32";
         break;
       case TypeE::I64:
-        ss << "I64";
+        ss << "i64";
         break;
       case TypeE::U8:
-        ss << "U8";
+        ss << "u8";
         break;
       case TypeE::U16:
-        ss << "U16";
+        ss << "u16";
         break;
       case TypeE::U32:
-        ss << "U32";
+        ss << "u32";
         break;
       case TypeE::U64:
-        ss << "U64";
+        ss << "u64";
         break;
       case TypeE::F64:
-        ss << "F64";
+        ss << "f64";
         break;
       case TypeE::BOOL:
-        ss << "BOOL";
+        ss << "bool";
         break;
       case TypeE::STR:
-        ss << "STR";
+        ss << "str";
         break;
     }
 
