@@ -34,6 +34,11 @@ namespace Automata {
     std::string name;
   };
 
+  struct Insert {
+    std::string table;
+    std::map<std::string, std::variant<std::string, int, float>> values;
+  };
+
   struct MakeSelect {
     std::map<std::string, std::set<std::string>> fields_to_select;
     std::map<std::string, Parser::Type> columns;
@@ -48,7 +53,9 @@ namespace Automata {
     Unknown [[maybe_unused]]
   };
 
-  cpp::result<std::variant<Automata::CreateDatabase>, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
+  using Action = std::variant<Automata::CreateDatabase, Automata::DeleteDatabase>;
+
+  cpp::result<std::variant<Automata::CreateDatabase, Automata::DeleteDatabase>, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
 }
 
 #endif //AUTOMATA_HPP

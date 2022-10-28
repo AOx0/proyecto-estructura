@@ -5,59 +5,67 @@
 #include "../database.hpp"
 
 
-cpp::result<std::variant<Automata::CreateDatabase>, std::string> Automata::get_action_struct(std::vector<Parser::Token> in, std::string original) {
+cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vector<Parser::Token> in, std::string original) {
+  using namespace Parser;
+
   Context ctx = Context::Unknown;
-  std::optional<std::variant<Automata::CreateDatabase>> variant = std::nullopt;
+  std::optional<Action> variant = std::nullopt;
   size_t token_number = 1;
-  std::optional<Parser::Token> next = std::nullopt;
-  std::optional<Parser::Token> curr = std::nullopt;
-  std::optional<Parser::Token> prev = std::nullopt;
+  std::optional<Token> next = std::nullopt;
+  std::optional<Token> curr = std::nullopt;
+  std::optional<Token> prev = std::nullopt;
 
   auto visitor = overload{
-      [&](const Parser::Keyword &keyword) -> cpp::result<void, std::string> {
+      [&](const Keyword &keyword) -> cpp::result<void, std::string> {
         switch (keyword.variant) {
-          case Parser::KeywordE::CREATE:
+          case KeywordE::CREATE:
           {
-            if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
-                && std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::DATABASE &&
-                  std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::TABLE) {
-              std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected DATABASE or TABLE after keyword CREATE.");
-              result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token CREATE (Pos: {}) in query:\n    \"{}\"", token_number, original));
-              return cpp::fail(result);
-            } else {
-              if (ctx == Context::Unknown) {
-                if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
-                    && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::DATABASE) {
-                  ctx = Context::CreateDatabaseE;
-                } else if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
-                           && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::TABLE) {
-                  ctx = Context::CreateTableE;
-                }
-              }
-              token_number++;
+            if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format(
+                      "Expected `DATABASE` or `TABLE` after `CREATE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
+                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
+              return cpp::fail(
+                  fmt::format(
+                      "Expected `DATABASE` or `TABLE` after `CREATE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*next), token_number, to_string(*curr), original));
             }
+
+            if (ctx == Context::Unknown) {
+              if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}})) {
+                ctx = Context::CreateDatabaseE;
+              } else {
+                ctx = Context::CreateTableE;
+              }
+            }
+            token_number++;
           }
             break;
-          case Parser::KeywordE::DELETE:
+          case KeywordE::DELETE:
           {
-            if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
-                && std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::DATABASE &&
-                  std::get<Parser::Keyword>(*next).variant != Parser::KeywordE::TABLE) {
-              std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected DATABASE or TABLE after keyword DELETE.");
-              result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token DELETE (Pos: {}) in query:\n    \"{}\"", token_number, original));
-              return cpp::fail(result);
-            } else {
-              if (ctx == Context::Unknown) {
-                if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
-                    && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::DATABASE) {
-                  ctx = Context::DeleteDatabaseE;
-                } else if (next.has_value() && std::holds_alternative<Parser::Keyword>(*next)
-                           && std::get<Parser::Keyword>(*next).variant == Parser::KeywordE::TABLE) {
-                  ctx = Context::DeleteTableE;
-                }
-              }
-              token_number++;
+            if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format(
+                      "Expected `DATABASE` or `TABLE` after `DELETE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
+                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
+              return cpp::fail(
+                  fmt::format(
+                      "Expected `DATABASE` or `TABLE` after `DELETE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*next), token_number, to_string(*curr), original));
             }
+
+            if (ctx == Context::Unknown) {
+              if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}})) {
+                ctx = Context::DeleteDatabaseE;
+              } else {
+                ctx = Context::DeleteTableE;
+              }
+            }
+            token_number++;
           }
             break;
           default:
@@ -69,34 +77,63 @@ cpp::result<std::variant<Automata::CreateDatabase>, std::string> Automata::get_a
       [&](const Parser::Type &type) -> cpp::result<void, std::string>  {
         return {};
       },
-      [&](const Parser::Symbol &symbol) -> cpp::result<void, std::string>  {
-        return {};
-      },
-      [&](const Parser::String &string) -> cpp::result<void, std::string> {
-        return {};
-      },
-      [&](const Parser::Numbers &numbers) -> cpp::result<void, std::string> {
-        return {};
-      },
-      [&](const Parser::Identifier &identifier) -> cpp::result<void, std::string> {
-        if (ctx == Context::CreateDatabaseE) {
-          if (std::holds_alternative<Parser::Name>(identifier)) {
-            std::string name = std::get<Parser::Name>(identifier).value;
-            variant = std::variant<Automata::CreateDatabase>(Automata::CreateDatabase{name});
-            return {};
-          } else {
-            std::string result = Logger::show(LOG_TYPE_::ERROR, "Expected database name after keyword CREATE DATABASE.");
-            result += Logger::show(LOG_TYPE_::NONE, fmt::format("After token CREATE DATABASE (Pos: {}) in query:\n    \"{}\"", token_number, original));
-            return cpp::fail(result);
+      [&](const Symbol &symbol) -> cpp::result<void, std::string>  {
+        // If the symbol is a semicolon, the next token should be a null optional;
+        if (symbol.variant == SymbolE::SEMICOLON) {
+          if (next.has_value()) {
+            return cpp::fail(fmt::format(
+                "Expected end of query after semicolon but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, original));
           }
         }
         return {};
       },
-      [&](const Parser::Operator &op) -> cpp::result<void, std::string> {
+      [&](const String &string) -> cpp::result<void, std::string> {
+        return {};
+      },
+      [&](const Numbers &numbers) -> cpp::result<void, std::string> {
+        return {};
+      },
+      [&](const Identifier &identifier) -> cpp::result<void, std::string> {
+        if (ctx == Context::CreateDatabaseE || ctx == Context::DeleteDatabaseE) {
+          // If there is not a next token it is an error, there should be a semicolon
+          if (!next.has_value())
+            return cpp::fail(fmt::format(
+                "Expected semicolon after database name but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+        }
+
+        if (ctx == Context::CreateDatabaseE) {
+          if (std::holds_alternative<Name>(identifier)) {
+            std::string name = std::get<Name>(identifier).value;
+
+            variant = {Automata::CreateDatabase{name}};
+            return {};
+          } else {
+            return cpp::fail(fmt::format(
+                "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, to_string(*curr), original));
+          }
+        } else if (ctx == Context::DeleteDatabaseE) {
+          if (std::holds_alternative<Name>(identifier)) {
+            std::string name = std::get<Name>(identifier).value;
+
+            variant = {Automata::DeleteDatabase{name}};
+            return {};
+          } else {
+            return cpp::fail(fmt::format(
+                "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, to_string(*curr), original));
+          }
+        }
+
+          return {};
+      },
+      [&](const Operator &op) -> cpp::result<void, std::string> {
         return {};
       },
       [&](const Parser::Unknown &unknown) -> cpp::result<void, std::string> {
-        std::string result = Logger::show(LOG_TYPE_::ERROR, "Found unknown token.");
+        std::string result = Logger::show_ln(LOG_TYPE_::NONE, fmt::format("Found unknown token `{}`.", to_string(unknown)));
         result += Logger::show(LOG_TYPE_::NONE, fmt::format("Token (Pos: {}) in query:\n    \"{}\"", token_number, original));
         return cpp::fail(result);
       }

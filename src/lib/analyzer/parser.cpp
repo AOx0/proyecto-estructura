@@ -195,7 +195,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
     }
 
     // Check if token is a double
-    if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]*)(\\.([0-9]+))?)"))) {
+    if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]+)(\\.([0-9]+))?)"))) {
       resultado.emplace_back(Numbers{Double{std::stod(token)}});
       continue;
     }
@@ -214,56 +214,82 @@ bool Parser::operator==(std::vector<Token> left, std::vector<Token> right) {
     return false;\
   }\
 }                                                                                                    \
-    // Match every token variant and compare left and right depending on the variant
+                                                                                                               \
+  // Match every token variant and compare left and right depending on the variant
   for (int i = 0; i < left.size(); i++) {
+    if (!same_variant_and_value(left[i], right[i])) {
+      return false;
+    }
+  }
+  return true;
+#undef CMP
+}
+
+bool Parser::same_variant(const Parser::Token &left, const Parser::Token &right) {
+#define CMP(tipo, field) if (std::holds_alternative<tipo>(left) && std::holds_alternative<tipo>(right)) {\
+    return true;\
+}
+  CMP(Operator, variant)
+  else CMP(Type, variant)
+  else CMP(Keyword, variant)
+  else CMP(Symbol, variant)
+  else CMP(String, value)
+  else CMP(Unknown, value)
+  else if (std::holds_alternative<Identifier>(left) && std::holds_alternative<Identifier>(right)) {
+    if (std::holds_alternative<Name>(std::get<Identifier>(left)) &&
+        std::holds_alternative<Name>(std::get<Identifier>(right))) {
+      return true;
+    } else if (std::holds_alternative<NameAndSub>(std::get<Identifier>(left)) &&
+               std::holds_alternative<NameAndSub>(std::get<Identifier>(right))) {
+      return true;
+    }
+  }
+  else if (std::holds_alternative<Numbers>(left) && std::holds_alternative<Numbers>(right)) {
+    if (std::holds_alternative<Int>(std::get<Numbers>(left)) &&
+        std::holds_alternative<Int>(std::get<Numbers>(right))) {
+      return true;
+    } else if (std::holds_alternative<Double>(std::get<Numbers>(left)) &&
+               std::holds_alternative<Double>(std::get<Numbers>(right))) {
+      return true;
+    }
+  }
+
+  return false;
+#undef CMP
+}
+
+bool Parser::same_variant_and_value(const Token & left, const Token & right) {
+#define CMP(tipo, field) if (std::holds_alternative<tipo>(left) && std::holds_alternative<tipo>(right)) {\
+  if (std::get<tipo>(left).field == std::get<tipo>(right).field) {\
+    return true;\
+  }\
+}                                                                                                    \
+    // Match every token variant and compare left and right depending on the variant
     CMP(Operator, variant)
     else CMP(Type, variant)
     else CMP(Keyword, variant)
     else CMP(Symbol, variant)
     else CMP(String, value)
     else CMP(Unknown, value)
-    else if (std::holds_alternative<Identifier>(left[i]) && std::holds_alternative<Identifier>(right[i])) {
-      if (std::holds_alternative<Name>(std::get<Identifier>(left[i])) &&
-          std::holds_alternative<Name>(std::get<Identifier>(right[i]))) {
-        if (std::get<Name>(std::get<Identifier>(left[i])).value != std::get<Name>(std::get<Identifier>(right[i])).value) {
-          return false;
-        } else {
-          continue;
-        }
-      } else if (std::holds_alternative<NameAndSub>(std::get<Identifier>(left[i])) &&
-                 std::holds_alternative<NameAndSub>(std::get<Identifier>(right[i]))) {
-        if (std::get<NameAndSub>(std::get<Identifier>(left[i])).name != std::get<NameAndSub>(std::get<Identifier>(right[i])).name
-            || std::get<NameAndSub>(std::get<Identifier>(left[i])).sub != std::get<NameAndSub>(std::get<Identifier>(right[i])).sub) {
-          return false;
-        } else {
-          continue;
-        }
-      } else {
-        return false;
+    else if (std::holds_alternative<Identifier>(left) && std::holds_alternative<Identifier>(right)) {
+      if (std::holds_alternative<Name>(std::get<Identifier>(left)) &&
+          std::holds_alternative<Name>(std::get<Identifier>(right))) {
+        return std::get<Name>(std::get<Identifier>(left)).value == std::get<Name>(std::get<Identifier>(right)).value;
+      } else if (std::holds_alternative<NameAndSub>(std::get<Identifier>(left)) &&
+                 std::holds_alternative<NameAndSub>(std::get<Identifier>(right))) {
+        return std::get<NameAndSub>(std::get<Identifier>(left)).name == std::get<NameAndSub>(std::get<Identifier>(right)).name
+            && std::get<NameAndSub>(std::get<Identifier>(left)).sub == std::get<NameAndSub>(std::get<Identifier>(right)).sub;
       }
     }
-    else if (std::holds_alternative<Numbers>(left[i]) && std::holds_alternative<Numbers>(right[i])) {
-      if (std::holds_alternative<Int>(std::get<Numbers>(left[i])) &&
-          std::holds_alternative<Int>(std::get<Numbers>(right[i]))) {
-        if (std::get<Int>(std::get<Numbers>(left[i])).value != std::get<Int>(std::get<Numbers>(right[i])).value) {
-          return false;
-        } else {
-          continue;
-        }
-      } else if (std::holds_alternative<Double>(std::get<Numbers>(left[i])) &&
-                 std::holds_alternative<Double>(std::get<Numbers>(left[i]))) {
-        if (std::get<Double>(std::get<Numbers>(left[i])).value !=
-            std::get<Double>(std::get<Numbers>(left[i])).value) {
-          return false;
-        } else {
-          continue;
-        }
-      }  else {
-        return false;
+    else if (std::holds_alternative<Numbers>(left) && std::holds_alternative<Numbers>(right)) {
+      if (std::holds_alternative<Int>(std::get<Numbers>(left)) &&
+          std::holds_alternative<Int>(std::get<Numbers>(right))) {
+        return  std::get<Int>(std::get<Numbers>(left)).value == std::get<Int>(std::get<Numbers>(right)).value;
+      } else if (std::holds_alternative<Double>(std::get<Numbers>(left)) &&
+                 std::holds_alternative<Double>(std::get<Numbers>(right))) {
+        return std::get<Double>(std::get<Numbers>(left)).value == std::get<Double>(std::get<Numbers>(right)).value;
       }
-    } else {
-      return false;
     }
-  }
-  return true;
+  return false;
+#undef CMP
 }

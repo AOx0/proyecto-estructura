@@ -55,8 +55,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
 
     auto result = Parser::validate(query);
     if (!std::get<0>(result)) {
-      SEND_ERROR("Invalid query\n");
-      SEND_ERROR("Invalid {}\n", std::get<1>(result).value());
+      SEND_ERROR("Invalid query: {}\n", std::get<1>(result).value());
       break;
     }
 
@@ -73,6 +72,10 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         } else {
           SEND_ERROR("{}\n", db_result.error());
         }
+      } else if (holds_alternative<Automata::DeleteDatabase>(args.value())) {
+        auto arg = get<Automata::DeleteDatabase>(args.value());
+        LOG("Deleting database {}", arg.name);
+        SEND("Database {} deleted\n", arg.name);
       }
     } else {
       SEND_ERROR("{}\n", args.error());

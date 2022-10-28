@@ -2,6 +2,7 @@
 
 #include <regex>
 #include <fmt/core.h>
+#include <sstream>
 
 std::vector<std::string> Parser::tokenize(const std::string &in) {
   std::vector<std::string> resultado{};
@@ -142,6 +143,7 @@ std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string 
       return std::make_tuple(false, std::make_optional(fmt::format("Invalid token: {}", token)));
     }
 
+    /*
     // It is invalid if we have to operators together
     if (current_type == TokenType::OPERATOR && last_type == TokenType::OPERATOR) {
       return std::make_tuple(false,
@@ -198,7 +200,7 @@ std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string 
     if (last_type == TokenType::TYPE && current_type != TokenType::IDENTIFIER) {
       return std::make_tuple(false, std::make_optional(
           fmt::format("Invalid token, expected identifier after type: {}", token)));
-    }
+    }*/
 
     last_type = current_type;
   }
