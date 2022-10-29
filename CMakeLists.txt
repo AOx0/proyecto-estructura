@@ -10,6 +10,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(proyecto_estructura)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_CXX_STANDARD 20)
 
 # Windows must be built with rust stable-x86_64-pc-windows-gnu as target
