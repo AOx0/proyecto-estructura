@@ -5,11 +5,11 @@
 
 std::vector<Parser::Token> Parser::parse(const std::string &in) {
   const static std::vector<std::string> valid_tokens = {
-      "(", ")", ";", "*"
+      "(", ")", ";", "*", ","
   };
 
   const static std::vector<std::string> valid_operators = {
-      "==", ">", "<", "!", "<=", ">=", ",", "&&", "||", "AND", "0R"
+      "==", ">", "<", "!", "<=", ">=", "&&", "||", "AND", "0R"
   };
 
   const static std::vector<std::string> valid_keywords = {

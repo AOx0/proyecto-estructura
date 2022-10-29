@@ -3,6 +3,7 @@
 #include "../logger.hpp"
 #include "../table.hpp"
 #include "../database.hpp"
+#include "parser.hpp"
 
 
 cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vector<Parser::Token> in, std::string original) {
@@ -10,7 +11,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
 
   Context ctx = Context::Unknown;
   std::optional<Action> variant = std::nullopt;
-  size_t token_number = 1;
+  size_t token_number = 0;
   std::optional<Token> next = std::nullopt;
   std::optional<Token> curr = std::nullopt;
   std::optional<Token> prev = std::nullopt;
@@ -20,11 +21,18 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
         switch (keyword.variant) {
           case KeywordE::CREATE:
           {
+            if (token_number != 0) {
+              return cpp::fail(
+                  fmt::format(
+                      "Found `CREATE` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*curr), token_number, original));          
+            }
+            
             if (!next.has_value()) {
               return cpp::fail(
                   fmt::format(
                       "Expected `DATABASE` or `TABLE` after `CREATE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      token_number, to_string(*curr), original));
+                      to_string(*curr), token_number, original));
             } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
                        !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
               return cpp::fail(
@@ -40,16 +48,22 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                 ctx = Context::CreateTableE;
               }
             }
-            token_number++;
           }
             break;
           case KeywordE::DELETE:
           {
+            if (token_number != 0) {
+              return cpp::fail(
+                  fmt::format(
+                      "Found `DELETE` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*curr), token_number, original));          
+            }
+            
             if (!next.has_value()) {
               return cpp::fail(
                   fmt::format(
                       "Expected `DATABASE` or `TABLE` after `DELETE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      token_number, to_string(*curr), original));
+                      to_string(*curr), token_number, original));
             } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
                        !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
               return cpp::fail(
@@ -65,7 +79,18 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                 ctx = Context::DeleteTableE;
               }
             }
-            token_number++;
+          }
+            break;
+        
+          case KeywordE::INSERT:
+          {
+            if (token_number != 0) {
+              return cpp::fail(
+                  fmt::format(
+                      "Found `INSERT` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*curr), token_number, original));          
+            }
+            
           }
             break;
           default:
@@ -75,6 +100,17 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
         return {};
       },
       [&](const Parser::Type &type) -> cpp::result<void, std::string>  {
+        if (ctx == Context::CreateTableE) {
+          if (!next.has_value()) {
+              return cpp::fail(fmt::format(
+                "Expected name after type `{}` in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), to_string(*curr), token_number, original));
+          } else if (!same_variant(*next, Token{Identifier{Name{}}})) {
+              return cpp::fail(fmt::format(
+                "Expected name after type `{}` in `CREATE TABLE` context but got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), to_string(*next), to_string(*curr), token_number, original));
+          }
+        }
         return {};
       },
       [&](const Symbol &symbol) -> cpp::result<void, std::string>  {
@@ -84,6 +120,40 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             return cpp::fail(fmt::format(
                 "Expected end of query after semicolon but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), token_number, original));
+          }
+        } else if (symbol.variant == SymbolE::OPENING_PAR) {
+          if (ctx == Context::CreateTableE) {
+            if ( !next.has_value() ) {
+              return cpp::fail(fmt::format(
+                "Expected type after opening parenthesis in `CREATE TABLE` context but got nothing\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                token_number, original));
+            } else if ( !same_variant(*next, Token{Parser::Type{}} )) {
+              return cpp::fail(fmt::format(
+                "Expected type after opening parenthesis in `CREATE TABLE` context but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, original));
+            }
+          } 
+        } else if (symbol.variant == SymbolE::COMA) {
+          if (!next.has_value()) {
+              return cpp::fail(fmt::format(
+                "Expected type or `)` in `CREATE TABLE` context but got nothing\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
+                token_number, original));
+          } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant(*next, Token{Parser::Type{}})) {  
+              return cpp::fail(fmt::format(
+                "Expected type or `)` in `CREATE TABLE` context but got `{}`\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, original));
+          }
+        } else if (symbol.variant == SymbolE::CLOSING_PAR) {
+          if (ctx == Context::CreateTableE) {
+            if (!next.has_value()) {
+              return cpp::fail(fmt::format(
+                "Expected `;` in `CREATE TABLE` context but got nothing\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
+                token_number, original));
+            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::SEMICOLON}})) {
+              return cpp::fail(fmt::format(
+                "Expected `;` in `CREATE TABLE` context but got `{}`\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, original));
+            }
           }
         }
         return {};
@@ -137,6 +207,42 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                 "Expected table name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
+        } else if (ctx == Context::CreateTableE) {
+          if (std::holds_alternative<NameAndSub>(identifier)) {
+            if (!prev.has_value()) {
+              return cpp::fail(fmt::format(
+                "Expected `CREATE TABLE` but got nothing.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(*prev, Token{Keyword{KeywordE::TABLE}})) {
+              return cpp::fail(fmt::format(
+                "Expected `TABLE` but got `{}`.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*prev), to_string(*curr), token_number, original));
+            }
+          
+            if (!next.has_value()) {
+              return cpp::fail(fmt::format(
+                "Expected `(` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::OPENING_PAR}})) {
+              return cpp::fail(fmt::format(
+                "Expected `(` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+            }
+          
+          }
+        
+          if (std::holds_alternative<Name>(identifier)) {
+            std::cout << same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}}) << std::endl;
+            if (!next.has_value()) {
+              return cpp::fail(fmt::format(
+                "Expexted `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}})) {
+              return cpp::fail(fmt::format(
+                "Expexted `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), to_string(*curr), token_number, original));
+            }
+          }
         }
 
           return {};
@@ -151,7 +257,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
       }
   };
 
-  for (token_number = 0; token_number < in.size(); token_number++) {
+  for (; token_number < in.size(); token_number++) {
     if (token_number != 0) {
       prev = curr;
     } else {
