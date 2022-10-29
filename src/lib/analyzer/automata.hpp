@@ -18,6 +18,7 @@ namespace Automata {
   overload(Ts...) -> overload<Ts...>;
 
   struct CreateTable {
+    std::string db;
     std::string name;
     std::map<std::string, Parser::Type> columns;
   };
@@ -54,7 +55,7 @@ namespace Automata {
     Unknown [[maybe_unused]]
   };
 
-  using Action = std::variant<Automata::CreateDatabase, Automata::DeleteDatabase, Automata::DeleteTable>;
+  using Action = std::variant<Automata::CreateDatabase, Automata::CreateTable, Automata::DeleteDatabase, Automata::DeleteTable>;
 
   cpp::result<Automata::Action, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
 }

@@ -229,6 +229,8 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                 to_string(*next), token_number, to_string(*curr), original));
             }
           
+            auto data = std::get<NameAndSub>(identifier);
+            variant = {Automata::CreateTable{data.name, data.sub, {}}};
           }
         
           if (std::holds_alternative<Name>(identifier)) {
@@ -242,6 +244,11 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                 "Expexted `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), to_string(*curr), token_number, original));
             }
+          
+            auto & var = std::get<Automata::CreateTable>(variant.value());
+            std::string name = std::get<Name>(identifier).value;
+            Parser::Type type = std::get<Parser::Type>(*prev);
+            var.columns.insert({name, type});
           }
         }
 
