@@ -2,6 +2,7 @@
 #define AUTOMATA_HPP
 
 #include "parser.hpp"
+#include "../linkedList.hpp"
 
 #include <map>
 #include <set>
@@ -20,7 +21,7 @@ namespace Automata {
   struct CreateTable {
     std::string db;
     std::string name;
-    std::map<std::string, Parser::Type> columns;
+    KeyValueList<std::string, Parser::Type> columns;
   };
 
   struct CreateDatabase {
@@ -38,7 +39,7 @@ namespace Automata {
 
   struct Insert {
     std::string table;
-    std::map<std::string, std::variant<std::string, int, float>> values;
+    KeyValueList<std::string, std::variant<std::string, int, float>> values;
   };
 
   struct MakeSelect {

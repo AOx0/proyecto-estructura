@@ -4,6 +4,7 @@
 #include <iostream>
 #include <functional>
 #include <utility>
+#include <fmt/format.h>
 
 enum Ord {
   Asc,
@@ -440,6 +441,24 @@ struct KeyValueList : KeyValueListBase<K, V> {
 
   bool insert(K key, V value) {
     return KeyValueListBase<K, V>::i(key, value);
+  }
+
+
+  // Copy assignment operator
+  KeyValueList & operator=(const KeyValueList & other) {
+    if (this != &other) {
+
+      // Reset this
+      this->head = nullptr;
+      this->tail = nullptr;
+      this->size = 0;
+
+      for_each_node([&](Node<KeyValue<K, V>> * node) {
+        this->push_bk(node->value);
+        return false;
+      });
+    }
+    return *this;
   }
 
   KeyValueList() : KeyValueListBase<K, V>() {}

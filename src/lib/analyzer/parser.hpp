@@ -166,12 +166,24 @@ namespace Parser {
     return ss.str();
   }
 
+  // << operator calls to_string
+  inline std::ostream& operator<<(std::ostream& os, const TypeE& x) {
+    os << to_string(x);
+    return os;
+  }
+
   struct Type {
     TypeE variant;
   };
 
   inline std::string to_string(const Type& x) {
     return to_string(x.variant);
+  }
+
+  // << operator calls to_string
+  inline std::ostream& operator<<(std::ostream& os, const Type& x) {
+    os << to_string(x);
+    return os;
   }
 
   enum SymbolE {

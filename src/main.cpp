@@ -83,7 +83,8 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());
         LOG("Creating table {} in database {}", arg.name, arg.db);
-        SEND("Creating table {} in database {}\n", arg.name, arg.db);
+        SEND("Creating table {} in database {} with fields ", arg.name, arg.db);
+        send << arg.columns << '\n';
       }
     } else {
       SEND_ERROR("{}\n", args.error());

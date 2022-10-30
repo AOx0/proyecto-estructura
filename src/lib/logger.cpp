@@ -5,20 +5,20 @@ std::string Logger::show(LOG_TYPE_ type, const std::string &msg) {
   std::string result;
   switch (type) {
     case INFO:
-      result += fmt::format(fg(fmt::terminal_color::bright_white), "INF :: ");
+      result += fmt::format(/*fg(fmt::terminal_color::bright_white),*/ "INF :: ");
       break;
     case WARN:
-      result += fmt::format(fg(fmt::terminal_color::yellow), "WRN :: ");
+      result += fmt::format(/*fg(fmt::terminal_color::yellow),*/ "WRN :: ");
       break;
     case ERROR:
-      result += fmt::format(fg(fmt::terminal_color::red), "ERR :: ");
+      result += fmt::format(/*fg(fmt::terminal_color::red),*/ "ERR :: ");
       break;
     case NONE:
       break;
   }
 
-  result += fmt::format(fg(fmt::terminal_color::bright_white), "{}", msg);
-  fmt::print(result);
+  result += fmt::format(/*fg(fmt::terminal_color::bright_white),*/ "{}", msg);
+  std::cout << result;
   return result;
 }
 
