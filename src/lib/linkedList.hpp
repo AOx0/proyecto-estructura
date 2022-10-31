@@ -474,6 +474,7 @@ struct KeyValueList : KeyValueListBase<K, V> {
         return false;
       }
       current_other = current_other->next;
+      current = current->next;
     };
     
     return true;

@@ -63,7 +63,7 @@ bool Layout::operator==(const Layout &other) const {
   result += optional == other.optional;
   result += type == other.type;
 
-  return result;
+  return result == 3;
 }
 
 Table Table::createTable(std::string database, std::string &name, KeyValueList<std::string, Layout> &layout, std::string &path) {
