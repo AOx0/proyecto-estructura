@@ -29,6 +29,10 @@ struct Layout {
   Type type;
 
   bool operator==(Layout const &other) const;
+  
+  bool operator!=(Layout const &other) const {
+    return !(other == *this);
+  }
 };
 
 struct TableInstance {
