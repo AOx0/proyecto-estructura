@@ -7,6 +7,7 @@
 #include <shared_mutex>
 #include <mutex>
 #include <result.hpp>
+#include <optional>
 
 #include "linkedList.hpp"
 
