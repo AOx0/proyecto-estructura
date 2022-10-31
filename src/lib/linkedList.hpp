@@ -443,7 +443,6 @@ struct KeyValueList : KeyValueListBase<K, V> {
     return KeyValueListBase<K, V>::i(key, value);
   }
 
-
   // Copy assignment operator
   KeyValueList & operator=(const KeyValueList & other) {
     if (this != &other) {
@@ -460,6 +459,26 @@ struct KeyValueList : KeyValueListBase<K, V> {
     }
     return *this;
   }
+
+  
+  // Compare operator
+  bool operator==(const KeyValueList<K, V> & other) const {
+    if (this->size != other.size) return false;
+    
+    Node<KeyValue<K, V>> * current_other = other.head;
+    Node<KeyValue<K, V>> * current = this->head;
+    
+    for(int i=0; i < this->size; i++){
+      if (current_other->value.key != current->value.key || 
+        current_other->value.value != current->value.value) {
+        return false;
+      }
+      current_other = current_other->next;
+    };
+    
+    return true;
+  }
+
 
   KeyValueList() : KeyValueListBase<K, V>() {}
 

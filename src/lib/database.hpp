@@ -14,13 +14,31 @@ struct DataBase {
   std::shared_ptr<std::atomic_int32_t> using_db;
   std::vector<std::string> tables;
 
-  DataBase(std::vector<std::string> tables) : tables(std::move(tables)),
-                                              using_db(std::shared_ptr<std::atomic_int32_t>{0}) {}
+  DataBase(std::vector<std::string> tables)
+    : tables(std::move(tables)),
+    using_db(std::shared_ptr<std::atomic_int32_t>{0})
+  {}
+
+  // << operator
+  friend std::ostream &operator<<(std::ostream &os, const DataBase &db) {
+    os << "DataBase: (" << db.using_db << "){";
+    for (auto &table : db.tables) {
+      os << table << ", ";
+    }
+    os << "}";
+    return os;
+  }
 
   // Move constructor
   // Move constructors should be marked with except
   DataBase(DataBase &&rhs) noexcept {
     tables = std::move(rhs.tables);
+    using_db = rhs.using_db;
+  }
+
+  // Copy constructor
+  DataBase(DataBase const &rhs) {
+    tables = rhs.tables;
     using_db = rhs.using_db;
   }
 

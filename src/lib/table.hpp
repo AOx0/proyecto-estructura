@@ -40,7 +40,7 @@ struct TableInstance {
 
 struct Table {
   std::optional<TableInstance> instance;
-  std::map<std::string, Layout> rows;
+  KeyValueList<std::string, Layout> rows;
   std::shared_mutex mtx_;
 
   // Move constructor
@@ -62,19 +62,19 @@ struct Table {
     return *this;
   }
 
-  [[nodiscard]] std::vector<std::uint8_t> into_vec() const;
+  [[nodiscard]] std::vector<std::uint8_t> into_vec();
 
   static Table from_vec(const std::vector<std::uint8_t> &in);
 
   static Table from_file(std::string const &path);
 
-  void to_file(const std::string &path) const;
+  void to_file(const std::string &path);
 
   bool operator==(Table const &other) const;
 
-  Table(std::map<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
+  Table(KeyValueList<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
 
-  static Table createTable(std::string database, std::string &name, std::map<std::string, Layout> &layout, std::string &path);
+  static Table createTable(std::string database, std::string &name, KeyValueList<std::string, Layout> &layout, std::string &path);
 };
 
 #endif // TABLE_HPP

@@ -12,6 +12,7 @@
 #include "lib/fm.hpp"
 #include "lib/logger.hpp"
 #include "lib/analyzer.hpp"
+#include "lib/linkedList.hpp"
 
 using namespace std;
 
@@ -28,7 +29,30 @@ volatile sig_atomic_t st = 0;
   st = 1; \
 }
 
-void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log) {
+struct Databases {
+  std::mutex mutex;
+  KeyValueList<std::string, DataBase> dbs;
+
+  void add(const string &name) {
+    std::lock_guard<std::mutex> lock(mutex);
+    dbs.insert(name, DataBase({}));
+  }
+
+  void remove(const string &name) {
+    std::lock_guard<std::mutex> lock(mutex);
+    dbs.delete_key(name);
+  }
+
+  // To string
+  std::string to_string() {
+    std::lock_guard<std::mutex> lock(mutex);
+    std::stringstream ss;
+    ss << "Databases: " << dbs << "\n";
+    return ss.str();
+  }
+};
+
+void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log, Databases & dbs) {
 #define SEND(...) send << fmt::format(__VA_ARGS__)
 #define SEND_ERROR(...)  send << Logger::show(LOG_TYPE_::ERROR, fmt::format(__VA_ARGS__))
 
@@ -69,6 +93,8 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         auto db_result = DataBase::create("data/", arg.name);
         if (db_result.has_value()) {
           SEND("Database {} created\n", arg.name);
+          dbs.add(arg.name);
+          SEND("Databases {}\n", dbs.to_string());
         } else {
           SEND_ERROR("{}\n", db_result.error());
         }
@@ -100,6 +126,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
 }
 
 int main() {
+  Databases dbs;
   vector<thread> threads;
   FileManager::Path data_path(FileManager::Path::get_project_dir("com", "up", "toi"));
   if (const char *env_p = std::getenv("TOI_DATA_PATH"))
@@ -189,7 +216,7 @@ int main() {
     while (!st) {
       shared_ptr<Connection> event = server.recv();
       threads.emplace_back(
-          thread([event, &server, log] { resolve(event, server, log); }));
+          thread([event, &server, log, &dbs] { resolve(event, server, log, dbs); }));
     }
 
     WARN("Shutting down TcpServer");
