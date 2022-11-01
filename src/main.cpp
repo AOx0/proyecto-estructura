@@ -90,7 +90,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
       if (holds_alternative<Automata::CreateDatabase>(args.value())) {
         auto arg = get<Automata::CreateDatabase>(args.value());
         LOG("Creating database {}", arg.name);
-        auto db_result = DataBase::create("data/", arg.name);
+        auto db_result = DataBase::create(arg.name);
         if (db_result.has_value()) {
           SEND("Database {} created\n", arg.name);
           dbs.add(arg.name);
@@ -108,6 +108,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         SEND("Deleting table {} from database {}\n", arg.table, arg.database);
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());
+        auto create_result = Table::createTable(arg.db, arg.name, arg.columns);
         LOG("Creating table {} in database {}", arg.name, arg.db);
         SEND("Creating table {} in database {} with fields ", arg.name, arg.db);
         send << arg.columns << '\n';

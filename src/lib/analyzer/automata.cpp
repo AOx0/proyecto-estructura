@@ -161,7 +161,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
         return {};
       },
       [&](const Parser::Type &type) -> cpp::result<void, std::string>  {
-        if (ctx == Context::CreateTableE) {
+        if (ctx == Context::CreateTableE) {  
           if (!next.has_value()) {
               return cpp::fail(fmt::format(
                 "Expected name after type `{}` in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",

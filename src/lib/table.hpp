@@ -79,7 +79,7 @@ struct Table {
 
   Table(KeyValueList<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
 
-  static Table createTable(std::string database, std::string &name, KeyValueList<std::string, Layout> &layout, std::string &path);
+  static cpp::result<Table, std::string> createTable(std::string database, std::string &table_name, KeyValueList<std::string, Layout> &layout);
 };
 
 #endif // TABLE_HPP

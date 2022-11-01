@@ -66,10 +66,22 @@ bool Layout::operator==(const Layout &other) const {
   return result == 3;
 }
 
-Table Table::createTable(std::string database, std::string &name, KeyValueList<std::string, Layout> &layout, std::string &path) {
+cpp::result<Table, std::string> Table::createTable(std::string database, std::string &table_name, KeyValueList<std::string, Layout> &layout) {
   Table t(layout);
-  FileManager::Path table_folder = FileManager::Path::get_working_dir().operator+(fmt::format("{}", name));
-  FileManager::Path table_info = table_folder + "schema";
-  FileManager::write_to_file(table_info.path, t.into_vec());
+  
+  auto p = FileManager::Path("data")/database;
+  
+  if (!p.exists()) return cpp::fail(fmt::format("Database {} does not exist", database));
+  
+  auto pdata = p + fmt::format("{}.tbl", table_name);
+  p+=fmt::format("{}.tbls", table_name);
+
+  auto result = pdata.create_as_file();
+  
+  if (!result) {
+    return cpp::fail(fmt::format("Failed creating data file {}", pdata.path));
+  } 
+  
+  FileManager::write_to_file(p.path, t.into_vec());
   return t;
 }

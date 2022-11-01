@@ -49,18 +49,22 @@ void DataBase::to_file(const std::string &path) const {
   FileManager::write_to_file(path, this->into_vec());
 }
 
-cpp::result<DataBase, std::string> DataBase::create(const std::string &path, const std::string &name) {
+cpp::result<DataBase, std::string> DataBase::create(const std::string &name) {
   using P = FileManager::Path;
 
   DataBase d({});
 
-  auto p(P::create_dir(path));
+  // We attempt to re-create the data folder. Just in case
+  auto p(P::create_dir("data/"));
 
   if (p.has_value()) {
-    *p += (name + "_info.tdb");
-    if (p->exists()) {
+    *p = *p/name;
+    if (p->exists() && p->is_dir()) {
       return cpp::fail("Database already exists");
     } else {
+      auto result = p->create_as_dir();
+      if (!result) return cpp::fail(fmt::format("Failed to create directory {}", p->path));
+      *p += "info.tdb";
       FileManager::write_to_file(p->path, d.into_vec());
       return d;
     }
