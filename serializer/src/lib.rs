@@ -43,6 +43,11 @@ pub unsafe extern "C" fn serialize_layout(arg: Layout) -> DynArray {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn drop_dyn_array(arg: DynArray) {
+    Vec::from_raw_parts(arg.array, arg.length as usize, arg.length as usize);
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn deserialize_layout(array: *mut u8, size: u64) -> Layout {
     let contenidos = {
         assert!(!array.is_null());

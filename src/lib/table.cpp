@@ -25,6 +25,8 @@ std::vector<std::uint8_t> Table::into_vec() {
     
     for (int i=0; i<serlialized_layout.length; i++) resultado.push_back(serlialized_layout.array[i]);
     
+    drop_dyn_array(serlialized_layout);
+    
     resultado.push_back(0x00);
     resultado.push_back(0x73);
     resultado.push_back(0x73);      
