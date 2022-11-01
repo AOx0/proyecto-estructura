@@ -5,7 +5,7 @@
 
 TEST(SerDe, StructToBytes) {
   const int SIZE = 8;
-  const Type TYPE = Type::i8;
+  const ColumnType TYPE = ColumnType::i8;
   const bool OPTIONAL = true;
 
   KeyValueList<std::string, Layout> map {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
@@ -20,7 +20,7 @@ TEST(SerDe, StructToBytes) {
 
 TEST(SerDe, MultipleEntry_StructToBytes) {
   const uint8_t SIZE = 8;
-  const Type TYPE = Type::i8;
+  const ColumnType TYPE = ColumnType::i8;
   const bool OPTIONAL = true;
 
   KeyValueList<std::string, Layout> map {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
@@ -37,7 +37,7 @@ TEST(SerDe, MultipleEntry_StructToBytes) {
 
 TEST(SerDe, BytesToStruct) {
   const uint8_t SIZE = 16;
-  const Type TYPE = Type::u16;
+  const ColumnType TYPE = ColumnType::u16;
   const bool OPTIONAL = false;
 
   std::vector<uint8_t> input{'h',  'e',      'l',  'l',  'o',      '\0', TYPE,
@@ -55,7 +55,7 @@ TEST(SerDe, BytesToStruct) {
 
 TEST(SerDe, StructToBytesAndViceversa) {
   const int SIZE = 8;
-  const Type TYPE = Type::i8;
+  const ColumnType TYPE = ColumnType::i8;
   const bool OPTIONAL = true;
 
   KeyValueList<std::string, Layout> map{{"@$pq=", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
@@ -74,7 +74,7 @@ TEST(SerDe, StructToBytesAndViceversa) {
 
 TEST(SerDe, SaveLoadFromFile) {
   const int SIZE = 8;
-  const Type TYPE = Type::i8;
+  const ColumnType TYPE = ColumnType::i8;
   const bool OPTIONAL = true;
 
   KeyValueList<std::string, Layout> map{{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},

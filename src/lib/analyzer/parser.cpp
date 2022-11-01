@@ -146,10 +146,6 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
         resultado.emplace_back(Type{TypeE::U64});
         continue;
       }
-      if (*it == "str") {
-        resultado.emplace_back(Type{TypeE::STR});
-        continue;
-      }
       if (*it == "f64") {
         resultado.emplace_back(Type{TypeE::F64});
         continue;
@@ -158,6 +154,22 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
         resultado.emplace_back(Type{TypeE::BOOL});
         continue;
       }
+    }
+    
+    
+    if (std::regex_match(token, std::regex("str[0-9]+"))) {
+      resultado.emplace_back(Type{TypeE::STR});
+      
+      std::stringstream number;
+      
+      for (int i=3; i<token.size(); i++)
+        number << token[i]; 
+      
+      std::uint64_t nvalue;
+      number >> nvalue;
+      
+      resultado.emplace_back(Numbers{Int{nvalue}});
+      continue;
     }
 
     // Check if token is a number

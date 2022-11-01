@@ -9,7 +9,7 @@ TEST(Automata, CreateDatabaseInvalid) {
 }
 
 TEST(Automata, CreateDatabaseValid) {
-  auto result(Automata::get_action_struct(Parser::parse("CREATE DATABASE database;"), "CREATE DATABASE database"));
+  auto result(Automata::get_action_struct(Parser::parse("CREATE DATABASE database;"), "CREATE DATABASE database;"));
 
   EXPECT_FALSE(result.has_error());
 }

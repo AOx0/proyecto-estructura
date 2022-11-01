@@ -11,10 +11,13 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
 
   Context ctx = Context::Unknown;
   std::optional<Action> variant = std::nullopt;
-  size_t token_number = 0;
+  long int token_number;
+
+  std::optional<Token> nextp1 = std::nullopt;
   std::optional<Token> next = std::nullopt;
   std::optional<Token> curr = std::nullopt;
   std::optional<Token> prev = std::nullopt;
+  std::optional<Token> prevm1 = std::nullopt;
 
   auto visitor = overload{
       [&](const Keyword &keyword) -> cpp::result<void, std::string> {
@@ -162,14 +165,26 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
       },
       [&](const Parser::Type &type) -> cpp::result<void, std::string>  {
         if (ctx == Context::CreateTableE) {  
-          if (!next.has_value()) {
+          if (type.variant == Parser::TypeE::STR) {
+            if (!nextp1.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected name after type `{}` in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*curr), to_string(*curr), token_number, original));
-          } else if (!same_variant(*next, Token{Identifier{Name{}}})) {
+                "Expected name after type str{} in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), to_string(*curr), token_number, original));
+            } else if (!same_variant(*nextp1, Token{Identifier{Name{}}})) {
               return cpp::fail(fmt::format(
-                "Expected name after type `{}` in `CREATE TABLE` context but got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*curr), to_string(*next), to_string(*curr), token_number, original));
+                "Expected name after type str{} in `CREATE TABLE` context but got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), to_string(*nextp1), to_string(*curr), token_number, original));
+            }
+          } else {
+            if (!next.has_value()) {
+                return cpp::fail(fmt::format(
+                  "Expected name after type `{}` in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), to_string(*curr), token_number, original));
+            } else if (!same_variant(*next, Token{Identifier{Name{}}})) {
+                return cpp::fail(fmt::format(
+                  "Expected name after type `{}` in `CREATE TABLE` context but got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), to_string(*next), to_string(*curr), token_number, original));
+            }
           }
         }
         return {};
@@ -295,7 +310,6 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
           }
         
           if (std::holds_alternative<Name>(identifier)) {
-            std::cout << same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}}) << std::endl;
             if (!next.has_value()) {
               return cpp::fail(fmt::format(
                 "Expected `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
@@ -306,10 +320,21 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                 to_string(*next), to_string(*curr), token_number, original));
             }
           
-            auto & var = std::get<Automata::CreateTable>(variant.value());
-            std::string name = std::get<Name>(identifier).value;
-            Parser::Type type = std::get<Parser::Type>(*prev);
-            var.columns.insert(name, type);
+            if (same_variant(*prev, Token{Parser::Type{}})) {
+              auto & var = std::get<Automata::CreateTable>(variant.value());
+              std::string name = std::get<Name>(identifier).value;
+              Parser::Type type = std::get<Parser::Type>(*prev);
+              var.columns.insert(name, Layout::from_parser_type(type));
+            } else if (same_variant_and_value(*prevm1, Token{Parser::Type{TypeE::STR}})) {
+              auto & var = std::get<Automata::CreateTable>(variant.value());
+              std::string name = std::get<Name>(identifier).value;
+              Int size = std::get<Int>(std::get<Numbers>(*prev));
+              var.columns.insert(name, Layout{.size=size.value, .optional=false, .type=ColumnType::str});
+            } else {
+              return cpp::fail(fmt::format(
+                "Something went wrong while extracting types.\nIn token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+            }
           }
         }
 
@@ -325,17 +350,31 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
       }
   };
 
-  for (; token_number < in.size(); token_number++) {
-    if (token_number != 0) {
-      prev = curr;
+  for (token_number = 0; token_number < in.size(); token_number++) {
+    curr = in[token_number];
+    
+    if (token_number > 0) {
+      prev = in[token_number-1];
     } else {
       prev = std::nullopt;
     }
-    curr = in[token_number];
-    if (token_number != in.size() - 1) {
+    
+    if (token_number - 1 > 0) {
+      prevm1 = in[token_number-2];
+    } else {
+      prevm1 = std::nullopt;
+    }
+    
+    if (token_number < in.size()-1) {
       next = in[token_number + 1];
     } else {
       next = std::nullopt;
+    }
+
+    if (token_number+1 < in.size()-1) {
+      nextp1 = in[token_number + 2];
+    } else {
+      nextp1 = std::nullopt;
     }
 
     auto result = std::visit(visitor, *curr);

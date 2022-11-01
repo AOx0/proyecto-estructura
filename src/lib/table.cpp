@@ -37,7 +37,7 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in) {
       name += in[i];
       i++;
     }
-    Type type((Type) in[i + 1]);
+    ColumnType type((ColumnType) in[i + 1]);
     uint8_t size(in[i + 2]);
     bool optional(in[i + 3]);
     rows.insert(name, {.size = size, .optional = optional, .type = type});

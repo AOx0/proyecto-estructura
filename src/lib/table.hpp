@@ -9,9 +9,10 @@
 #include <result.hpp>
 #include <optional>
 
+#include "analyzer/parser.hpp"
 #include "linkedList.hpp"
 
-enum Type {
+enum ColumnType {
   u8 = 1,
   u16 = 2,
   u64 = 3,
@@ -24,14 +25,44 @@ enum Type {
 };
 
 struct Layout {
-  uint8_t size;
+  uint64_t size;
   bool optional;
-  Type type;
+  ColumnType type;
 
   bool operator==(Layout const &other) const;
   
   bool operator!=(Layout const &other) const {
     return !(other == *this);
+  }
+
+  static Layout from_parser_type(Parser::Type const &type) {
+    switch (type.variant) {
+      case Parser::TypeE::U8:
+        return Layout{.size = 1, .optional = false, .type = ColumnType::u8};
+      case Parser::TypeE::U16:
+        return Layout{.size = 2, .optional = false, .type = ColumnType::u16};
+      case Parser::TypeE::U32:
+        return Layout{.size = 4, .optional = false, .type = ColumnType::u64};
+      case Parser::TypeE::I8:
+        return Layout{.size = 1, .optional = false, .type = ColumnType::i8};
+      case Parser::TypeE::I16:
+        return Layout{.size = 2, .optional = false, .type = ColumnType::i16};
+      case Parser::TypeE::I32:
+        return Layout{.size = 4, .optional = false, .type = ColumnType::i64};
+      //case Parser::TypeE::F32:
+      //  return Layout{.size = 4, .optional = false, .type = ColumnType::f32};
+      case Parser::TypeE::F64:
+        return Layout{.size = 8, .optional = false, .type = ColumnType::f64};
+      case Parser::TypeE::STR:
+        return Layout{.size = 0, .optional = false, .type = ColumnType::str};
+      default:
+        throw std::runtime_error("Invalid type");
+    }
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, Layout const &layout) {
+    os << "Layout{size=" << layout.size << ", type=" << layout.type << "}";
+    return os;
   }
 };
 

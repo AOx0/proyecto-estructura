@@ -3,6 +3,7 @@
 
 #include "parser.hpp"
 #include "../linkedList.hpp"
+#include "../table.hpp"
 
 #include <map>
 #include <set>
@@ -21,7 +22,7 @@ namespace Automata {
   struct CreateTable {
     std::string db;
     std::string name;
-    KeyValueList<std::string, Parser::Type> columns;
+    KeyValueList<std::string, Layout> columns;
   };
 
   struct CreateDatabase {
