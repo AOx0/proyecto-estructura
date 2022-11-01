@@ -88,19 +88,31 @@ cpp::result<Table, std::string> Table::createTable(std::string database, std::st
   
   auto p = FileManager::Path("data")/database;
   
-  if (!p.exists()) return cpp::fail(fmt::format("Database {} does not exist", database));
+  if (!p.exists()) 
+    return cpp::fail(fmt::format("Database {} does not exist", database));
 
   auto table_folder = p/table_name;
-  table_folder.create_as_dir();
+  
+  if (table_folder.exists())
+    return cpp::fail(fmt::format("Table {} does exist. Aborting table creation", table_name));
+
+  if (!table_folder.create_as_dir()) 
+    return cpp::fail(fmt::format("Failed while creating directory {}",table_folder.path));
 
   auto table_info = table_folder/"info.tbl";
   FileManager::write_to_file(table_info.path, t.into_vec());
 
-  layout.for_each([&](const KeyValue<std::string, Layout> & value){
+  auto node = layout.for_each([&](const KeyValue<std::string, Layout> & value){
       auto column_file = table_folder/(value.key + ".col");
-      column_file.create_as_file();
+      if (!column_file.create_as_file()) {
+        return true;
+      }
       return false;
   });
+  
+  if (node != nullptr) {
+    return cpp::fail(fmt::format("Failed while creating column file {}", (table_folder/(node->value.key + ".col")).path));
+  }
 
   return t;
 }
