@@ -3,6 +3,7 @@
 #include "../src/lib/fm.hpp"
 #include "../src/lib/table.hpp"
 
+/*
 TEST(SerDe, StructToBytes) {
   const int SIZE = 8;
   const ColumnType TYPE = ColumnType::i8;
@@ -71,6 +72,7 @@ TEST(SerDe, StructToBytesAndViceversa) {
 
   EXPECT_EQ(input, result_2) << "Bad Table struct de-serialization";
 }
+*/
 
 TEST(SerDe, SaveLoadFromFile) {
   const int SIZE = 8;

@@ -112,6 +112,11 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         LOG("Creating table {} in database {}", arg.name, arg.db);
         SEND("Creating table {} in database {} with fields ", arg.name, arg.db);
         send << arg.columns << '\n';
+        if (create_result.has_value()) {
+          SEND("Table {} created in database {}\n", arg.name, arg.db);
+        } else {
+          SEND_ERROR("{}\n", create_result.error());
+        }
       }
     } else {
       SEND_ERROR("{}\n", args.error());

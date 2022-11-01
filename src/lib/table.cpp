@@ -5,6 +5,7 @@
 #include "table.hpp"
 #include "fmt/core.h"
 #include "linkedList.hpp"
+#include "serializer.hpp"
 
 std::vector<std::uint8_t> Table::into_vec() {
   std::vector<std::uint8_t> resultado{};
@@ -12,14 +13,21 @@ std::vector<std::uint8_t> Table::into_vec() {
   rows.for_each_node([&](Node<KeyValue<std::string, Layout>> * entry){
     const char *str = entry->value.key.c_str();
     size_t i = 0;
+    
+     
     while (str[i] != '\0') {
       resultado.push_back(str[i]);
       i++;
     }
-    resultado.push_back('\0');
-    resultado.push_back(entry->value.value.type);
-    resultado.push_back(entry->value.value.size);
-    resultado.push_back(entry->value.value.optional);
+    resultado.push_back(0x00);
+    
+    DynArray serlialized_layout = serialize_layout(entry->value.value);
+    
+    for (int i=0; i<serlialized_layout.length; i++) resultado.push_back(serlialized_layout.array[i]);
+    
+    resultado.push_back(0x00);
+    resultado.push_back(0x73);
+    resultado.push_back(0x73);      
     return false;
   });
 
@@ -37,11 +45,20 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in) {
       name += in[i];
       i++;
     }
-    ColumnType type((ColumnType) in[i + 1]);
-    uint8_t size(in[i + 2]);
-    bool optional(in[i + 3]);
-    rows.insert(name, {.size = size, .optional = optional, .type = type});
-    i += 4;
+
+    i+=1;
+    
+    std::vector<uint8_t> serialized_layout;
+    while (!(in[i] == 0 && in[i+1] == 0x73 && in[i+2] == 0x73)) {
+      serialized_layout.push_back(in[i]);
+      i+=1;
+    }
+    
+    i+=3;
+   
+    Layout layout = deserialize_layout(&serialized_layout.front(), serialized_layout.size());
+    
+    rows.insert(name, layout);
   }
 
   return rows;
@@ -72,16 +89,18 @@ cpp::result<Table, std::string> Table::createTable(std::string database, std::st
   auto p = FileManager::Path("data")/database;
   
   if (!p.exists()) return cpp::fail(fmt::format("Database {} does not exist", database));
-  
-  auto pdata = p + fmt::format("{}.tbl", table_name);
-  p+=fmt::format("{}.tbls", table_name);
 
-  auto result = pdata.create_as_file();
-  
-  if (!result) {
-    return cpp::fail(fmt::format("Failed creating data file {}", pdata.path));
-  } 
-  
-  FileManager::write_to_file(p.path, t.into_vec());
+  auto table_folder = p/table_name;
+  table_folder.create_as_dir();
+
+  auto table_info = table_folder/"info.tbl";
+  FileManager::write_to_file(table_info.path, t.into_vec());
+
+  layout.for_each([&](const KeyValue<std::string, Layout> & value){
+      auto column_file = table_folder/(value.key + ".col");
+      column_file.create_as_file();
+      return false;
+  });
+
   return t;
 }

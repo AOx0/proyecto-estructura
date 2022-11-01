@@ -46,6 +46,7 @@ FetchContent_MakeAvailable(Corrosion)
 
 corrosion_import_crate(MANIFEST_PATH server/Cargo.toml PROFILE release)
 corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml PROFILE release)
+corrosion_import_crate(MANIFEST_PATH serializer/Cargo.toml PROFILE release)
 
 
 # Agregamos fmt, una libreria de formateo de strings moderna
@@ -65,8 +66,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Result)
 
 # For profiling, disable when building the release
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
 enable_testing()
 
@@ -74,6 +75,8 @@ set(LIBRARIES
         src/lib/server.hpp
         src/lib/database.cpp
         src/lib/database.hpp
+        src/lib/serializer.cpp
+        src/lib/serializer.hpp
         src/lib/table.cpp
         src/lib/table.hpp
         src/lib/fm.cpp
@@ -100,10 +103,16 @@ add_executable(
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
         tests/database.cc
-        tests/table.cc tests/fm.cc tests/tokenizer..cc tests/parser.cc tests/automata.cc)
+        tests/table.cc 
+        tests/fm.cc
+        tests/tokenizer..cc 
+        tests/parser.cc 
+        tests/automata.cc
+        tests/serializer.cc
+)
 
-target_link_libraries(proyecto_tests GTest::gtest_main fmt::fmt-header-only fm Result::Result)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt-header-only fm Result::Result)
+target_link_libraries(proyecto_tests GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer)
+target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto_tests)
