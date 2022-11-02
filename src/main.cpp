@@ -14,6 +14,7 @@
 #include "lib/analyzer.hpp"
 #include "lib/linkedList.hpp"
 
+
 using namespace std;
 
 volatile sig_atomic_t st = 0;
@@ -73,6 +74,14 @@ struct Databases {
     std::stringstream ss;
     ss << "Databases: " << dbs << "\n";
     return ss.str();
+  }
+  std::vector<std::string> get_db_names() {
+    std::vector<std::string> names;
+    dbs.for_each([&](const KeyValue<std::string, DataBase> &keyValue){
+      names.push_back(keyValue.key);
+      return false;
+    });
+    return names;
   }
 };
 
@@ -154,6 +163,12 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
             SEND("{}", data.str());
           }
           (*db->using_db.get())--;
+        }
+      }
+      else if(holds_alternative<Automata::ShowDatabases>(args.value())){
+        auto databases = dbs.get_db_names();
+        for (int i = 0; i < databases.size(); ++i) {
+          SEND("{}\n", databases[i]);
         }
       }
     } else {

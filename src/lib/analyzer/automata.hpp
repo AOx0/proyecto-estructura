@@ -1,10 +1,8 @@
 #ifndef AUTOMATA_HPP
 #define AUTOMATA_HPP
-
 #include "parser.hpp"
 #include "../linkedList.hpp"
 #include "../table.hpp"
-
 #include <map>
 #include <set>
 #include <string>
@@ -56,7 +54,8 @@ namespace Automata {
     std::map<std::string, std::set<std::string>> fields_to_select;
     std::map<std::string, Parser::Type> columns;
   };
-
+  struct ShowDatabases{
+  };
 
   enum Context {
     CreateDatabaseE,
@@ -65,6 +64,7 @@ namespace Automata {
     DeleteTableE,
     ShowDatabaseE,
     ShowTableE,
+    ShowDatabasesE,
     Unknown [[maybe_unused]]
   };
 
@@ -74,7 +74,8 @@ namespace Automata {
       Automata::DeleteDatabase,
       Automata::DeleteTable,
       Automata::ShowDatabase,
-      Automata::ShowTable
+      Automata::ShowTable,
+      Automata::ShowDatabases
   >;
 
   cpp::result<Automata::Action, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);

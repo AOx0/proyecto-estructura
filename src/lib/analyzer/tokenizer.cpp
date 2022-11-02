@@ -76,7 +76,7 @@ std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string 
   };
 
   const static std::vector<std::string> valid_keywords = {
-      "CREATE", "DATABASE", "TABLE", "INSERT", "INTO", "VALUES",
+      "CREATE", "DATABASE","DATABASES", "TABLE", "INSERT", "INTO", "VALUES",
       "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN", "SHOW"
   };
 
