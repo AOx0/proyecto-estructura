@@ -68,8 +68,8 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in, const std::string & n
 
 bool Table::operator==(const Table &other) const { return rows == other.rows; }
 
-Table Table::from_file(std::string const &path) {
-  return Table::from_vec(FileManager::read_to_vec(path), FileManager::Path(path).get_file_name());
+Table Table::from_file(std::string const &path, std::string const &name) {
+  return Table::from_vec(FileManager::read_to_vec(path), name);
 }
 
 void Table::to_file(const std::string &path) {
@@ -117,4 +117,27 @@ cpp::result<Table, std::string> Table::createTable(std::string database, std::st
   }
 
   return t;
+}
+
+std::string to_string(ColumnType type) {
+  switch (type) {
+    case ColumnType::u8:
+      return "u8";
+    case ColumnType::u16:
+      return "u16";
+    case ColumnType::u64:
+      return "u64";
+    case ColumnType::i8:
+      return "i8";
+    case ColumnType::i16:
+      return "i16";
+    case ColumnType::i64:
+      return "i64";
+    case ColumnType::f32:
+      return "f32";
+    case ColumnType::f64:
+      return "f64";
+    case ColumnType::str:
+      return "str";
+  }
 }

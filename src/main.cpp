@@ -151,7 +151,9 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           for (auto & table: (*db->tables)) {
             stringstream data;
             data << table;
-            SEND("{}", data.str());
+            SEND("    Table: {}\n", table.name);
+            SEND("        {}", data.str());
+            SEND("\n");
           }
           (*db->using_db.get())--;
         }

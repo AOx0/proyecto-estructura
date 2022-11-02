@@ -24,6 +24,8 @@ enum ColumnType {
   str = 9
 };
 
+std::string to_string(ColumnType type);
+
 struct Layout {
   uint64_t size;
   bool optional;
@@ -61,7 +63,7 @@ struct Layout {
   }
 
   friend std::ostream &operator<<(std::ostream &os, Layout const &layout) {
-    os << layout.type << "(" << layout.size << " bytes)";
+    os << to_string(layout.type) << "(" << layout.size << " bytes)";
     //os << "Layout{size=" << layout.size << ", type=" << layout.type << "}";
     return os;
   }
@@ -82,10 +84,10 @@ struct Table {
   std::string name;
   
   friend std::ostream &operator<<(std::ostream &os, Table const &table) {
-    os << "Row: ";
+    os << "\n";
     
-    table.rows.for_each_c([&](auto keyval){
-      os << "        -" << keyval.key << " : " << keyval.value << '\n';
+    table.rows.for_each_c([&](const KeyValue<std::string, Layout> & keyval){
+      os << "        Column: " << keyval.key << " : " << keyval.value << '\n';
       return false;
     });
     
@@ -97,6 +99,7 @@ struct Table {
   Table(Table &&rhs) noexcept {
     std::unique_lock<std::shared_mutex> lock(rhs.mtx_);
     rows = std::move(rhs.rows);
+    name = std::move(rhs.name);
   }
 
   // Move operator
@@ -106,6 +109,7 @@ struct Table {
       std::unique_lock lock_this(mtx_);
       std::lock(lock_rhs, lock_this);
       rows = std::move(rhs.rows);
+      name = std::move(rhs.name);
     }
 
     return *this;
@@ -115,13 +119,17 @@ struct Table {
 
   static Table from_vec(const std::vector<std::uint8_t> &in, const std::string & name);
 
-  static Table from_file(std::string const &path);
+  static Table from_file(std::string const &path, std::string const &name);
 
   void to_file(const std::string &path);
 
   bool operator==(Table const &other) const;
 
-  Table(std::string name, KeyValueList<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
+  Table(const std::string & name, KeyValueList<std::string, Layout> &layout)
+    : name(fmt::format("{}", name))
+    , rows(std::move(layout))
+    , mtx_()
+  {}
 
   static cpp::result<Table, std::string> createTable(
       std::string database, 

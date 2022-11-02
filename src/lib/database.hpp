@@ -53,8 +53,10 @@ struct DataBase {
     for (const auto & entry : contents.value()) {
       auto info_file = entry/"info.tbl";
       if (entry.exists() && entry.is_dir() && 
-          info_file.exists() && info_file.is_file()) 
-          (*tables).push_back(Table::from_file(info_file.path));
+          info_file.exists() && info_file.is_file()) {
+          auto a = Table::from_file(info_file.path, info_file.get_parent().get_file_name());
+          (*tables).push_back(std::move(a));
+      }
     }
     
     return;

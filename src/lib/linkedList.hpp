@@ -455,20 +455,42 @@ struct KeyValueList : KeyValueListBase<K, V> {
     return KeyValueListBase<K, V>::i(key, value);
   }
 
-  // Copy assignment operator
+  // Move constructor
+  KeyValueList(KeyValueList && other)  noexcept : KeyValueListBase<K, V>() {
+    this->head = other.head;
+    this->tail = other.tail;
+    this->size = other.size;
+    other.head = nullptr;
+    other.tail = nullptr;
+    other.size = 0;
+  }
+
+  // Move operator
+  KeyValueList & operator=(KeyValueList && other) {
+    this->head = other.head;
+    this->tail = other.tail;
+    this->size = other.size;
+    other.head = nullptr;
+    other.tail = nullptr;
+    other.size = 0;
+    return *this;
+  }
+
+
+  // Copy constructor
+  KeyValueList(const KeyValueList & other) : KeyValueListBase<K, V>() {
+    other.for_each_c([&](const KeyValue<K, V> & key_value) {
+      this->push_bk(key_value);
+      return false;
+    });
+  }
+
+  // Copy operator
   KeyValueList & operator=(const KeyValueList & other) {
-    if (this != &other) {
-
-      // Reset this
-      this->head = nullptr;
-      this->tail = nullptr;
-      this->size = 0;
-
-      for_each_node([&](Node<KeyValue<K, V>> * node) {
-        this->push_bk(node->value);
-        return false;
-      });
-    }
+    other.for_each_c([&](const KeyValue<K, V> & key_value) {
+      this->push_bk(key_value);
+      return false;
+    });
     return *this;
   }
 
