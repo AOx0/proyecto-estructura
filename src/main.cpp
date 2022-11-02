@@ -153,6 +153,27 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           }
           (*db->using_db)--;
         }
+      } else if (holds_alternative<Automata::ShowTable>(args.value())) {
+        auto arg = get<Automata::ShowTable>(args.value());
+        auto db = dbs.dbs.get(arg.database);
+        
+        if (db == nullptr) {
+          LSEND("Database {} does not exist\n", arg.database);
+        } else {
+          SEND("Database: {}\n", arg.database);
+          (*db->using_db)++;
+          
+          for (auto & table: (*db->tables)) {
+            if (table.name == arg.table) {
+              stringstream data; data << table;
+              SEND("{}\n", data.str());
+              break;          
+            } 
+          }
+          
+          (*db->using_db)--;
+        }
+        
       }
     } else {
       SEND_ERROR("{}\n", args.error());
