@@ -131,26 +131,32 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         LSEND("Deleting table {} from database {}\n", arg.table, arg.database);
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());
-        auto create_result = Table::createTable(arg.db, arg.name, arg.columns);
-        LSEND("Creating table {} in database {}\n", arg.name, arg.db);
-        send << arg.columns << '\n';
-        if (create_result.has_value()) {
-          LSEND("Table {} created in database {}\n", arg.name, arg.db);
-        } else {
-          SEND_ERROR("{}\n", create_result.error());
-        }
+        auto db = dbs.dbs.get(arg.db);
+        
+        if (db == nullptr) {
+          SEND_ERROR("Database {} does not exist\n", arg.name);
+        } else {        
+          auto result = Table::createTable(arg.db, arg.name, arg.columns);
+          if (result.has_error()) {
+            SEND_ERROR("{}\n", result.error());
+          } else {
+            db->tables.insert(arg.name, std::make_shared<Table>(std::move(*result)));
+            LSEND("Table {} created in database {}\n", arg.name, arg.db);        
+          }
+        }        
       } else if (holds_alternative<Automata::ShowDatabase>(args.value())) {
         auto arg = get<Automata::ShowDatabase>(args.value());
         auto db = dbs.dbs.get(arg.name);
         if (db == nullptr) {
-          LSEND("Database {} does not exist\n", arg.name);
+          SEND_ERROR("Database {} does not exist\n", arg.name);
         } else {
           SEND("Database: {}\n", arg.name);
           (*db->using_db)++;
-          for (auto & table: (*db->tables)) {
-            stringstream data; data << table;
+          db->tables.for_each_c([&](const KeyValue<std::string, std::shared_ptr<Table>> & table){
+            stringstream data; data << (*table.value.get());
             SEND("{}\n", data.str());
-          }
+            return false;
+          });
           (*db->using_db)--;
         }
       } else if (holds_alternative<Automata::ShowTable>(args.value())) {
@@ -158,17 +164,18 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         auto db = dbs.dbs.get(arg.database);
         
         if (db == nullptr) {
-          LSEND("Database {} does not exist\n", arg.database);
+          SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
           SEND("Database: {}\n", arg.database);
           (*db->using_db)++;
           
-          for (auto & table: (*db->tables)) {
-            if (table.name == arg.table) {
-              stringstream data; data << table;
+          auto table = db->tables.get(arg.table);
+          
+          if (table == nullptr) {
+            SEND_ERROR("Table {} does not exist in {}\n", arg.table, arg.database);
+          } else {
+              stringstream data; data << (*table->get());
               SEND("{}\n", data.str());
-              break;          
-            } 
           }
           
           (*db->using_db)--;

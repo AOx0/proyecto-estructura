@@ -169,14 +169,25 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       std::uint64_t nvalue;
       number >> nvalue;
       
-      resultado.emplace_back(Numbers{Int{nvalue}});
+      resultado.emplace_back(Numbers{UInt{nvalue}});
       continue;
     }
 
     // Check if token is a number
     // TODO: Figure out wtf is going on with strings to custom integer types :D
     if (std::regex_match(token, std::regex("[+-]?[0-9]+"))) {
-      resultado.emplace_back(Numbers{Int{static_cast<uint64_t>(std::stoi(token))}});
+      std::stringstream num;
+      num << token;
+      
+      if (token[0] != '-') {
+        std::uint64_t n;
+        num >> n;
+        resultado.emplace_back(Numbers{UInt{n}});      
+      } else {
+        std::int64_t n;
+        num >> n;
+        resultado.emplace_back(Numbers{Int{n}});      
+      }
       continue;
     }
 

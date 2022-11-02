@@ -278,6 +278,10 @@ namespace Parser {
   }
 
   struct Int {
+    std::int64_t value;
+  };
+
+  struct UInt {
     std::uint64_t value;
   };
 
@@ -285,7 +289,11 @@ namespace Parser {
     return std::to_string(x.value);
   }
 
-  using Numbers = std::variant<Double, Int>;
+  inline std::string to_string(const UInt& x) {
+    return std::to_string(x.value);
+  }
+
+  using Numbers = std::variant<Double, Int, UInt>;
 
 
   inline std::string to_string(const Numbers& x) {

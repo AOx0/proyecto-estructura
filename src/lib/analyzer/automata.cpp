@@ -381,7 +381,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             } else if (same_variant_and_value(*prevm1, Token{Parser::Type{TypeE::STR}})) {
               auto & var = std::get<Automata::CreateTable>(variant.value());
               std::string name = std::get<Name>(identifier).value;
-              Int size = std::get<Int>(std::get<Numbers>(*prev));
+              UInt size = std::get<UInt>(std::get<Numbers>(*prev));
               var.columns.insert(name, Layout{.size=size.value, .optional=false, .type=ColumnType::str});
             } else {
               return cpp::fail(fmt::format(

@@ -13,11 +13,11 @@
 
 struct DataBase {
   std::shared_ptr<std::atomic_int32_t> using_db;
-  std::shared_ptr<std::vector<Table>> tables; 
+  KeyValueList<std::string, std::shared_ptr<Table>> tables; 
   std::string nombre;
 
     DataBase(std::string name)
-    : tables(std::make_shared<std::vector<Table>>(std::move(std::vector<Table>())))
+    : tables(std::move(KeyValueList<std::string, std::shared_ptr<Table>>()))
     , nombre(name)
     , using_db(std::make_shared<std::atomic_int32_t>(0))
   {}
@@ -54,8 +54,7 @@ struct DataBase {
       auto info_file = entry/"info.tbl";
       if (entry.exists() && entry.is_dir() && 
           info_file.exists() && info_file.is_file()) {
-          auto a = Table::from_file(info_file.path, info_file.get_parent().get_file_name());
-          (*tables).push_back(std::move(a));
+          tables.insert(info_file.get_parent().get_file_name(), std::make_shared<Table>(Table::from_file(info_file.path, info_file.get_parent().get_file_name())));
       }
     }
     
