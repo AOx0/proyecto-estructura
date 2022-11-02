@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include <optional>
+#include <filesystem>
 
 namespace rfm_ {
   extern "C" bool exists(char *);
@@ -37,6 +38,18 @@ namespace rfm_ {
 }
 
 namespace FileManager {
+
+  template<typename T>
+  std::vector<std::string> list_dir(T path) {
+    namespace fs = std::filesystem;
+  
+    std::vector<std::string> result;
+    for (const auto & entry : fs::directory_iterator(path))
+        result.push_back(entry.path().filename());
+  
+    return result;
+  }
+
   std::vector<uint8_t> read_to_vec(const std::string &path);
 
   void write_to_file(const std::string &path,

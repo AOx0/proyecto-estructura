@@ -32,6 +32,23 @@ volatile sig_atomic_t st = 0;
 struct Databases {
   std::mutex mutex;
   KeyValueList<std::string, DataBase> dbs;
+  
+  cpp::result<void, std::string> load() {
+    auto current_path = FileManager::Path::get_working_dir();
+    auto data_path = current_path/"data";
+    
+    if (!data_path.exists()) {
+      return cpp::fail(fmt::format("Data folder does not exist at {}", data_path.path));
+    }
+    
+    auto contents = FileManager::list_dir("data/");
+
+    for (auto & entry: contents) {
+      dbs.insert(entry, DataBase(entry));
+    }
+    
+    return {};
+  }
 
   void add(const string &name) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -202,6 +219,13 @@ int main() {
     ERROR("Failed to set working directory to {}", data_path.path);
     return 1;
   }
+  
+  auto db_load_result = dbs.load();
+  if (db_load_result.has_error()) {
+    ERROR("{}", db_load_result.error());
+    return 1;
+  }
+
 
   signal(SIGINT, [](int value) {
     cout << endl;

@@ -7,7 +7,6 @@
 #include <atomic>
 #include <memory>
 #include <result.hpp>
-#include <filesystem>
 
 #include "table.hpp"
 #include "fm.hpp"
@@ -40,17 +39,21 @@ struct DataBase {
   }
   
   cpp::result<std::vector<std::string>, std::string> get_tables() const {
-    namespace fs = std::filesystem;
     auto db_path = FileManager::Path("data")/nombre;
     
     if (!db_path.exists()) {
       return cpp::fail(fmt::format("Database {} does not exist", nombre));  
     }
     
-    std::vector<std::string> result;
+    std::vector<std::string> result, contents = FileManager::list_dir(db_path.path);
     
-    for (const auto & entry : fs::directory_iterator(db_path.path))
-      result.push_back(entry.path().filename());
+    for (const auto & entry : contents) {
+      auto path = FileManager::Path(entry);
+      auto info_file = path/"info.tbl";
+      if (path.exists() && path.is_dir() && 
+          info_file.exists() && info_file.is_file()) 
+        result.push_back(entry);
+    }
     
     return result;
   }
