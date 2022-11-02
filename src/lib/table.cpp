@@ -104,7 +104,7 @@ cpp::result<Table, std::string> Table::createTable(std::string database, std::st
   auto table_info = table_folder/"info.tbl";
   FileManager::write_to_file(table_info.path, t.into_vec());
 
-  auto node = layout.for_each([&](const KeyValue<std::string, Layout> & value){
+  auto node = t.rows.for_each([&](const KeyValue<std::string, Layout> & value){
       auto column_file = table_folder/(value.key + ".col");
       if (!column_file.create_as_file()) {
         return true;
