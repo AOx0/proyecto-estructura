@@ -54,7 +54,8 @@ namespace Parser {
     DELETE,
     DROP,
     PK,
-    UN
+    UN,
+    SHOW
   };
 
   inline std::string to_string(const KeywordE& x) {
@@ -105,6 +106,9 @@ namespace Parser {
         break;
       case KeywordE::UN:
         ss << "UN";
+        break;
+      case KeywordE::SHOW:
+        ss << "SHOW";
         break;
     }
 

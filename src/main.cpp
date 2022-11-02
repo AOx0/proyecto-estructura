@@ -42,9 +42,16 @@ struct Databases {
     }
     
     auto contents = FileManager::list_dir("data/");
+    
+    if (contents.has_error()) 
+      return cpp::fail(contents.error());
 
-    for (auto & entry: contents) {
-      dbs.insert(entry, DataBase(entry));
+    for (auto & entry: contents.value()) {
+      if (entry.is_dir()) {
+        auto db = DataBase(entry.get_file_name());
+        db.load_tables();
+        dbs.insert(entry.get_file_name(), db);
+      }
     }
     
     return {};
@@ -72,6 +79,7 @@ struct Databases {
 void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log, Databases & dbs) {
 #define SEND(...) send << fmt::format(__VA_ARGS__)
 #define SEND_ERROR(...)  send << Logger::show(LOG_TYPE_::ERROR, fmt::format(__VA_ARGS__))
+#define LSEND(...) {LOG(__VA_ARGS__); SEND(__VA_ARGS__);}
 
   stringstream send;
 
@@ -109,30 +117,43 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         LOG("Creating database {}", arg.name);
         auto db_result = DataBase::create(arg.name);
         if (db_result.has_value()) {
-          SEND("Database {} created\n", arg.name);
+          LSEND("Database {} created\n", arg.name);
           dbs.add(arg.name);
-          SEND("Databases {}\n", dbs.to_string());
+          LSEND("Databases {}\n", dbs.to_string());
         } else {
           SEND_ERROR("{}\n", db_result.error());
         }
       } else if (holds_alternative<Automata::DeleteDatabase>(args.value())) {
         auto arg = get<Automata::DeleteDatabase>(args.value());
-        LOG("Deleting database {}", arg.name);
-        SEND("Database {} deleted\n", arg.name);
+        LSEND("Deleting database {}\n", arg.name);
       } else if (holds_alternative<Automata::DeleteTable>(args.value())) {
         auto arg = get<Automata::DeleteTable>(args.value());
-        LOG("Deleting table {} from database {}", arg.table, arg.database);
-        SEND("Deleting table {} from database {}\n", arg.table, arg.database);
+        LSEND("Deleting table {} from database {}\n", arg.table, arg.database);
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());
         auto create_result = Table::createTable(arg.db, arg.name, arg.columns);
-        LOG("Creating table {} in database {}", arg.name, arg.db);
-        SEND("Creating table {} in database {} with fields ", arg.name, arg.db);
+        LSEND("Creating table {} in database {}\n", arg.name, arg.db);
         send << arg.columns << '\n';
         if (create_result.has_value()) {
-          SEND("Table {} created in database {}\n", arg.name, arg.db);
+          LSEND("Table {} created in database {}\n", arg.name, arg.db);
         } else {
           SEND_ERROR("{}\n", create_result.error());
+        }
+      } else if (holds_alternative<Automata::ShowDatabase>(args.value())) {
+        auto arg = get<Automata::ShowDatabase>(args.value());
+        auto db = dbs.dbs.get(arg.name);
+        if (db == nullptr) {
+          LSEND("Database {} does not exist\n", arg.name);
+        } else {
+          SEND("Database: {}\n", arg.name);
+          SEND("Tables: \n");
+          (*db->using_db)++;
+          for (auto & table: (*db->tables)) {
+            stringstream data;
+            data << table;
+            SEND("{}", data.str());
+          }
+          (*db->using_db.get())--;
         }
       }
     } else {
@@ -227,10 +248,10 @@ int main() {
   }
 
 
-  signal(SIGINT, [](int value) {
+  /*signal(SIGINT, [](int value) {
     cout << endl;
     KILL_MSG("SIGINT");
-  });
+  });*/
 
   signal(SIGTERM, [](int value) {
     cout << endl;

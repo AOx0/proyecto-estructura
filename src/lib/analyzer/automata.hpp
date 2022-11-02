@@ -29,6 +29,15 @@ namespace Automata {
     std::string name;
   };
 
+  struct ShowDatabase {
+    std::string name;
+  };
+
+  struct ShowTable {
+    std::string database;
+    std::string table;
+  };
+
   struct DeleteTable {
     std::string database;
     std::string table;
@@ -54,10 +63,19 @@ namespace Automata {
     CreateTableE,
     DeleteDatabaseE,
     DeleteTableE,
+    ShowDatabaseE,
+    ShowTableE,
     Unknown [[maybe_unused]]
   };
 
-  using Action = std::variant<Automata::CreateDatabase, Automata::CreateTable, Automata::DeleteDatabase, Automata::DeleteTable>;
+  using Action = std::variant<
+      Automata::CreateDatabase,
+      Automata::CreateTable,
+      Automata::DeleteDatabase,
+      Automata::DeleteTable,
+      Automata::ShowDatabase,
+      Automata::ShowTable
+  >;
 
   cpp::result<Automata::Action, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
 }

@@ -68,6 +68,18 @@ public:
   size_t len() {
     return size;
   }
+  
+  
+  Node<T> * for_each_c(const std::function<bool(T)> closure) const {
+    Node<T> * current = head;
+    while (current != nullptr) {
+      if (closure(current->value)) {
+        return current;
+      }
+      current = current->next;
+    }
+    return nullptr;
+  }
 
   // Function that receives a lambda that specifies a value to use for comparison
   template <typename V>

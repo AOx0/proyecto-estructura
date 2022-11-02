@@ -61,7 +61,8 @@ struct Layout {
   }
 
   friend std::ostream &operator<<(std::ostream &os, Layout const &layout) {
-    os << "Layout{size=" << layout.size << ", type=" << layout.type << "}";
+    os << layout.type << "(" << layout.size << " bytes)";
+    //os << "Layout{size=" << layout.size << ", type=" << layout.type << "}";
     return os;
   }
 };
@@ -78,6 +79,18 @@ struct Table {
   std::optional<TableInstance> instance;
   KeyValueList<std::string, Layout> rows;
   std::shared_mutex mtx_;
+  std::string name;
+  
+  friend std::ostream &operator<<(std::ostream &os, Table const &table) {
+    os << "Row: ";
+    
+    table.rows.for_each_c([&](auto keyval){
+      os << "        -" << keyval.key << " : " << keyval.value << '\n';
+      return false;
+    });
+    
+    return os;
+  }
 
   // Move constructor
   // Move constructors should be marked with except
@@ -100,7 +113,7 @@ struct Table {
 
   [[nodiscard]] std::vector<std::uint8_t> into_vec();
 
-  static Table from_vec(const std::vector<std::uint8_t> &in);
+  static Table from_vec(const std::vector<std::uint8_t> &in, const std::string & name);
 
   static Table from_file(std::string const &path);
 
@@ -108,7 +121,7 @@ struct Table {
 
   bool operator==(Table const &other) const;
 
-  Table(KeyValueList<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
+  Table(std::string name, KeyValueList<std::string, Layout> &layout) : rows(std::move(layout)), mtx_() {}
 
   static cpp::result<Table, std::string> createTable(
       std::string database, 

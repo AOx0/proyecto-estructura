@@ -13,11 +13,13 @@
 
 struct DataBase {
   std::shared_ptr<std::atomic_int32_t> using_db;
+  std::shared_ptr<std::vector<Table>> tables; 
   std::string nombre;
 
     DataBase(std::string name)
-    : nombre(name)
-    , using_db(std::shared_ptr<std::atomic_int32_t>{0})
+    : tables(std::make_shared<std::vector<Table>>(std::move(std::vector<Table>())))
+    , nombre(name)
+    , using_db(std::make_shared<std::atomic_int32_t>(0))
   {}
 
   // << operator
@@ -38,6 +40,26 @@ struct DataBase {
     return os;
   }
   
+  void load_tables() {
+    auto db_path = FileManager::Path("data")/nombre;
+    
+    std::vector<std::string> result;
+    auto contents = FileManager::list_dir(db_path.path);
+    
+    if (contents.has_error()) {
+      return;
+    }
+    
+    for (const auto & entry : contents.value()) {
+      auto info_file = entry/"info.tbl";
+      if (entry.exists() && entry.is_dir() && 
+          info_file.exists() && info_file.is_file()) 
+          (*tables).push_back(Table::from_file(info_file.path));
+    }
+    
+    return;
+  }
+  
   cpp::result<std::vector<std::string>, std::string> get_tables() const {
     auto db_path = FileManager::Path("data")/nombre;
     
@@ -45,14 +67,18 @@ struct DataBase {
       return cpp::fail(fmt::format("Database {} does not exist", nombre));  
     }
     
-    std::vector<std::string> result, contents = FileManager::list_dir(db_path.path);
+    std::vector<std::string> result;
+    auto contents = FileManager::list_dir(db_path.path);
     
-    for (const auto & entry : contents) {
-      auto path = FileManager::Path(entry);
-      auto info_file = path/"info.tbl";
-      if (path.exists() && path.is_dir() && 
+    if (contents.has_error()) {
+      return cpp::fail(contents.error());
+    }
+    
+    for (const FileManager::Path & entry : contents.value()) {
+      auto info_file = entry/"info.tbl";
+      if (entry.exists() && entry.is_dir() && 
           info_file.exists() && info_file.is_file()) 
-        result.push_back(entry);
+        result.push_back(entry.get_file_name());
     }
     
     return result;
@@ -61,12 +87,14 @@ struct DataBase {
   // Move constructor
   // Move constructors should be marked with except
   DataBase(DataBase &&rhs) noexcept {
+    tables = rhs.tables;
     nombre = rhs.nombre;
     using_db = rhs.using_db;
   }
 
   // Copy constructor
   DataBase(DataBase const &rhs) {
+    tables = rhs.tables;
     nombre = rhs.nombre;
     using_db = rhs.using_db;
   }
@@ -74,6 +102,7 @@ struct DataBase {
   // Move operator
   DataBase &operator=(DataBase &&rhs) noexcept {
     if (this != &rhs) {
+      tables = rhs.tables;
       nombre = rhs.nombre;
       using_db = rhs.using_db;
     }

@@ -82,7 +82,7 @@ TEST(SerDe, SaveLoadFromFile) {
   KeyValueList<std::string, Layout> map{{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
                                     {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
 
-  Table expected(map);
+  Table expected("table1", map);
 
   expected.to_file("./table1");
 

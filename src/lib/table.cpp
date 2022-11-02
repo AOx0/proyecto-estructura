@@ -37,7 +37,7 @@ std::vector<std::uint8_t> Table::into_vec() {
   return resultado;
 }
 
-Table Table::from_vec(const std::vector<std::uint8_t> &in) {
+Table Table::from_vec(const std::vector<std::uint8_t> &in, const std::string & name) {
   KeyValueList<std::string, Layout> rows;
 
   size_t i = 0;
@@ -63,13 +63,13 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in) {
     rows.insert(name, layout);
   }
 
-  return rows;
+  return {name, rows};
 }
 
 bool Table::operator==(const Table &other) const { return rows == other.rows; }
 
 Table Table::from_file(std::string const &path) {
-  return Table::from_vec(FileManager::read_to_vec(path));
+  return Table::from_vec(FileManager::read_to_vec(path), FileManager::Path(path).get_file_name());
 }
 
 void Table::to_file(const std::string &path) {
@@ -86,7 +86,7 @@ bool Layout::operator==(const Layout &other) const {
 }
 
 cpp::result<Table, std::string> Table::createTable(std::string database, std::string &table_name, KeyValueList<std::string, Layout> &layout) {
-  Table t(layout);
+  Table t(table_name, layout);
   
   auto p = FileManager::Path("data")/database;
   

@@ -85,6 +85,38 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
           }
             break;
         
+          case KeywordE::SHOW:
+          {
+            if (token_number != 0) {
+              return cpp::fail(
+                  fmt::format(
+                      "Found `SHOW` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*curr), token_number, original));          
+            }
+            
+            if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format(
+                      "Expected `DATABASE` or `TABLE` after `SHOW` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*curr), token_number, original));
+            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
+                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
+              return cpp::fail(
+                  fmt::format(
+                      "Expected `DATABASE` or `TABLE` after `SHOW` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      to_string(*next), token_number, to_string(*curr), original));
+            }
+
+            if (ctx == Context::Unknown) {
+              if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}})) {
+                ctx = Context::ShowDatabaseE;
+              } else {
+                ctx = Context::ShowTableE;
+              }
+            }
+          }
+            break;
+        
           case KeywordE::INSERT:
           {
             if (token_number != 0) {
@@ -241,19 +273,40 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
         return {};
       },
       [&](const Identifier &identifier) -> cpp::result<void, std::string> {
-        if (ctx == Context::CreateDatabaseE || ctx == Context::DeleteDatabaseE || ctx == Context::DeleteTableE) {
+        if (ctx == Context::CreateDatabaseE || ctx == Context::DeleteDatabaseE || ctx == Context::DeleteTableE || ctx == Context::ShowDatabaseE || ctx == Context::ShowTableE) {
           // If there is not a next token it is an error, there should be a semicolon
           if (!next.has_value())
             return cpp::fail(fmt::format(
-                "Expected semicolon after database name but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected semicolon after identifier but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                 token_number, to_string(*curr), original));
           if (!same_variant_and_value(next.value(), Token{Symbol{SymbolE::SEMICOLON}}))
             return cpp::fail(fmt::format(
-                "Expected semicolon after database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected semicolon after identifier but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), token_number, to_string(*curr), original));
         }
-
-        if (ctx == Context::CreateDatabaseE) {
+      
+        
+        if (ctx == Context::ShowDatabaseE) {
+          if (std::holds_alternative<Name>(identifier)) {
+            std::string name = std::get<Name>(identifier).value;
+            variant = {Automata::ShowDatabase{name}};
+            return {};
+          } else {
+            return cpp::fail(fmt::format(
+                "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, to_string(*curr), original));
+          }
+        } else if (ctx == Context::ShowTableE) {  
+          if (std::holds_alternative<NameAndSub>(identifier)) {
+            auto data = std::get<NameAndSub>(identifier);
+            variant = {Automata::ShowTable{data.name, data.sub}};
+            return {};
+          } else {
+            return cpp::fail(fmt::format(
+                "Expected table name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, to_string(*curr), original));
+          }
+        } else if (ctx == Context::CreateDatabaseE) {
           if (std::holds_alternative<Name>(identifier)) {
             std::string name = std::get<Name>(identifier).value;
             variant = {Automata::CreateDatabase{name}};
