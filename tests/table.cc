@@ -86,7 +86,7 @@ TEST(SerDe, SaveLoadFromFile) {
 
   expected.to_file("./table1");
 
-  Table result = Table::from_file("./table1", <#initializer#>);
+  Table result = Table::from_file("./table1", "table1");
 
   EXPECT_EQ(expected, result) << "Bad save & load";
 }

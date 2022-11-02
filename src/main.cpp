@@ -146,16 +146,12 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           LSEND("Database {} does not exist\n", arg.name);
         } else {
           SEND("Database: {}\n", arg.name);
-          SEND("Tables: \n");
           (*db->using_db)++;
           for (auto & table: (*db->tables)) {
-            stringstream data;
-            data << table;
-            SEND("    Table: {}\n", table.name);
-            SEND("        {}", data.str());
-            SEND("\n");
+            stringstream data; data << table;
+            SEND("{}\n", data.str());
           }
-          (*db->using_db.get())--;
+          (*db->using_db)--;
         }
       }
     } else {

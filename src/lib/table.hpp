@@ -84,10 +84,10 @@ struct Table {
   std::string name;
   
   friend std::ostream &operator<<(std::ostream &os, Table const &table) {
-    os << "\n";
+    os << "Table " << table.name << ":\n";
     
     table.rows.for_each_c([&](const KeyValue<std::string, Layout> & keyval){
-      os << "        Column: " << keyval.key << " : " << keyval.value << '\n';
+      os << "    " << keyval.key << " : " << keyval.value << '\n';
       return false;
     });
     
