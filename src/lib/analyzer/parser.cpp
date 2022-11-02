@@ -13,7 +13,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
   };
 
   const static std::vector<std::string> valid_keywords = {
-      "CREATE", "DATABASE", "TABLE", "INSERT", "INTO", "VALUES",
+      "CREATE", "DATABASE","DATABASES", "TABLE", "INSERT", "INTO", "VALUES",
       "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN", "SHOW"
   };
 
@@ -65,6 +65,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       KEYWORD(CREATE)
       KEYWORD(TABLE)
       KEYWORD(DATABASE)
+      KEYWORD(DATABASES)
       KEYWORD(VALUES)
       KEYWORD(FROM)
       KEYWORD(WHERE)
@@ -223,21 +224,18 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       resultado.emplace_back(Numbers{Double{std::stod(token)}});
       continue;
     }
-
-
     resultado.emplace_back(Unknown{token});
-
   }
-
   return resultado;
 }
+
 
 bool Parser::operator==(std::vector<Token> left, std::vector<Token> right) {
 #define CMP(tipo, field) if (std::holds_alternative<tipo>(left[i]) && std::holds_alternative<tipo>(right[i])) {\
   if (std::get<tipo>(left[i]).field != std::get<tipo>(right[i]).field) {\
     return false;\
   }\
-}                                                                                                    \
+}                                                                                                              \\
                                                                                                                \
   // Match every token variant and compare left and right depending on the variant
   for (int i = 0; i < left.size(); i++) {
