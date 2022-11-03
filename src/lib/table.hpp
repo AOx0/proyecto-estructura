@@ -162,7 +162,14 @@ struct Table {
       if (std::holds_alternative<Parser::String>(current_value)) {
         if (current_layout.type == ColumnType::str) {
           std::string value = get<Parser::String>(current_value).value;
-          to_insert.emplace_back(value);
+          if (value.length() > current_layout.size) {
+            return cpp::fail(
+              fmt::format(
+                "Cannot push string {} bytes long to field {} which takes a {}", 
+                value.length(), i, current_layout.ly_to_string()));
+          } else {
+            to_insert.emplace_back(value);          
+          }
         } else {
           return cpp::fail(
             fmt::format(
