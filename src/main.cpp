@@ -83,6 +83,29 @@ struct Databases {
     });
     return names;
   }
+  void delete_table(std::string table, std::string name){
+    std::lock_guard<std::mutex> lock(mutex);
+    auto db = dbs.get(name); // método get me da el apuntador de lo que estas buscando
+    if (db != nullptr) {
+      db->delete_table_dir(name, table);
+      db->tables.delete_key(table);
+    }
+  }
+
+
+  void delete_database(std::string name){
+    std::lock_guard<std::mutex> lock(mutex);
+    dbs.for_each([&](const KeyValue<std::string, DataBase> &keyValue){
+      if (keyValue.key == name) {
+        auto db_path = FileManager::Path("data")/name;
+        db_path.remove();
+        dbs.delete_key(name);
+        return true;
+      }
+      return false;
+    });
+  }
+
 };
 
 void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log, Databases & dbs) {
@@ -134,9 +157,12 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         }
       } else if (holds_alternative<Automata::DeleteDatabase>(args.value())) {
         auto arg = get<Automata::DeleteDatabase>(args.value());
+        dbs.delete_database(arg.name);
         LSEND("Deleting database {}\n", arg.name);
+
       } else if (holds_alternative<Automata::DeleteTable>(args.value())) {
         auto arg = get<Automata::DeleteTable>(args.value());
+        dbs.delete_table(arg.table, arg.database);
         LSEND("Deleting table {} from database {}\n", arg.table, arg.database);
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());

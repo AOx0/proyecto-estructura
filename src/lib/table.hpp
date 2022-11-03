@@ -73,7 +73,6 @@ struct TableInstance {
   KeyValueList<std::string, std::tuple<Layout,void*>> data;
 
   /*TableInstance(std::string table_name) : data(KeyValueList<std::string, std::tuple<Layout,void*>>()) {}
-
   };*/
 };
 

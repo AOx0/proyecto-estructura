@@ -111,6 +111,11 @@ struct DataBase {
     return *this;
   }
 
+  void delete_table_dir (std::string database, std::string table);
+  //delete table in memory
+
+
+
   bool operator==(const DataBase &other) const;
 
   static cpp::result<DataBase, std::string> create(const std::string &name);
