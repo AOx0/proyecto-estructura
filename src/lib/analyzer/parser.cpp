@@ -273,8 +273,10 @@ bool Parser::same_variant(const Parser::Token &left, const Parser::Token &right)
     } else if (std::holds_alternative<Double>(std::get<Numbers>(left)) &&
                std::holds_alternative<Double>(std::get<Numbers>(right))) {
       return true;
-    }
-  }
+    } else if  (std::holds_alternative<UInt>(std::get<Numbers>(left)) &&
+        std::holds_alternative<UInt>(std::get<Numbers>(right))) {
+      return true;
+    }  }
 
   return false;
 #undef CMP
@@ -310,6 +312,9 @@ bool Parser::same_variant_and_value(const Token & left, const Token & right) {
       } else if (std::holds_alternative<Double>(std::get<Numbers>(left)) &&
                  std::holds_alternative<Double>(std::get<Numbers>(right))) {
         return std::get<Double>(std::get<Numbers>(left)).value == std::get<Double>(std::get<Numbers>(right)).value;
+      }  else if (std::holds_alternative<UInt>(std::get<Numbers>(left)) &&
+                 std::holds_alternative<UInt>(std::get<Numbers>(right))) {
+        return std::get<UInt>(std::get<Numbers>(left)).value == std::get<UInt>(std::get<Numbers>(right)).value;
       }
     }
   return false;

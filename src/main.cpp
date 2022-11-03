@@ -190,13 +190,32 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           (*db->using_db)--;
         }
         
-      }
-      else if(holds_alternative<Automata::ShowDatabases>(args.value())){
+      } else if(holds_alternative<Automata::ShowDatabases>(args.value())){
         auto databases = dbs.get_db_names();
         for (int i = 0; i < databases.size(); ++i) {
           SEND("{}\n", databases[i]);
         }
-      }
+      } else if(holds_alternative<Automata::Insert>(args.value())){
+        auto arg = std::get<Automata::Insert>(args.value());
+        LSEND("Inserting into table {} from database {} values ", arg.table, arg.database); 
+        arg.values.for_each([&](std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>  value){
+          if (holds_alternative<Parser::String>(value)) {
+            Parser::String val = get<Parser::String>(value);
+            LSEND("{}, ", val.value);
+          } else if (holds_alternative<Parser::UInt>(value)) {
+            Parser::UInt val = get<Parser::UInt>(value);
+            LSEND("{}, ", val.value);
+          } else if (holds_alternative<Parser::Int>(value)) {
+            Parser::Int val = get<Parser::Int>(value);
+            LSEND("{}, ", val.value);
+          } else if (holds_alternative<Parser::Double>(value)) {
+            Parser::Double val = get<Parser::Double>(value);
+            LSEND("{}, ", val.value);
+          }
+          return false;
+        });
+        LSEND("\n");
+      } 
     } else {
       SEND_ERROR("{}\n", args.error());
     }

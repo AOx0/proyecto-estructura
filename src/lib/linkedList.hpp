@@ -244,6 +244,24 @@ struct List: ListBase<T> {
   void pop_front() {
     ListBase<T>::delete_node(ListBase<T>::tail);
   }
+  
+  // Copy constructor
+  List(const List<T> & other) : ListBase<T>() {
+    other.for_each_c([&](const T & value){
+      this->push_back(value);
+      return false;
+    });
+  }
+  
+  
+  // Copy operator
+  List & operator=(const List & other) {
+    other.for_each_c([&](const T & value) {
+      this->push_back(value);
+      return false;
+    });
+    return *this;
+  }
 
   List() : ListBase<T>() {}
 

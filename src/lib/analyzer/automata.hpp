@@ -46,8 +46,9 @@ namespace Automata {
   };
 
   struct Insert {
+    std::string database;
     std::string table;
-    KeyValueList<std::string, std::variant<std::string, int, float>> values;
+    List<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>> values;
   };
 
   struct MakeSelect {
@@ -65,6 +66,7 @@ namespace Automata {
     ShowDatabaseE,
     ShowTableE,
     ShowDatabasesE,
+    InsertE,
     Unknown [[maybe_unused]]
   };
 
@@ -75,7 +77,8 @@ namespace Automata {
       Automata::DeleteTable,
       Automata::ShowDatabase,
       Automata::ShowTable,
-      Automata::ShowDatabases
+      Automata::ShowDatabases,
+      Automata::Insert
   >;
 
   cpp::result<Automata::Action, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
