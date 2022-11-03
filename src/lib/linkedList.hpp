@@ -163,6 +163,14 @@ public:
     }
   }
 
+  Node<T> * first() {
+    return head;
+  }
+
+  Node<T> * last() {
+    return tail;
+  }
+
 protected:
 
   void delete_node(Node<T> * node) {

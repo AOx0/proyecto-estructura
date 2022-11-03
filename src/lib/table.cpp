@@ -125,12 +125,16 @@ std::string to_string(ColumnType type) {
       return "u8";
     case ColumnType::u16:
       return "u16";
+    case ColumnType::u32:
+      return "u32";
     case ColumnType::u64:
       return "u64";
     case ColumnType::i8:
       return "i8";
     case ColumnType::i16:
       return "i16";
+    case ColumnType::i32:
+      return "i32";
     case ColumnType::i64:
       return "i64";
     case ColumnType::f32:

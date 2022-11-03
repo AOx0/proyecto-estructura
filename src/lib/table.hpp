@@ -15,9 +15,11 @@
 enum ColumnType {
   u8 = 1,
   u16 = 2,
+  u32 = 11,
   u64 = 3,
   i8 = 4,
   i16 = 5,
+  i32 = 10,
   i64 = 6,
   f32 = 7,
   f64 = 8,
@@ -60,6 +62,12 @@ struct Layout {
       default:
         throw std::runtime_error("Invalid type");
     }
+  }
+  
+  std::string ly_to_string() {
+    std::stringstream result;
+    result << *this;
+    return result.str();
   }
 
   friend std::ostream &operator<<(std::ostream &os, Layout const &layout) {
@@ -121,6 +129,79 @@ struct Table {
   static Table from_file(std::string const &path, std::string const &name);
 
   void to_file(const std::string &path);
+  
+  cpp::result<void, std::string> try_insert(List<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>> && values) {
+    // First we verify type casting safeness
+    if (values.len() != rows.len()) {
+      std::stringstream error;
+      error 
+        << "The number of fields does not match.\n" 
+        << fmt::format("Attempt to insert {} elements into a {} element column\n", values.len(), rows.len())
+        << "Make sure you follow the positional arguments described by:\n"
+        << rows;
+      return cpp::fail(error.str());
+    }
+    
+    using Value = std::variant<
+        std::uint8_t, std::uint16_t, std::uint32_t, 
+        std::uint64_t, std::int8_t, std::int16_t, 
+        std::int32_t, std::int64_t, std::string, double>;
+    std::vector<Value> to_insert;
+    
+    Node<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>> * current = values.first();
+    Node<KeyValue<std::string, Layout>> * current_column = rows.first();
+    for (int i=0; i<values.len(); i++) {
+      using Variant = std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>;
+      
+      Layout & current_layout = current_column->value.value;        
+      std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double> & current_value = current->value;      
+      
+      // Here is where we do actually verify type matching
+      if (std::holds_alternative<Parser::String>(current_value)) {
+        if (current_layout.type == ColumnType::str) {
+          std::string value = get<Parser::String>(current_value).value;
+          to_insert.push_back(value);
+        } else {
+          return cpp::fail(
+            fmt::format(
+              "Cannot push string to field {} which takes a {}", 
+              i, current_layout.ly_to_string()));
+        }
+      } else if (std::holds_alternative<Parser::Double>(current_value)) {
+        if (current_layout.type == ColumnType::f64) {
+          double value = get<Parser::Double>(current_value).value;
+          to_insert.push_back(value);
+        } else {
+          return cpp::fail(
+            fmt::format(
+              "Cannot push string to field {} which takes a {}", 
+              i, current_layout.ly_to_string()));
+        }
+      } else if (std::holds_alternative<Parser::UInt>(current_value)) {
+        if (current_layout.type == ColumnType::u8 ||
+            current_layout.type == ColumnType::u16 ||
+            current_layout.type == ColumnType::u32 ||
+            current_layout.type == ColumnType::u64
+         ) {
+          std::uint64_t value = get<Parser::UInt>(current_value).value;
+          to_insert.push_back(value);
+        } else {
+          return cpp::fail(
+            fmt::format(
+              "Cannot push string to field {} which takes a {}", 
+              i, current_layout.ly_to_string()));
+        }
+      } else if (std::holds_alternative<Parser::Int>(current_value)) {
+        
+      } else
+          return cpp::fail(fmt::format("Cannot push to field {}", i));
+      
+      current = current->next;
+      current_column = current_column->next;
+    }
+    
+    return {};
+  }
 
   bool operator==(Table const &other) const;
 
