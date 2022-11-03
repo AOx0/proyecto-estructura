@@ -241,6 +241,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                           "Expected `;` after `DATABASES` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                           to_string(*next), to_string(*curr), token_number, original));
                   }
+                variant = {Automata::ShowDatabases{}};
               }
               else{
                 return cpp::fail(
@@ -248,9 +249,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                         "Expected `SHOW` or `NOTHING` keyword before or after `DATABASES` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                         to_string(*curr), token_number, original));
               }
-
             }
-            variant = {Automata::ShowDatabases{}};
           }
             break;
           default:

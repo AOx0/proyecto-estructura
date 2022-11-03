@@ -76,6 +76,7 @@ struct Databases {
     return ss.str();
   }
   std::vector<std::string> get_db_names() {
+    std::lock_guard<std::mutex> lock(mutex);
     std::vector<std::string> names;
     dbs.for_each([&](const KeyValue<std::string, DataBase> &keyValue){
       names.push_back(keyValue.key);
@@ -251,8 +252,12 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         
       } else if(holds_alternative<Automata::ShowDatabases>(args.value())){
         auto databases = dbs.get_db_names();
-        for (int i = 0; i < databases.size(); ++i) {
-          SEND("{}\n", databases[i]);
+        if (databases.size() == 0){
+          SEND_ERROR("No databases exist\n");
+        }else {
+          for (int i = 0; i < databases.size(); ++i) {
+            SEND("{}\n", databases[i]);
+          }
         }
       } else if(holds_alternative<Automata::Insert>(args.value())){
         auto arg = std::get<Automata::Insert>(args.value());
