@@ -1,5 +1,4 @@
 #include "database.hpp"
-#include <vector>
 
 #include "fm.hpp"
 
@@ -30,4 +29,15 @@ cpp::result<DataBase, std::string> DataBase::create(const std::string &name) {
   }
 
   return cpp::fail("Something went bad while creating database");
+}
+
+cpp::result<void, std::string> DataBase::delete_table_dir(std::string database, std::string table) {
+  auto db_path = FileManager::Path("data")/database/table;
+  if (db_path.exists() && db_path.is_dir()) {
+    if (!db_path.remove()) {
+      return cpp::fail(fmt::format("Failed to remove folder {}", db_path.path));
+    }
+  }
+  
+  return {};
 }

@@ -83,6 +83,50 @@ struct Databases {
     });
     return names;
   }
+  
+  cpp::result<void, std::string> delete_table(std::string table, std::string name){
+    std::lock_guard<std::mutex> lock(mutex);
+    auto db = dbs.get(name); // método get me da el apuntador de lo que estas buscando
+    if (db != nullptr) {
+      
+      auto table_ptr = db->tables.get(table);
+      
+      if (table_ptr == nullptr) {
+        return cpp::fail(fmt::format("Table {}.{} does not exist", name, table));
+      } else {
+        auto result = db->delete_table_dir(name, table);
+        
+        if (result.has_error())
+          return cpp::fail(result.error());
+        
+        db->tables.delete_key(table);
+      }
+    } else {
+      return cpp::fail(fmt::format("Database {} does not exist.", name));
+    }
+    
+    return {};
+  }
+
+
+  cpp::result<void, std::string> delete_database(std::string name){
+    std::lock_guard<std::mutex> lock(mutex);
+    
+    auto result = dbs.get(name);
+    
+    if (result == nullptr) {
+      return cpp::fail(fmt::format("Database {} does not exist.", name));
+    } else {
+      auto db_path = FileManager::Path("data")/name;
+      if (!db_path.remove()) {
+        return cpp::fail(fmt::format("Something went wrong while deleting folder {}", db_path.path));
+      }
+      dbs.delete_key(name); 
+    }    
+    
+    return {};
+  }
+
 };
 
 void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<Logger> &log, Databases & dbs) {
@@ -134,25 +178,40 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         }
       } else if (holds_alternative<Automata::DeleteDatabase>(args.value())) {
         auto arg = get<Automata::DeleteDatabase>(args.value());
-        LSEND("Deleting database {}\n", arg.name);
+        
+        auto result = dbs.delete_database(arg.name);
+        
+        if (result.has_error()) {
+          SEND_ERROR("{}\n",result.error());
+        } else {
+          LSEND("Deleted database {}\n",arg.name);
+        }
+
       } else if (holds_alternative<Automata::DeleteTable>(args.value())) {
         auto arg = get<Automata::DeleteTable>(args.value());
-        LSEND("Deleting table {} from database {}\n", arg.table, arg.database);
+               
+        auto result = dbs.delete_table(arg.table, arg.database);
+        
+        if (result.has_error()) {
+          SEND_ERROR("{}\n", result.error());
+        } else {
+          LSEND("Deleted table {}.{}\n", arg.database, arg.table);
+        }
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());
         auto db = dbs.dbs.get(arg.db);
         
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.name);
-        } else {        
+        } else {
           auto result = Table::createTable(arg.db, arg.name, arg.columns);
           if (result.has_error()) {
             SEND_ERROR("{}\n", result.error());
           } else {
             db->tables.insert(arg.name, std::make_shared<Table>(std::move(*result)));
-            LSEND("Table {} created in database {}\n", arg.name, arg.db);        
+            LSEND("Table {} created in database {}\n", arg.name, arg.db);
           }
-        }        
+        }
       } else if (holds_alternative<Automata::ShowDatabase>(args.value())) {
         auto arg = get<Automata::ShowDatabase>(args.value());
         auto db = dbs.dbs.get(arg.name);
