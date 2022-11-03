@@ -226,21 +226,23 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             }
           }
             break;
-          case KeywordE::DATABASES:{
-            if(ctx == ShowDatabaseE){
+          case KeywordE::DATABASES:
+          {
+            if(ctx == ShowDatabasesE){
               if(prev.has_value() && next.has_value()){
                 if(!same_variant_and_value(prev.value(), Token{Keyword{KeywordE::SHOW}})){
                   return cpp::fail(
                       fmt::format(
                           "Expected `SHOW` keyword before `DATABASES` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                           to_string(*prev), to_string(*curr), token_number, original));
-                }
-                if(!same_variant_and_value(next.value(), Token{Symbol{SymbolE::SEMICOLON}})){
+                } else if(!same_variant_and_value(next.value(), Token{Symbol{SymbolE::SEMICOLON}})){
                   return cpp::fail(
                       fmt::format(
                           "Expected `;` after `DATABASES` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                           to_string(*next), to_string(*curr), token_number, original));
-                  }
+                } else {
+                  variant = {Automata::ShowDatabases{}};
+                }
               }
               else{
                 return cpp::fail(
@@ -248,9 +250,7 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                         "Expected `SHOW` or `NOTHING` keyword before or after `DATABASES` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                         to_string(*curr), token_number, original));
               }
-
             }
-            variant = {Automata::ShowDatabases{}};
           }
             break;
           default:
