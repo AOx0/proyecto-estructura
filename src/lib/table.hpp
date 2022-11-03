@@ -1,6 +1,8 @@
 #ifndef TABLE_HPP
 #define TABLE_HPP
 
+#pragma once
+
 #include <iostream>
 #include <map>
 #include <vector>
@@ -160,7 +162,7 @@ struct Table {
       if (std::holds_alternative<Parser::String>(current_value)) {
         if (current_layout.type == ColumnType::str) {
           std::string value = get<Parser::String>(current_value).value;
-          to_insert.push_back(value);
+          to_insert.emplace_back(value);
         } else {
           return cpp::fail(
             fmt::format(
@@ -170,7 +172,7 @@ struct Table {
       } else if (std::holds_alternative<Parser::Double>(current_value)) {
         if (current_layout.type == ColumnType::f64) {
           double value = get<Parser::Double>(current_value).value;
-          to_insert.push_back(value);
+          to_insert.emplace_back(value);
         } else {
           return cpp::fail(
             fmt::format(
@@ -181,18 +183,237 @@ struct Table {
         if (current_layout.type == ColumnType::u8 ||
             current_layout.type == ColumnType::u16 ||
             current_layout.type == ColumnType::u32 ||
-            current_layout.type == ColumnType::u64
+            current_layout.type == ColumnType::u64 ||
+            current_layout.type == ColumnType::i8 ||
+            current_layout.type == ColumnType::i16 ||
+            current_layout.type == ColumnType::i32 ||
+            current_layout.type == ColumnType::i64
          ) {
-          std::uint64_t value = get<Parser::UInt>(current_value).value;
-          to_insert.push_back(value);
+          switch (current_layout.type) {
+            case ColumnType::u8:
+            {
+              std::uint8_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::uint8_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::u16:
+            {
+              std::uint16_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::uint16_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::u32:
+            {
+              std::uint32_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::uint32_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::u64:
+            {
+              std::uint64_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::uint64_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::i8:
+            {
+              std::int8_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::int8_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::i16:
+            {
+              std::int16_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::int16_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::i32:
+            {
+              std::int32_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::int32_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            case ColumnType::i64:
+            {
+              std::int64_t value = 0;
+              std::stringstream temp;
+              temp << std::get<Parser::UInt>(current_value).value;
+              temp >> value;
+              if (temp.fail() || std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::int64_t>::max()) {
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
+                    i, current_layout.ly_to_string()));
+              } else {
+                to_insert.emplace_back(value);
+              }
+            }
+            break;
+            default:
+              return cpp::fail(
+                fmt::format(
+                  "Cannot push uint to field {} which takes a {}",
+                  i, current_layout.ly_to_string()));
+          }
         } else {
           return cpp::fail(
             fmt::format(
-              "Cannot push string to field {} which takes a {}", 
+              "Cannot push uint to field {} which takes a {}",
               i, current_layout.ly_to_string()));
         }
       } else if (std::holds_alternative<Parser::Int>(current_value)) {
-        
+        if (
+          current_layout.type == ColumnType::i8 ||
+          current_layout.type == ColumnType::i16 ||
+          current_layout.type == ColumnType::i32 ||
+          current_layout.type == ColumnType::i64
+        ) {
+            switch (current_layout.type) {
+              case ColumnType::i8:
+              {
+                std::int8_t value = 0;
+                std::stringstream temp;
+                temp << std::get<Parser::Int>(current_value).value;
+                temp >> value;
+                if (temp.fail() || std::get<Parser::Int>(current_value).value > std::numeric_limits<std::int8_t>::max() || std::get<Parser::Int>(current_value).value < std::numeric_limits<std::int8_t>::min()) {
+                  return cpp::fail(
+                    fmt::format(
+                      "Cannot push int to field {} which takes a {} because the value overflows",
+                      i, current_layout.ly_to_string()));
+                } else {
+                  to_insert.emplace_back(value);
+                }
+              }
+              break;
+              case ColumnType::i16:
+              {
+                std::int16_t value = 0;
+                std::stringstream temp;
+                temp << std::get<Parser::Int>(current_value).value;
+                temp >> value;
+                if (temp.fail() || std::get<Parser::Int>(current_value).value > std::numeric_limits<std::int16_t>::max() || std::get<Parser::Int>(current_value).value < std::numeric_limits<std::int16_t>::min()) {
+                  return cpp::fail(
+                    fmt::format(
+                      "Cannot push int to field {} which takes a {} because the value overflows",
+                      i, current_layout.ly_to_string()));
+                } else {
+                  to_insert.emplace_back(value);
+                }
+              }
+              break;
+              case ColumnType::i32:
+              {
+                std::int32_t value = 0;
+                std::stringstream temp;
+                temp << std::get<Parser::Int>(current_value).value;
+                temp >> value;
+                if (temp.fail() || std::get<Parser::Int>(current_value).value > std::numeric_limits<std::int32_t>::max() || std::get<Parser::Int>(current_value).value < std::numeric_limits<std::int32_t>::min()) {
+                  return cpp::fail(
+                    fmt::format(
+                      "Cannot push int to field {} which takes a {} because the value overflows",
+                      i, current_layout.ly_to_string()));
+                } else {
+                  to_insert.emplace_back(value);
+                }
+              }
+              break;
+              case ColumnType::i64:
+              {
+                std::int64_t value = 0;
+                std::stringstream temp;
+                temp << std::get<Parser::Int>(current_value).value;
+                temp >> value;
+                if (temp.fail() || std::get<Parser::Int>(current_value).value > std::numeric_limits<std::int64_t>::max() || std::get<Parser::Int>(current_value).value < std::numeric_limits<std::int64_t>::min()) {
+                  return cpp::fail(
+                    fmt::format(
+                      "Cannot push int to field {} which takes a {} because the value overflows",
+                      i, current_layout.ly_to_string()));
+                } else {
+                  to_insert.emplace_back(value);
+                }
+              }
+              break;
+              default:
+                return cpp::fail(
+                  fmt::format(
+                    "Cannot push int to field {} which takes a {}",
+                    i, current_layout.ly_to_string()));
+            }
+        } else {
+          return cpp::fail(
+            fmt::format(
+              "Cannot push int to field {} which takes a {}",
+              i, current_layout.ly_to_string()));
+        }
       } else
           return cpp::fail(fmt::format("Cannot push to field {}", i));
       
