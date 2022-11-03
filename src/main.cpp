@@ -157,28 +157,48 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         }
       } else if (holds_alternative<Automata::DeleteDatabase>(args.value())) {
         auto arg = get<Automata::DeleteDatabase>(args.value());
+        auto db = dbs.dbs.get(arg.name);
+        if (db == nullptr) {
+          SEND_ERROR("Database {} does not exist\n", arg.name);
+        } else {
+          SEND("Deleting database: {}\n", arg.name);
+        }
+
         dbs.delete_database(arg.name);
-        LSEND("Deleting database {}\n", arg.name);
 
       } else if (holds_alternative<Automata::DeleteTable>(args.value())) {
         auto arg = get<Automata::DeleteTable>(args.value());
+        auto db = dbs.dbs.get(arg.database);
+        if (db == nullptr) {
+          SEND_ERROR("Database {} does not exist\n", arg.database);
+        } else {
+          SEND("Database: {}\n", arg.database);
+          (*db->using_db)++;
+          auto table = db->tables.get(arg.table);
+          if (table == nullptr) {
+            SEND_ERROR("Table {} does not exist in {}\n", arg.table, arg.database);
+          } else {
+            SEND("Deleting {}\n",arg.table);
+          }
+          (*db->using_db)--;
+        }
         dbs.delete_table(arg.table, arg.database);
-        LSEND("Deleting table {} from database {}\n", arg.table, arg.database);
+
       } else if (holds_alternative<Automata::CreateTable>(args.value())) {
         auto arg = get<Automata::CreateTable>(args.value());
         auto db = dbs.dbs.get(arg.db);
         
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.name);
-        } else {        
+        } else {
           auto result = Table::createTable(arg.db, arg.name, arg.columns);
           if (result.has_error()) {
             SEND_ERROR("{}\n", result.error());
           } else {
             db->tables.insert(arg.name, std::make_shared<Table>(std::move(*result)));
-            LSEND("Table {} created in database {}\n", arg.name, arg.db);        
+            LSEND("Table {} created in database {}\n", arg.name, arg.db);
           }
-        }        
+        }
       } else if (holds_alternative<Automata::ShowDatabase>(args.value())) {
         auto arg = get<Automata::ShowDatabase>(args.value());
         auto db = dbs.dbs.get(arg.name);
