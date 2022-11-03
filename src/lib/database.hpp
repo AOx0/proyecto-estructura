@@ -111,7 +111,7 @@ struct DataBase {
     return *this;
   }
 
-  void delete_table_dir (std::string database, std::string table);
+  cpp::result<void, std::string> delete_table_dir(std::string database, std::string table);
   //delete table in memory
 
 
