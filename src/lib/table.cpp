@@ -21,11 +21,10 @@ std::vector<std::uint8_t> Table::into_vec() {
     }
     resultado.push_back(0x00);
     
-    DynArray serlialized_layout = serialize_layout(entry->value.value);
+    Arr serlialized_layout = sLayout(entry->value.value);
     
-    for (int i=0; i<serlialized_layout.length; i++) resultado.push_back(serlialized_layout.array[i]);
+    for (int i=0; i<serlialized_layout.len(); i++) resultado.push_back((*serlialized_layout)[i]);
     
-    drop_dyn_array(serlialized_layout);
     
     resultado.push_back(0x00);
     resultado.push_back(0x73);
@@ -58,8 +57,7 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in, const std::string & n
     
     i+=3;
    
-    Layout layout = deserialize_layout(&serialized_layout.front(), serialized_layout.size());
-    
+    Layout layout = dLayout(&serialized_layout.front(), serialized_layout.size());    
     rows.insert(name, layout);
   }
 
