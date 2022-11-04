@@ -4,7 +4,7 @@ use alloc::ffi::CString;
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Registry, Token};
 use std::collections::HashMap;
-use std::ffi::{CStr, c_void};
+use std::ffi::{c_void, CStr};
 use std::io::{Read, Write};
 use std::mem::swap;
 use std::os::raw::c_char;
@@ -157,11 +157,7 @@ impl TcpServer {
                         let token = Self::next(&mut self.unique_token);
                         self.poll
                             .registry()
-                            .register(
-                                &mut connection,
-                                token,
-                                Interest::READABLE,
-                            )
+                            .register(&mut connection, token, Interest::READABLE)
                             .unwrap();
 
                         let (c_sender, rs_receiver) = channel();
@@ -214,9 +210,10 @@ impl TcpServer {
         }
 
         for (token, state) in self.channels.read().unwrap().iter() {
-            let _ = self.poll
-              .registry()
-              .deregister(&mut *state.stream.lock().unwrap());
+            let _ = self
+                .poll
+                .registry()
+                .deregister(&mut *state.stream.lock().unwrap());
             self.threads.remove(token);
         }
     }
@@ -282,7 +279,8 @@ impl TcpServer {
                             let connection = Arc::clone(&connection.stream);
                             move || {
                                 // Receive response from private channel
-                                let response = get_message!(rs_receiver.lock().unwrap(), On end: return);
+                                let response =
+                                    get_message!(rs_receiver.lock().unwrap(), On end: return);
 
                                 *future_response.lock().unwrap() = response;
 
@@ -375,13 +373,19 @@ impl Drop for Shared {
 ///# Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn communicate(state_ptr: *mut c_void, shared: &Shared, msg: *const c_char) -> bool {
+pub unsafe extern "C" fn communicate(
+    state_ptr: *mut c_void,
+    shared: &Shared,
+    msg: *const c_char,
+) -> bool {
     let state = (state_ptr as *mut Tcp).as_mut().unwrap();
 
     if let Ok(mut channel) = state.channels.write() {
-        if let Some(channel) =  channel.get_mut(&Token(shared.token)) {
-            if let Ok(channel) =  channel.c_sender.lock() {
-                return channel.send(try_op![CStr::from_ptr(msg).to_str(), On error: return false].to_owned()).is_ok();
+        if let Some(channel) = channel.get_mut(&Token(shared.token)) {
+            if let Ok(channel) = channel.c_sender.lock() {
+                return channel
+                    .send(try_op![CStr::from_ptr(msg).to_str(), On error: return false].to_owned())
+                    .is_ok();
             }
         }
     }
@@ -393,7 +397,6 @@ pub unsafe extern "C" fn communicate(state_ptr: *mut c_void, shared: &Shared, ms
 ///
 #[no_mangle]
 pub unsafe extern "C" fn receive(state_ptr: *mut c_void) -> Shared {
-
     let state = (state_ptr as *mut Tcp).as_mut().unwrap();
     let token = get_message!(*state.recv_signal.lock().unwrap(), On end: return Shared::null());
 
@@ -410,11 +413,11 @@ pub unsafe extern "C" fn receive(state_ptr: *mut c_void) -> Shared {
 
     return Shared {
         null: false,
-        value: (try_op!(CString::new(result), On error: return Shared::null()).into_raw()) as *mut u8,
+        value: (try_op!(CString::new(result), On error: return Shared::null()).into_raw())
+            as *mut u8,
         token,
     };
 }
-
 
 /// C binding to share the TCP server information with C++.
 pub struct Tcp {

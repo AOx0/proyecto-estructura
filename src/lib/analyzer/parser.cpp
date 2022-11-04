@@ -1,18 +1,20 @@
 #include "parser.hpp"
 #include <regex>
+#include <string>
+#include <sstream>
 
 std::vector<Parser::Token> Parser::parse(const std::string &in) {
   const static std::vector<std::string> valid_tokens = {
-      "(", ")", ";", "*"
+      "(", ")", ";", "*", ","
   };
 
   const static std::vector<std::string> valid_operators = {
-      "==", ">", "<", "!", "<=", ">=", ",", "&&", "||", "AND", "0R"
+      "==", ">", "<", "!", "<=", ">=", "&&", "||", "AND", "0R"
   };
 
   const static std::vector<std::string> valid_keywords = {
-      "CREATE", "DATABASE", "TABLE", "INSERT", "INTO", "VALUES",
-      "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN"
+      "CREATE", "DATABASE","DATABASES", "TABLE", "INSERT", "INTO", "VALUES",
+      "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN", "SHOW"
   };
 
   const static std::vector<std::string> valid_types = {
@@ -58,10 +60,12 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       KEYWORD(INSERT)
       KEYWORD(UPDATE)
       KEYWORD(DELETE)
+      KEYWORD(SHOW)
       KEYWORD(DROP)
       KEYWORD(CREATE)
       KEYWORD(TABLE)
       KEYWORD(DATABASE)
+      KEYWORD(DATABASES)
       KEYWORD(VALUES)
       KEYWORD(FROM)
       KEYWORD(WHERE)
@@ -144,10 +148,6 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
         resultado.emplace_back(Type{TypeE::U64});
         continue;
       }
-      if (*it == "str") {
-        resultado.emplace_back(Type{TypeE::STR});
-        continue;
-      }
       if (*it == "f64") {
         resultado.emplace_back(Type{TypeE::F64});
         continue;
@@ -157,11 +157,38 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
         continue;
       }
     }
+    
+    
+    if (std::regex_match(token, std::regex("str[0-9]+"))) {
+      resultado.emplace_back(Type{TypeE::STR});
+      
+      std::stringstream number;
+      
+      for (int i=3; i<token.size(); i++)
+        number << token[i]; 
+      
+      std::uint64_t nvalue;
+      number >> nvalue;
+      
+      resultado.emplace_back(Numbers{UInt{nvalue}});
+      continue;
+    }
 
     // Check if token is a number
     // TODO: Figure out wtf is going on with strings to custom integer types :D
-    if (std::regex_match(token, std::regex("-*[0-9]+"))) {
-      resultado.emplace_back(Numbers{Int{static_cast<uint64_t>(std::stoi(token))}});
+    if (std::regex_match(token, std::regex("[+-]?[0-9]+"))) {
+      std::stringstream num;
+      num << token;
+      
+      if (token[0] != '-') {
+        std::uint64_t n;
+        num >> n;
+        resultado.emplace_back(Numbers{UInt{n}});      
+      } else {
+        std::int64_t n;
+        num >> n;
+        resultado.emplace_back(Numbers{Int{n}});      
+      }
       continue;
     }
 
@@ -174,50 +201,122 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
     }
 
     // Check if token is a identifier
-    if (std::regex_match(token, std::regex("[a-zA-Z_][a-zA-Z0-9_]*"))) {
-      resultado.emplace_back(Identifier{token});
+    if (std::regex_match(token, std::regex("([a-zA-Z_][a-zA-Z0-9_]*)"))) {
+      resultado.emplace_back(Identifier{Name{token}});
+      continue;
+    }
+
+    // Check if token is an identifier with sub-member
+    if (std::regex_match(token, std::regex("([a-zA-Z_][a-zA-Z0-9_]*)(\\.([a-zA-Z_][a-zA-Z0-9_]*))"))) {
+      // Split token in two parts by dot
+      std::vector<std::string> parts;
+      std::string part;
+      std::istringstream ss(token);
+      while (std::getline(ss, part, '.')) {
+        parts.push_back(part);
+      }
+      resultado.emplace_back(Identifier{NameAndSub{parts[0], parts[1]}});
       continue;
     }
 
     // Check if token is a double
-    if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]*)(\\.([0-9]+))?)"))) {
+    if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]+)(\\.([0-9]+))?)"))) {
       resultado.emplace_back(Numbers{Double{std::stod(token)}});
       continue;
     }
-
+    resultado.emplace_back(Unknown{token});
   }
-
   return resultado;
 }
+
 
 bool Parser::operator==(std::vector<Token> left, std::vector<Token> right) {
 #define CMP(tipo, field) if (std::holds_alternative<tipo>(left[i]) && std::holds_alternative<tipo>(right[i])) {\
   if (std::get<tipo>(left[i]).field != std::get<tipo>(right[i]).field) {\
-  return false;\
-}\
-}                                                                                                       \
-    // Match every token variant and compare left and right depending on the variant
+    return false;\
+  }\
+}                                                                                                              \\
+                                                                                                               \
+  // Match every token variant and compare left and right depending on the variant
   for (int i = 0; i < left.size(); i++) {
+    if (!same_variant_and_value(left[i], right[i])) {
+      return false;
+    }
+  }
+  return true;
+#undef CMP
+}
+
+bool Parser::same_variant(const Parser::Token &left, const Parser::Token &right) {
+#define CMP(tipo, field) if (std::holds_alternative<tipo>(left) && std::holds_alternative<tipo>(right)) {\
+    return true;\
+}
+  CMP(Operator, variant)
+  else CMP(Type, variant)
+  else CMP(Keyword, variant)
+  else CMP(Symbol, variant)
+  else CMP(String, value)
+  else CMP(Unknown, value)
+  else if (std::holds_alternative<Identifier>(left) && std::holds_alternative<Identifier>(right)) {
+    if (std::holds_alternative<Name>(std::get<Identifier>(left)) &&
+        std::holds_alternative<Name>(std::get<Identifier>(right))) {
+      return true;
+    } else if (std::holds_alternative<NameAndSub>(std::get<Identifier>(left)) &&
+               std::holds_alternative<NameAndSub>(std::get<Identifier>(right))) {
+      return true;
+    }
+  }
+  else if (std::holds_alternative<Numbers>(left) && std::holds_alternative<Numbers>(right)) {
+    if (std::holds_alternative<Int>(std::get<Numbers>(left)) &&
+        std::holds_alternative<Int>(std::get<Numbers>(right))) {
+      return true;
+    } else if (std::holds_alternative<Double>(std::get<Numbers>(left)) &&
+               std::holds_alternative<Double>(std::get<Numbers>(right))) {
+      return true;
+    } else if  (std::holds_alternative<UInt>(std::get<Numbers>(left)) &&
+        std::holds_alternative<UInt>(std::get<Numbers>(right))) {
+      return true;
+    }  }
+
+  return false;
+#undef CMP
+}
+
+bool Parser::same_variant_and_value(const Token & left, const Token & right) {
+#define CMP(tipo, field) if (std::holds_alternative<tipo>(left) && std::holds_alternative<tipo>(right)) {\
+  if (std::get<tipo>(left).field == std::get<tipo>(right).field) {\
+    return true;\
+  }\
+}                                                                                                    \
+    // Match every token variant and compare left and right depending on the variant
     CMP(Operator, variant)
     else CMP(Type, variant)
     else CMP(Keyword, variant)
     else CMP(Symbol, variant)
     else CMP(String, value)
-    else CMP(Identifier, value)
-    else if (std::holds_alternative<Numbers>(left[i]) && std::holds_alternative<Numbers>(right[i])) {
-      if (std::holds_alternative<Int>(std::get<Numbers>(left[i])) &&
-          std::holds_alternative<Int>(std::get<Numbers>(left[i]))) {
-        if (std::get<Int>(std::get<Numbers>(left[i])).value != std::get<Int>(std::get<Numbers>(left[i])).value) {
-          return false;
-        }
-      } else if (std::holds_alternative<Double>(std::get<Numbers>(left[i])) &&
-                 std::holds_alternative<Double>(std::get<Numbers>(left[i]))) {
-        if (std::get<Double>(std::get<Numbers>(left[i])).value !=
-            std::get<Double>(std::get<Numbers>(left[i])).value) {
-          return false;
-        }
+    else CMP(Unknown, value)
+    else if (std::holds_alternative<Identifier>(left) && std::holds_alternative<Identifier>(right)) {
+      if (std::holds_alternative<Name>(std::get<Identifier>(left)) &&
+          std::holds_alternative<Name>(std::get<Identifier>(right))) {
+        return std::get<Name>(std::get<Identifier>(left)).value == std::get<Name>(std::get<Identifier>(right)).value;
+      } else if (std::holds_alternative<NameAndSub>(std::get<Identifier>(left)) &&
+                 std::holds_alternative<NameAndSub>(std::get<Identifier>(right))) {
+        return std::get<NameAndSub>(std::get<Identifier>(left)).name == std::get<NameAndSub>(std::get<Identifier>(right)).name
+            && std::get<NameAndSub>(std::get<Identifier>(left)).sub == std::get<NameAndSub>(std::get<Identifier>(right)).sub;
       }
     }
-  }
-  return true;
+    else if (std::holds_alternative<Numbers>(left) && std::holds_alternative<Numbers>(right)) {
+      if (std::holds_alternative<Int>(std::get<Numbers>(left)) &&
+          std::holds_alternative<Int>(std::get<Numbers>(right))) {
+        return  std::get<Int>(std::get<Numbers>(left)).value == std::get<Int>(std::get<Numbers>(right)).value;
+      } else if (std::holds_alternative<Double>(std::get<Numbers>(left)) &&
+                 std::holds_alternative<Double>(std::get<Numbers>(right))) {
+        return std::get<Double>(std::get<Numbers>(left)).value == std::get<Double>(std::get<Numbers>(right)).value;
+      }  else if (std::holds_alternative<UInt>(std::get<Numbers>(left)) &&
+                 std::holds_alternative<UInt>(std::get<Numbers>(right))) {
+        return std::get<UInt>(std::get<Numbers>(left)).value == std::get<UInt>(std::get<Numbers>(right)).value;
+      }
+    }
+  return false;
+#undef CMP
 }

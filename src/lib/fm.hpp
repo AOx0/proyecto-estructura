@@ -7,6 +7,10 @@
 #include <utility>
 #include <vector>
 #include <optional>
+#include <filesystem>
+#include <result.hpp>
+#include <string>
+#include <fmt/format.h>
 
 namespace rfm_ {
   extern "C" bool exists(char *);
@@ -255,6 +259,27 @@ namespace FileManager {
       return rfm_::get_file_size((char *) path.c_str());
     }
   };
+
+
+  template<typename T>
+  cpp::result<std::vector<Path>, std::string> list_dir(T path) {
+    namespace fs = std::filesystem;
+  
+    std::vector<Path> result;
+  
+    Path p = Path(path);
+  
+    if (!p.is_dir()) {
+      return cpp::fail(fmt::format("Path {} is not a directory", p.path));
+    }
+  
+    for (const auto & entry : fs::directory_iterator(p.path)) {
+        result.push_back(Path(entry.path().string()));
+    }
+  
+    return result;
+  }
+
 
 } // namespace FileManager
 

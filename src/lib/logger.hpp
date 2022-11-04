@@ -13,7 +13,8 @@
 enum LOG_TYPE_ {
   INFO,
   WARN,
-  ERROR
+  ERROR,
+  NONE
 };
 
 struct Logger {
@@ -22,7 +23,9 @@ struct Logger {
   Path path_;
   std::mutex mtx_;
 
-  static void show(LOG_TYPE_ type, const std::string &msg);
+  static std::string show(LOG_TYPE_ type, const std::string &msg);
+
+  static std::string show_ln(LOG_TYPE_ type, const std::string &msg);
 
 private:
   // static method to convert a string to a vec of uint_8

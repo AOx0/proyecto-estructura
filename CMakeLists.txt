@@ -8,7 +8,7 @@
 ## no mingw is required in the main system due to rustup shipping it with component rust-mingw
 
 cmake_minimum_required(VERSION 3.10)
-project(proyecto_estructura)
+project(proyecto-estructura)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_CXX_STANDARD 20)
@@ -44,8 +44,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Corrosion)
 
-corrosion_import_crate(MANIFEST_PATH server/Cargo.toml PROFILE release)
-corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml PROFILE release)
+corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)# PROFILE release)
+corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)# PROFILE release)
+corrosion_import_crate(MANIFEST_PATH serializer/Cargo.toml)# PROFILE release)
 
 
 # Agregamos fmt, una libreria de formateo de strings moderna
@@ -57,10 +58,16 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(fmt)
 
+FetchContent_Declare(
+        Result
+        GIT_REPOSITORY  https://github.com/bitwizeshift/result.git
+        GIT_TAG         v1.0.0
+)
+FetchContent_MakeAvailable(Result)
 
 # For profiling, disable when building the release
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 enable_testing()
 
@@ -68,6 +75,8 @@ set(LIBRARIES
         src/lib/server.hpp
         src/lib/database.cpp
         src/lib/database.hpp
+        src/lib/serializer.cpp
+        src/lib/serializer.hpp
         src/lib/table.cpp
         src/lib/table.hpp
         src/lib/fm.cpp
@@ -77,22 +86,33 @@ set(LIBRARIES
         src/lib/analyzer/parser.cpp
         src/lib/analyzer/parser.hpp 
         src/lib/analyzer.hpp
-  )
+        src/lib/analyzer/automata.cpp
+        src/lib/analyzer/automata.hpp
+        src/lib/logger.cpp
+        src/lib/logger.hpp
+        src/lib/linkedList.cpp
+        src/lib/linkedList.hpp)
 
-add_executable(proyecto_estructura
+add_executable(proyecto-estructura
         src/main.cpp
         ${LIBRARIES}
-        src/lib/logger.cpp src/lib/logger.hpp)
+        )
 
 add_executable(
-        proyecto_tests
+        proyecto-tests
         tests/server.cc # Agregamos los tests
         ${LIBRARIES}
         tests/database.cc
-        tests/table.cc tests/fm.cc tests/tokenizer..cc tests/parser.cc)
+        tests/table.cc 
+        tests/fm.cc
+        tests/tokenizer..cc 
+        tests/parser.cc 
+        tests/automata.cc
+        tests/serializer.cc
+)
 
-target_link_libraries(proyecto_tests GTest::gtest_main fmt::fmt-header-only fm)
-target_link_libraries(proyecto_estructura PUBLIC tcpserver fmt::fmt-header-only fm)
+target_link_libraries(proyecto-tests GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer)
+target_link_libraries(proyecto-estructura PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
 
 include(GoogleTest)
-gtest_discover_tests(proyecto_tests)
+gtest_discover_tests(proyecto-tests)

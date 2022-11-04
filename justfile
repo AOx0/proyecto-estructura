@@ -2,23 +2,23 @@ default:
   just --list
 
 init:
-  cmake -S. -B cmake_build
+  cmake -S. -B cmake-build
 
-build: init
-  cmake --build cmake_build
+build nucleos="4": init
+  cmake --build cmake-build -j {{nucleos}}
 
-build_release: init
-  cmake --build cmake_build --config Release
+build-release nucleos="4": init
+  cmake --build cmake-build -j {{nucleos}} --config Release
 
-test: build
-  cd cmake_build && ctest --output-on-failure
+test nucleos="4": (build nucleos)
+  cd cmake-build && ctest --output-on-failure
 
-run: build && exec
+run nucleos="4": (build nucleos) && exec
 
-run_release: build_release && exec
+run-release nucleos="4": (build-release nucleos) && exec
 
 exec:
-    ./cmake_build/proyecto_estructura
+    ./cmake-build/proyecto-estructura
 
 clean:
-  rm -rf cmake_build
+  rm -rf cmake-build

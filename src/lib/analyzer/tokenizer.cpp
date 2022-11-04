@@ -2,6 +2,7 @@
 
 #include <regex>
 #include <fmt/core.h>
+#include <sstream>
 
 std::vector<std::string> Parser::tokenize(const std::string &in) {
   std::vector<std::string> resultado{};
@@ -75,8 +76,8 @@ std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string 
   };
 
   const static std::vector<std::string> valid_keywords = {
-      "CREATE", "DATABASE", "TABLE", "INSERT", "INTO", "VALUES",
-      "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN"
+      "CREATE", "DATABASE","DATABASES", "TABLE", "INSERT", "INTO", "VALUES",
+      "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN", "SHOW"
   };
 
   const static std::vector<std::string> valid_types = {
@@ -132,16 +133,19 @@ std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string 
       current_type = TokenType::KEYWORD;
     } else if (found_in_types) {
       current_type = TokenType::TYPE;
-    } else if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]*)(\\.([0-9]+))?)"))) {
+    } else if (std::regex_match(token, std::regex("(?=.)([+-]?([0-9]+)(\\.([0-9]+))?)"))
+               || std::regex_match(token, std::regex("[+-]?[0-9]+"))) {
       current_type = TokenType::NUMBER;
     } else if (std::regex_match(token, std::regex("\".*\""))) {
       current_type = TokenType::STRING;
-    } else if (std::regex_match(token, std::regex("[a-zA-Z_][a-zA-Z0-9_]*"))) {
+    } else if (std::regex_match(token, std::regex("[a-zA-Z_][a-zA-Z0-9_]*")) ||
+               std::regex_match(token, std::regex("([a-zA-Z_][a-zA-Z0-9_]*)(\\.([a-zA-Z_][a-zA-Z0-9_]*))"))) {
       current_type = TokenType::IDENTIFIER;
     } else {
       return std::make_tuple(false, std::make_optional(fmt::format("Invalid token: {}", token)));
     }
 
+    /*
     // It is invalid if we have to operators together
     if (current_type == TokenType::OPERATOR && last_type == TokenType::OPERATOR) {
       return std::make_tuple(false,
@@ -198,7 +202,7 @@ std::tuple<bool, std::optional<std::string>> Parser::validate(const std::string 
     if (last_type == TokenType::TYPE && current_type != TokenType::IDENTIFIER) {
       return std::make_tuple(false, std::make_optional(
           fmt::format("Invalid token, expected identifier after type: {}", token)));
-    }
+    }*/
 
     last_type = current_type;
   }

@@ -35,14 +35,48 @@ TEST(Parser, TranslateToEnums2) {
       Keyword{KeywordE::SELECT},
       Symbol{SymbolE::ALL},
       Keyword{KeywordE::FROM},
-      Identifier{"tabla"},
+      Identifier{Name{"tabla"}},
       Keyword{KeywordE::WHERE},
-      Identifier{"name"},
+      Identifier{NameAndSub{"tabla","name"}},
       Operator{OperatorE::EQUAL},
       String{"Daniel"},
   };
 
-  std::vector<Token> result (parse(R"(SELECT * FROM tabla WHERE name == "Daniel")"));
+  std::vector<Token> result (parse(R"(SELECT * FROM tabla WHERE tabla.name == "Daniel")"));
+
+  EXPECT_EQ(expected, result);
+}
+
+TEST(Parser, TranslateToEnums22) {
+  std::vector<Token> expected{
+      Keyword{KeywordE::SELECT},
+      Symbol{SymbolE::ALL},
+      Keyword{KeywordE::FROM},
+      Identifier{Name{"tabla"}},
+      Keyword{KeywordE::WHERE},
+      Identifier{Name{"tabla.name"}},
+      Operator{OperatorE::EQUAL},
+      String{"Daniel"},
+  };
+
+  std::vector<Token> result (parse(R"(SELECT * FROM tabla WHERE tabla.name == "Daniel")"));
+
+  EXPECT_NE(expected, result);
+}
+
+TEST(Parser, TranslateToEnums3) {
+  std::vector<Token> expected{
+      Keyword{KeywordE::SELECT},
+      Symbol{SymbolE::ALL},
+      Keyword{KeywordE::FROM},
+      Identifier{Name{"tabla"}},
+      Keyword{KeywordE::WHERE},
+      Unknown{"tabla.n.ame"},
+      Operator{OperatorE::EQUAL},
+      String{"Daniel"},
+  };
+
+  std::vector<Token> result (parse(R"(SELECT * FROM tabla WHERE tabla.n.ame == "Daniel")"));
 
   EXPECT_EQ(expected, result);
 }
