@@ -15,15 +15,8 @@
 #include "serializer.hpp"
 #include "fm.hpp"
 
-struct TableInstance {
-  KeyValueList<std::string, std::tuple<Layout,void*>> data;
-
-  /*TableInstance(std::string table_name) : data(KeyValueList<std::string, std::tuple<Layout,void*>>()) {}
-  };*/
-};
 
 struct Table {
-  std::optional<TableInstance> instance;
   KeyValueList<std::string, Layout> columns;
   std::shared_mutex mtx_;
   std::string name;
@@ -458,6 +451,53 @@ struct Table {
       std::string &table_name, 
       KeyValueList<std::string, Layout> &layout
     );
+};
+
+
+struct ColumnInstance {
+  KeyValueList<Parser::NameAndSub, std::optional<void *>> data;
+  
+  static cpp::result<ColumnInstance, std::string> load_column(std::string database, std::string table, std::string column, Table & descriptor) {
+    std::unique_lock<std::shared_mutex> lock(descriptor.mtx_);
+    
+    Node<KeyValue<std::string, Layout>> * node = descriptor.columns.for_each([&](const auto & keyvalue){
+      if (keyvalue.key == column) {
+        return true;
+      }
+      return false;
+    });
+    
+    if (node == nullptr) {
+      return cpp::fail(fmt::format("Column {} does not exist in {}.{}", column, database, table));
+    }
+    
+    FileManager::Path column_file = FileManager::Path("data")/database/table/(column + ".col");
+    
+    if (!column_file.exists()) {
+      return cpp::fail(fmt::format("Failed to get path to column {}, path {} does not exist", column, column_file.path));
+    } else if (!column_file.is_file()) {
+      return cpp::fail(fmt::format("The column path {} is not a file.", column_file.path));
+    }
+    
+    
+    if (node->value.value.type == ColumnType::u8) {
+      std::vector<uint8_t> result; 
+      auto contents = FileManager::read_to_vec(column_file.path);
+      
+      for (size_t i=0; i<contents.size(); i++) {
+        result.push_back(Serialized::du8(&contents[i], 1));
+      }
+      
+      for (auto & value: result)
+        std::cout << static_cast<uint8_t>(value) << " ";
+      std::cout << "\n";
+    } 
+    
+    return cpp::fail(fmt::format("Failed to load contents for column {} from {}.{}", column, database, table));
+  }
+  
+  /*TableInstance(std::string table_name) : data(KeyValueList<std::string, std::tuple<Layout,void*>>()) {}
+  };*/
 };
 
 #endif // TABLE_HPP
