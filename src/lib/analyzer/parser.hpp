@@ -299,12 +299,15 @@ namespace Parser {
 
   using Numbers = std::variant<Double, Int, UInt>;
 
+  struct Bool {
+    bool value;
+  };
 
   inline std::string to_string(const Numbers& x) {
     return std::visit([](auto&& arg) { return to_string(arg); }, x);
   }
 
-  using Token = std::variant<Operator, Keyword, Type, Symbol, String, Numbers, Identifier, Unknown>;
+  using Token = std::variant<Operator, Keyword, Type, Symbol, String, Numbers, Identifier, Unknown, Bool>;
 
   template <typename T>
   bool is_same_variant(const T& x, const T& y) {

@@ -48,7 +48,7 @@ namespace Automata {
   struct Insert {
     std::string database;
     std::string table;
-    List<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>> values;
+    List<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double, Parser::Bool>> values;
   };
 
   struct MakeSelect {

@@ -2,15 +2,15 @@
 #include <iostream>
 
 #include "fm.hpp"
+#include "serializer.hpp"
 #include "table.hpp"
 #include "fmt/core.h"
 #include "linkedList.hpp"
-#include "serializer.hpp"
 
 std::vector<std::uint8_t> Table::into_vec() {
   std::vector<std::uint8_t> resultado{};
 
-  rows.for_each_node([&](Node<KeyValue<std::string, Layout>> * entry){
+  columns.for_each_node([&](Node<KeyValue<std::string, Layout>> * entry){
     const char *str = entry->value.key.c_str();
     size_t i = 0;
     
@@ -21,10 +21,10 @@ std::vector<std::uint8_t> Table::into_vec() {
     }
     resultado.push_back(0x00);
     
-    Arr serlialized_layout = sLayout(entry->value.value);
+    Serialized serlialized_layout = Serialized::serialize(entry->value.value);
     
-    for (int i=0; i<serlialized_layout.len(); i++) resultado.push_back((*serlialized_layout)[i]);
-    
+    for (int j=0; j < serlialized_layout.len(); j++)
+      resultado.push_back(serlialized_layout[j]);
     
     resultado.push_back(0x00);
     resultado.push_back(0x73);
@@ -37,13 +37,13 @@ std::vector<std::uint8_t> Table::into_vec() {
 }
 
 Table Table::from_vec(const std::vector<std::uint8_t> &in, const std::string & name) {
-  KeyValueList<std::string, Layout> rows;
+  KeyValueList<std::string, Layout> columns;
 
   size_t i = 0;
   while (in[i] != '\0') {
-    std::string name;
+    std::string column_name;
     while (in[i] != '\0') {
-      name += in[i];
+      column_name += in[i];
       i++;
     }
 
@@ -57,14 +57,14 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in, const std::string & n
     
     i+=3;
    
-    Layout layout = dLayout(&serialized_layout.front(), serialized_layout.size());    
-    rows.insert(name, layout);
+    Layout layout = Serialized::dLayout(&serialized_layout.front(), serialized_layout.size());
+    columns.insert(column_name, layout);
   }
 
-  return {name, rows};
+  return {name, columns};
 }
 
-bool Table::operator==(const Table &other) const { return rows == other.rows; }
+bool Table::operator==(const Table &other) const { return columns == other.columns; }
 
 Table Table::from_file(std::string const &path, std::string const &name) {
   return Table::from_vec(FileManager::read_to_vec(path), name);
@@ -102,7 +102,7 @@ cpp::result<Table, std::string> Table::createTable(std::string database, std::st
   auto table_info = table_folder/"info.tbl";
   FileManager::write_to_file(table_info.path, t.into_vec());
 
-  auto node = t.rows.for_each([&](const KeyValue<std::string, Layout> & value){
+  auto node = t.columns.for_each([&](const KeyValue<std::string, Layout> & value){
       auto column_file = table_folder/(value.key + ".col");
       if (!column_file.create_as_file()) {
         return true;
@@ -117,29 +117,4 @@ cpp::result<Table, std::string> Table::createTable(std::string database, std::st
   return t;
 }
 
-std::string to_string(ColumnType type) {
-  switch (type) {
-    case ColumnType::u8:
-      return "u8";
-    case ColumnType::u16:
-      return "u16";
-    case ColumnType::u32:
-      return "u32";
-    case ColumnType::u64:
-      return "u64";
-    case ColumnType::i8:
-      return "i8";
-    case ColumnType::i16:
-      return "i16";
-    case ColumnType::i32:
-      return "i32";
-    case ColumnType::i64:
-      return "i64";
-    case ColumnType::f32:
-      return "f32";
-    case ColumnType::f64:
-      return "f64";
-    case ColumnType::str:
-      return "str";
-  }
-}
+

@@ -175,7 +175,6 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
     }
 
     // Check if token is a number
-    // TODO: Figure out wtf is going on with strings to custom integer types :D
     if (std::regex_match(token, std::regex("[+-]?[0-9]+"))) {
       std::stringstream num;
       num << token;
@@ -197,6 +196,18 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       // Remove quotes from token
       token.erase(std::remove(token.begin(), token.end(), '\"'), token.end());
       resultado.emplace_back(String{token});
+      continue;
+    }
+
+    // Check if token is true
+    if (token == "true") {
+      resultado.emplace_back(Bool{true});
+      continue;
+    }
+
+    // Check if token is false
+    if (token == "false") {
+      resultado.emplace_back(Bool{false});
       continue;
     }
 
@@ -256,6 +267,7 @@ bool Parser::same_variant(const Parser::Token &left, const Parser::Token &right)
   else CMP(Keyword, variant)
   else CMP(Symbol, variant)
   else CMP(String, value)
+  else CMP(Bool, value)
   else CMP(Unknown, value)
   else if (std::holds_alternative<Identifier>(left) && std::holds_alternative<Identifier>(right)) {
     if (std::holds_alternative<Name>(std::get<Identifier>(left)) &&
@@ -294,6 +306,7 @@ bool Parser::same_variant_and_value(const Token & left, const Token & right) {
     else CMP(Keyword, variant)
     else CMP(Symbol, variant)
     else CMP(String, value)
+    else CMP(Bool, value)
     else CMP(Unknown, value)
     else if (std::holds_alternative<Identifier>(left) && std::holds_alternative<Identifier>(right)) {
       if (std::holds_alternative<Name>(std::get<Identifier>(left)) &&

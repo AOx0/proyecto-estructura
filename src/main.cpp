@@ -261,7 +261,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
         }
       } else if(holds_alternative<Automata::Insert>(args.value())){
         auto arg = std::get<Automata::Insert>(args.value());
-        LSEND("Inserting into table {} from database {} values \n", arg.table, arg.database); 
+        LSEND("Inserting into table {} from database {} values \n", arg.table, arg.database);
         /*arg.values.for_each([&](std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>  value){
           if (holds_alternative<Parser::String>(value)) {
             Parser::String val = get<Parser::String>(value);
@@ -292,7 +292,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           if (table == nullptr) {
             SEND_ERROR("Table {} does not exist in {}\n", arg.table, arg.database);
           } else {
-            auto result = (*table)->try_insert(std::move(arg.values));
+            auto result = (*table)->try_insert(arg.database, std::move(arg.values));
             if (result.has_error()) {
               SEND_ERROR("{}\n", result.error());
             } else {

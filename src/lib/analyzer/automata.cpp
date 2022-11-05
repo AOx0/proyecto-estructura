@@ -19,6 +19,23 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
   std::optional<Token> prevm1 = std::nullopt;
 
   auto visitor = overload{
+      [&](const Bool &rbool) -> cpp::result<void, std::string> {
+        if (ctx == Context::InsertE) {
+          if (!next.has_value()) {
+            return cpp::fail(fmt::format(
+                "Expected `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}})) {
+            return cpp::fail(fmt::format(
+                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), to_string(*curr), token_number, original));
+          }
+
+          auto & var = std::get<Automata::Insert>(variant.value());
+          var.values.push_back({rbool});
+        }
+        return {};
+      },
       [&](const Keyword &keyword) -> cpp::result<void, std::string> {
         switch (keyword.variant) {
         
@@ -307,15 +324,16 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
           } else if (ctx == Context::InsertE) {
             if ( !next.has_value() ) {
               return cpp::fail(fmt::format(
-                "Expected str, uint, int or double literal after opening parenthesis in `INSERT INTO` context but got nothing\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                "Expected str, uint, int, bool or double literal after opening parenthesis in `INSERT INTO` context but got nothing\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
                 token_number, original));
             } else if ( !same_variant(*next, Token{String{}}) 
                   && !same_variant(*next, Token{Numbers{Int{}}}) 
                   && !same_variant(*next, Token{Numbers{UInt{}}}) 
-                  && !same_variant(*next, Token{Numbers{Double{}}}) 
+                  && !same_variant(*next, Token{Numbers{Double{}}})
+                  && !same_variant(*next, Token{Bool{}})
             ) {
               return cpp::fail(fmt::format(
-                "Expected str, uint, int or double literal after opening parenthesis in `INSERT INTO` context but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                "Expected str, uint, int, bool or double literal after opening parenthesis in `INSERT INTO` context but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), token_number, original));
             }
           } 
@@ -339,7 +357,9 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                   && !same_variant(*next, Token{String{}}) 
                   && !same_variant(*next, Token{Numbers{Int{}}}) 
                   && !same_variant(*next, Token{Numbers{UInt{}}}) 
-                  && !same_variant(*next, Token{Numbers{Double{}}})) {  
+                  && !same_variant(*next, Token{Numbers{Double{}}})
+                  && !same_variant(*next, Token{Bool{}})
+            ) {
                 return cpp::fail(fmt::format(
                   "Expected value or `)` in `INSERT INTO` context but got `{}`\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
                   to_string(*next), token_number, original));

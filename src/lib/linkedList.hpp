@@ -5,6 +5,7 @@
 #include <functional>
 #include <utility>
 #include <fmt/format.h>
+#include <result.hpp>
 
 enum Ord {
   Asc,
@@ -460,6 +461,16 @@ template<typename K, typename V>
 struct KeyValueList : KeyValueListBase<K, V> {
   using ListBase<KeyValue<K, V>>::push_bk;
   using ListBase<KeyValue<K, V>>::for_each_node;
+
+  Node<KeyValue<K, V>> * get_at(size_t index) {
+    return for_each_node([&](Node<KeyValue<K, V>> * value){
+      if (index == 0) {
+        return true;
+      }
+      index--;
+      return false;
+    });
+  }
 
   V * get(K key) {
     return KeyValueListBase<K, V>::g(key);

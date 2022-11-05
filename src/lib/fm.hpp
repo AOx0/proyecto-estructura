@@ -12,6 +12,8 @@
 #include <string>
 #include <fmt/format.h>
 
+#include "serializer.hpp"
+
 namespace rfm_ {
   extern "C" bool exists(char *);
   extern "C" bool is_dir(char *);
@@ -48,6 +50,10 @@ namespace FileManager {
 
   void append_to_file(const std::string &path,
                       const std::vector<uint8_t> &contents);
+
+  void append_to_file(const std::string &path, uint8_t *contents, size_t size);
+
+  void append_to_file(const std::string &path, Serialized contents);
 
 
   struct Path {

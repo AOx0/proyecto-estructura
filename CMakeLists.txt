@@ -75,8 +75,6 @@ set(LIBRARIES
         src/lib/server.hpp
         src/lib/database.cpp
         src/lib/database.hpp
-        src/lib/serializer.cpp
-        src/lib/serializer.hpp
         src/lib/table.cpp
         src/lib/table.hpp
         src/lib/fm.cpp
@@ -91,7 +89,10 @@ set(LIBRARIES
         src/lib/logger.cpp
         src/lib/logger.hpp
         src/lib/linkedList.cpp
-        src/lib/linkedList.hpp)
+        src/lib/linkedList.hpp
+        src/lib/serializer.cpp
+        src/lib/serializer.hpp
+        )
 
 add_executable(proyecto-estructura
         src/main.cpp

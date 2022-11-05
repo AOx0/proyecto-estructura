@@ -36,3 +36,15 @@ void FileManager::append_to_file(const std::string &path,
   file.write((const char *) &contents[0], (std::streamsize) contents.size());
   file.close();
 }
+
+void FileManager::append_to_file(const std::string &path, Serialized contents) {
+  std::ofstream file(path.c_str(), std::ios::out | std::ios::binary | std::ios::app);
+  file.write((const char *) contents.data(), (std::streamsize) contents.len());
+  file.close();
+}
+
+void FileManager::append_to_file(const std::string &path, uint8_t *contents, size_t size) {
+  std::ofstream file(path.c_str(), std::ios::out | std::ios::binary | std::ios::app);
+  file.write((const char *) contents, (std::streamsize) size);
+  file.close();
+}
