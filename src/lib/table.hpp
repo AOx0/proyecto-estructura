@@ -138,9 +138,10 @@ struct Table {
           switch (current_layout.type) {
             case ColumnType::u8: {
               std::uint8_t value = 0;
+              std::uint16_t value_raw;
               std::stringstream temp;
               temp << std::get<Parser::UInt>(current_value).value;
-              temp >> value;
+              temp >> value_raw;
               if (temp.fail() ||
                   std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::uint8_t>::max()) {
                 return cpp::fail(
@@ -148,6 +149,8 @@ struct Table {
                         "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
                         i, current_layout.ly_to_string()));
               } else {
+                value = static_cast<uint8_t>(value_raw);
+                std::cout << value << std::endl;
                 to_insert.emplace_back(value);
               }
             }
@@ -202,9 +205,10 @@ struct Table {
               break;
             case ColumnType::i8: {
               std::int8_t value = 0;
+              std::int16_t value_raw;
               std::stringstream temp;
               temp << std::get<Parser::UInt>(current_value).value;
-              temp >> value;
+              temp >> value_raw;
               if (temp.fail() ||
                   std::get<Parser::UInt>(current_value).value > std::numeric_limits<std::int8_t>::max()) {
                 return cpp::fail(
@@ -212,6 +216,7 @@ struct Table {
                         "Cannot push uint to field {} which takes a {} because the value is too big (overflows)",
                         i, current_layout.ly_to_string()));
               } else {
+                value = static_cast<int8_t>(value_raw);
                 to_insert.emplace_back(value);
               }
             }
@@ -286,9 +291,10 @@ struct Table {
           switch (current_layout.type) {
             case ColumnType::i8: {
               std::int8_t value = 0;
+              std::int16_t value_raw;
               std::stringstream temp;
               temp << std::get<Parser::Int>(current_value).value;
-              temp >> value;
+              temp >> value_raw;
               if (temp.fail() || std::get<Parser::Int>(current_value).value > std::numeric_limits<std::int8_t>::max() ||
                   std::get<Parser::Int>(current_value).value < std::numeric_limits<std::int8_t>::min()) {
                 return cpp::fail(
@@ -296,6 +302,7 @@ struct Table {
                         "Cannot push int to field {} which takes a {} because the value overflows",
                         i, current_layout.ly_to_string()));
               } else {
+                value = static_cast<int8_t>(value_raw);
                 to_insert.emplace_back(value);
               }
             }

@@ -262,7 +262,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
       } else if(holds_alternative<Automata::Insert>(args.value())){
         auto arg = std::get<Automata::Insert>(args.value());
         LSEND("Inserting into table {} from database {} values \n", arg.table, arg.database);
-        /*arg.values.for_each([&](std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double>  value){
+        arg.values.for_each([&](auto value){
           if (holds_alternative<Parser::String>(value)) {
             Parser::String val = get<Parser::String>(value);
             LSEND("{}, ", val.value);
@@ -275,10 +275,10 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           } else if (holds_alternative<Parser::Double>(value)) {
             Parser::Double val = get<Parser::Double>(value);
             LSEND("{}, ", val.value);
-          }*
+          } 
           return false;
         });
-        LSEND("\n");*/
+        LSEND("\n");
 
         auto db = dbs.dbs.get(arg.database);
         

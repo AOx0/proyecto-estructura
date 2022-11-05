@@ -27,3 +27,11 @@ TEST(BinSerde, string2string) {
   
   EXPECT_EQ(nombre, cmp);
 }
+
+TEST(BinSerde, uint8) {
+  uint8_t input = 45;
+  Serialized result = Serialized::serialize(45);
+  uint8_t cmp = result.du8();
+  
+  EXPECT_EQ(input, cmp);
+}
