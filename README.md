@@ -1,4 +1,4 @@
-Semestral project for the class of Programming and Data Structures @ Universidad Panamericana
+Semester project for the class of Programming and Data Structures @ Universidad Panamericana
 
 ## Important PRs & Issues:
 

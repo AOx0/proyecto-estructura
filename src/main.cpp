@@ -340,7 +340,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             SEND_ERROR("Table {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
-
             auto result = ColumnInstance::load_column(
                 arg.database, arg.table, arg.column, *table->get());
             if (result.has_error()) {

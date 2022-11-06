@@ -454,7 +454,9 @@ struct Table {
 };
 
 struct ColumnInstance {
-  KeyValueList<Parser::NameAndSub, std::optional<void *>> data;
+  Parser::NameAndSub column;
+  std::optional<void *> data;
+  Layout layout;
 
   static cpp::result<ColumnInstance, std::string>
   load_column(std::string database, std::string table, std::string column,
@@ -486,6 +488,7 @@ struct ColumnInstance {
           fmt::format("The column path {} is not a file.", column_file.path));
     }
 
+    void *data_array = nullptr;
     if (node->value.value.type == ColumnType::u8) {
       std::vector<uint8_t> result;
       auto contents = FileManager::read_to_vec(column_file.path);
@@ -494,18 +497,108 @@ struct ColumnInstance {
         result.push_back(Serialized::du8(&contents[i], 1));
       }
 
-      if (result.size() == 0) {
-        std::cout << "There are no values";
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::u16) {
+      std::vector<uint16_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 2) {
+        result.push_back(Serialized::du16(&contents[i], 2));
       }
 
-      for (auto &value : result)
-        std::cout << +value << " ";
-      std::cout << "\n";
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::u32) {
+      std::vector<uint32_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 4) {
+        result.push_back(Serialized::du32(&contents[i], 4));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::u64) {
+      std::vector<uint64_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 8) {
+        result.push_back(Serialized::du64(&contents[i], 8));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::i8) {
+      std::vector<int8_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i++) {
+        result.push_back(Serialized::di8(&contents[i], 1));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::i32) {
+      std::vector<int32_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 4) {
+        result.push_back(Serialized::di32(&contents[i], 4));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::i16) {
+      std::vector<int16_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 2) {
+        result.push_back(Serialized::di16(&contents[i], 2));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::i64) {
+      std::vector<int64_t> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 8) {
+        result.push_back(Serialized::di64(&contents[i], 8));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::f64) {
+      std::vector<double> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += 8) {
+        result.push_back(Serialized::df64(&contents[i], 8));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::rbool) {
+      std::vector<bool> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i++) {
+        result.push_back(Serialized::dbool(&contents[i], 1));
+      }
+
+      data_array = &result;
+    } else if (node->value.value.type == ColumnType::str) {
+      std::vector<std::string> result;
+      auto contents = FileManager::read_to_vec(column_file.path);
+
+      for (size_t i = 0; i < contents.size(); i += node->value.value.size + 8) {
+        result.push_back(
+            Serialized::dstr(&contents[i], node->value.value.size + 8)
+                .to_string());
+      }
+
+      data_array = &result;
     }
 
-    return cpp::fail(
-        fmt::format("Failed to load contents for column {} from {}.{}", column,
-                    database, table));
+    if (data_array == nullptr)
+      return cpp::fail(
+          fmt::format("Failed to load contents for column {} from {}.{}",
+                      column, database, table));
+    else
+      return ColumnInstance{Parser::NameAndSub{table, column}, data_array,
+                            node->value.value};
   }
 
   /*TableInstance(std::string table_name) : data(KeyValueList<std::string,
