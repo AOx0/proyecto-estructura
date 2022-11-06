@@ -115,14 +115,15 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             if (!next.has_value()) {
               return cpp::fail(
                   fmt::format(
-                      "Expected `DATABASE` or `DATABASES` or `TABLE` after `SHOW` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      "Expected `DATABASE`, `DATABASES`, `FROM` or `TABLE` after `SHOW` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                       to_string(*curr), token_number, original));
             } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
-                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})
-                       && !same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASES}})) {
+                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}}) && 
+                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::FROM}}) &&
+                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASES}})) {
               return cpp::fail(
                   fmt::format(
-                      "Expected `DATABASE` or `DATABASES` or`TABLE` after `SHOW` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                      "Expected `DATABASE`, `DATABASES`, `FROM` or `TABLE` after `SHOW` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                       to_string(*next), token_number, to_string(*curr), original));
             }
 
@@ -133,14 +134,62 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
               else if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASES}})) {
                 ctx = Context::ShowDatabasesE;
               }
-              else {
+              else if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
                 ctx = Context::ShowTableE;
+              } else if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::FROM}})) {
+                if (!nextp1.has_value()) {
+                  return cpp::fail(
+                      fmt::format(
+                          "Expected `DATABASE`, after `SHOW FROM` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                          to_string(*next), token_number+1, original));
+                } else if (!same_variant_and_value(nextp1.value(), Token{Keyword{KeywordE::DATABASE}})) {
+                  return cpp::fail(
+                      fmt::format(
+                          "Expected `DATABASE`, after `SHOW FROM` but got {}.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                          to_string(*nextp1), to_string(*next), token_number+1, original));
+                }
+              
+                std::cout << "Set context to Show column\n";
+                ctx = Context::ShowColumnValuesE;
               }
-
             }
           }
             break;
         
+          case KeywordE::COLUMN: {
+            if (ctx == Context::ShowColumnValuesE) {
+              std::cout << "Detected column\n";
+              if (!next.has_value()) {
+                return cpp::fail(
+                    fmt::format(
+                        "Expected `TABLE.COLUMN` identifier after `COLUMN` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                        to_string(*curr), token_number, original));          
+              } else if (!same_variant(*next, Token{Identifier{NameAndSub{}}})) {
+                return cpp::fail(
+                    fmt::format(
+                        "Expected `TABLE.COLUMN` identifier after `COLUMN` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                        to_string(*next), token_number, to_string(*curr), original));
+              }
+            
+              if (!nextp1.has_value()) {
+                return cpp::fail(
+                    fmt::format(
+                        "Expected `;` after `TABLE.COLUMN` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                        to_string(*next), token_number+1, original));          
+              } else if (!same_variant(*nextp1, Token{Symbol{SymbolE::SEMICOLON}})) {
+                return cpp::fail(
+                    fmt::format(
+                        "Expected `;` after `TABLE.COLUMN` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                        to_string(*nextp1), token_number+1, to_string(*next), original));
+              }
+            
+              auto & var = std::get<Automata::ShowColumnValues>(variant.value());
+              auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
+              var.table = table_column.name;
+              var.column = table_column.sub;
+            }
+          }
+            break;
           case KeywordE::INTO:
           {
             if (!next.has_value()) {
@@ -215,32 +264,25 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             break;
           case KeywordE::DATABASE:
           {
-            if (ctx == CreateDatabaseE) {
+            std::cout << "Got database keyword\n";
+            if (ctx == Context::CreateDatabaseE || ctx == Context::ShowColumnValuesE || ctx == Context::DeleteDatabaseE ) {
               if (!next.has_value()) {
                 return cpp::fail(
                     fmt::format(
-                        "Expected `DATABASE` name after `CREATE DATABASE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                        "Expected `DATABASE` name after `DATABASE` keyword but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                         to_string(*curr), token_number, original));
               } else if (!same_variant(next.value(), Token{Identifier{Name{}}})) {
                 return cpp::fail(
                     fmt::format(
-                        "Expected `DATABASE` name after `CREATE DATABASE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                        "Expected `DATABASE` name after `DATABASE` keyword but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                         to_string(*next), to_string(*curr), token_number, original));
               }
-
-            } else if (ctx == DeleteDatabaseE) {
-              if (!next.has_value()) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE` name after `DELETE DATABASE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*curr), token_number, original));
-              } else if (!same_variant(next.value(), Token{Identifier{Name{}}})) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE` name after `DELETE DATABASE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*next), to_string(*curr), token_number, original));
+              
+              if (ctx == Context::ShowColumnValuesE) {
+                std::cout << "Set variant\n";
+                auto database = std::get<Parser::Name>(std::get<Parser::Identifier>(*next));
+                variant = {ShowColumnValues{"", database.value, ""}};
               }
-            }
           }
             break;
           case KeywordE::DATABASES:
@@ -261,11 +303,12 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
                   variant = {Automata::ShowDatabases{}};
                 }
               }
-              else{
+              else
                 return cpp::fail(
                     fmt::format(
-                        "Expected `SHOW` or `NOTHING` keyword before or after `DATABASES` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*curr), token_number, original));
+                        "Expected `SHOW DATABASES;`.\nBut got query:\n    \"{}\"",
+                        original));
+                
               }
             }
           }

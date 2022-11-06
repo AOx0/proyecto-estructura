@@ -488,8 +488,12 @@ struct ColumnInstance {
         result.push_back(Serialized::du8(&contents[i], 1));
       }
       
+      if (result.size() == 0) {
+        std::cout << "There are no values";
+      } 
+      
       for (auto & value: result)
-        std::cout << static_cast<uint8_t>(value) << " ";
+        std::cout << +value << " ";
       std::cout << "\n";
     } 
     

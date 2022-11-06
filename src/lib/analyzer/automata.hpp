@@ -1,87 +1,87 @@
 #ifndef AUTOMATA_HPP
 #define AUTOMATA_HPP
-#include "parser.hpp"
 #include "../linkedList.hpp"
 #include "../table.hpp"
+#include "parser.hpp"
 #include <map>
+#include <result.hpp>
 #include <set>
 #include <string>
 #include <variant>
-#include <result.hpp>
 
 namespace Automata {
-  template<class... Ts>
-  struct overload : Ts ... {
-    using Ts::operator()...;
-  };
-  template<class... Ts>
-  overload(Ts...) -> overload<Ts...>;
+template <class... Ts> struct overload : Ts... { using Ts::operator()...; };
+template <class... Ts> overload(Ts...) -> overload<Ts...>;
 
-  struct CreateTable {
-    std::string db;
-    std::string name;
-    KeyValueList<std::string, Layout> columns;
-  };
+struct CreateTable {
+  std::string db;
+  std::string name;
+  KeyValueList<std::string, Layout> columns;
+};
 
-  struct CreateDatabase {
-    std::string name;
-  };
+struct CreateDatabase {
+  std::string name;
+};
 
-  struct ShowDatabase {
-    std::string name;
-  };
+struct ShowDatabase {
+  std::string name;
+};
 
-  struct ShowTable {
-    std::string database;
-    std::string table;
-  };
+struct ShowTable {
+  std::string database;
+  std::string table;
+};
 
-  struct DeleteTable {
-    std::string database;
-    std::string table;
-  };
+struct DeleteTable {
+  std::string database;
+  std::string table;
+};
 
-  struct DeleteDatabase {
-    std::string name;
-  };
+struct DeleteDatabase {
+  std::string name;
+};
 
-  struct Insert {
-    std::string database;
-    std::string table;
-    List<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double, Parser::Bool>> values;
-  };
+struct Insert {
+  std::string database;
+  std::string table;
+  List<std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double,
+                    Parser::Bool>>
+      values;
+};
 
-  struct MakeSelect {
-    std::map<std::string, std::set<std::string>> fields_to_select;
-    std::map<std::string, Parser::Type> columns;
-  };
-  struct ShowDatabases{
-  };
+struct MakeSelect {
+  std::map<std::string, std::set<std::string>> fields_to_select;
+  std::map<std::string, Parser::Type> columns;
+};
 
-  enum Context {
-    CreateDatabaseE,
-    CreateTableE,
-    DeleteDatabaseE,
-    DeleteTableE,
-    ShowDatabaseE,
-    ShowTableE,
-    ShowDatabasesE,
-    InsertE,
-    Unknown [[maybe_unused]]
-  };
+struct ShowDatabases {};
 
-  using Action = std::variant<
-      Automata::CreateDatabase,
-      Automata::CreateTable,
-      Automata::DeleteDatabase,
-      Automata::DeleteTable,
-      Automata::ShowDatabase,
-      Automata::ShowTable,
-      Automata::ShowDatabases,
-      Automata::Insert
-  >;
+struct ShowColumnValues {
+  std::string column;
+  std::string database;
+  std::string table;
+};
 
-  cpp::result<Automata::Action, std::string> get_action_struct(std::vector<Parser::Token> in, std::string original);
-}
+enum Context {
+  CreateDatabaseE   ,
+  CreateTableE      ,
+  DeleteDatabaseE   ,
+  DeleteTableE      ,
+  ShowDatabaseE     ,
+  ShowTableE        ,
+  ShowDatabasesE    ,
+  InsertE           ,
+  ShowColumnValuesE ,
+  Unknown [[maybe_unused]] 
+};
 
-#endif //AUTOMATA_HPP
+using Action = std::variant<
+    Automata::CreateDatabase, Automata::CreateTable, Automata::DeleteDatabase,
+    Automata::DeleteTable, Automata::ShowDatabase, Automata::ShowTable,
+    Automata::ShowDatabases, Automata::Insert, Automata::ShowColumnValues>;
+
+cpp::result<Automata::Action, std::string>
+get_action_struct(std::vector<Parser::Token> in, std::string original);
+} // namespace Automata
+
+#endif // AUTOMATA_HPP

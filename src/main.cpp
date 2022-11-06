@@ -302,6 +302,34 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp, const shared_ptr<L
           
           (*db->using_db)--;
         }
+      } else if(holds_alternative<Automata::ShowColumnValues>(args.value())){
+        auto arg = std::get<Automata::ShowColumnValues>(args.value());
+        LSEND("Request to show contents of column {} from table {} at database {}\n", arg.column, arg.table, arg.database);
+        
+        auto db = dbs.dbs.get(arg.database);
+        
+        if (db == nullptr) {
+          SEND_ERROR("Database {} does not exist\n", arg.database);
+        } else {
+          (*db->using_db)++;
+          
+          auto table = db->tables.get(arg.table);
+          
+          if (table == nullptr) {
+            SEND_ERROR("Table {} does not exist in {}\n", arg.table, arg.database);
+          } else {
+
+            auto result = ColumnInstance::load_column(arg.database, arg.table, arg.column, *table->get());
+            if (result.has_error()) {
+              SEND_ERROR("{}\n", result.error());
+            } else {
+              LSEND("Read values successfully!\n"); 
+            }
+          }
+          
+          (*db->using_db)--;
+        }
+        
       } 
     } else {
       SEND_ERROR("{}\n", args.error());

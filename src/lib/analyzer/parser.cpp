@@ -14,7 +14,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
 
   const static std::vector<std::string> valid_keywords = {
       "CREATE", "DATABASE","DATABASES", "TABLE", "INSERT", "INTO", "VALUES",
-      "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN", "SHOW"
+      "SELECT", "FROM", "WHERE", "UPDATE", "SET", "DELETE", "DROP", "PK", "UN", "SHOW", "COLUMN"
   };
 
   const static std::vector<std::string> valid_types = {
@@ -69,6 +69,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       KEYWORD(VALUES)
       KEYWORD(FROM)
       KEYWORD(WHERE)
+      KEYWORD(COLUMN)
       KEYWORD(SET)
       KEYWORD(PK)
       KEYWORD(UN)

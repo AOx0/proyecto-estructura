@@ -57,6 +57,7 @@ namespace Parser {
     UN,
     SHOW,
     DATABASES,
+    COLUMN
   };
 
   inline std::string to_string(const KeywordE& x) {
@@ -113,6 +114,9 @@ namespace Parser {
         break;
       case KeywordE::SHOW:
         ss << "SHOW";
+        break;
+      case KeywordE::COLUMN:
+        ss << "COLUMN";
         break;
     }
 
