@@ -1,12 +1,13 @@
 #include "automata.hpp"
 
+#include "../database.hpp"
 #include "../logger.hpp"
 #include "../table.hpp"
-#include "../database.hpp"
 #include "parser.hpp"
 
-
-cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vector<Parser::Token> in, std::string original) {
+cpp::result<Automata::Action, std::string>
+Automata::get_action_struct(std::vector<Parser::Token> in,
+                            std::string original) {
   using namespace Parser;
   Context ctx = Context::Unknown;
   std::optional<Action> variant = std::nullopt;
@@ -22,389 +23,433 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
       [&](const Bool &rbool) -> cpp::result<void, std::string> {
         if (ctx == Context::InsertE) {
           if (!next.has_value()) {
+            return cpp::fail(
+                fmt::format("Expected `)` or `,` but got nothing.\nAfter token "
+                            "{} (Pos: {}) in query:\n    \"{}\"",
+                            to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(
+                         *next, Token{Symbol{SymbolE::CLOSING_PAR}}) &&
+                     !same_variant_and_value(*next,
+                                             Token{Symbol{SymbolE::COMA}})) {
             return cpp::fail(fmt::format(
-                "Expected `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*curr), token_number, original));
-          } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}})) {
-            return cpp::fail(fmt::format(
-                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) "
+                "in query:\n    \"{}\"",
                 to_string(*next), to_string(*curr), token_number, original));
           }
 
-          auto & var = std::get<Automata::Insert>(variant.value());
+          auto &var = std::get<Automata::Insert>(variant.value());
           var.values.push_back({rbool});
         }
         return {};
       },
       [&](const Keyword &keyword) -> cpp::result<void, std::string> {
         switch (keyword.variant) {
-        
-                
-          case KeywordE::CREATE:
-          {
-            if (token_number != 0) {
-              return cpp::fail(
-                  fmt::format(
-                      "Found `CREATE` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));          
-            }
-            
-            if (!next.has_value()) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE` or `TABLE` after `CREATE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));
-            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
-                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE` or `TABLE` after `CREATE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*next), token_number, to_string(*curr), original));
-            }
 
-            if (ctx == Context::Unknown) {
-              if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}})) {
-                ctx = Context::CreateDatabaseE;
-              } else {
-                ctx = Context::CreateTableE;
-              }
+        case KeywordE::CREATE: {
+          if (token_number != 0) {
+            return cpp::fail(fmt::format(
+                "Found `CREATE` keyword not as the query root.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          }
+
+          if (!next.has_value()) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE` or `TABLE` after `CREATE` but got "
+                "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(
+                         next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
+                     !same_variant_and_value(next.value(),
+                                             Token{Keyword{KeywordE::TABLE}})) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE` or `TABLE` after `CREATE` but got "
+                "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+          }
+
+          if (ctx == Context::Unknown) {
+            if (same_variant_and_value(next.value(),
+                                       Token{Keyword{KeywordE::DATABASE}})) {
+              ctx = Context::CreateDatabaseE;
+            } else {
+              ctx = Context::CreateTableE;
             }
           }
-            break;
-          case KeywordE::DELETE:
-          {
-            if (token_number != 0) {
-              return cpp::fail(
-                  fmt::format(
-                      "Found `DELETE` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));          
-            }
-            
-            if (!next.has_value()) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE` or `TABLE` after `DELETE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));
-            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
-                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE` or `TABLE` after `DELETE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*next), token_number, to_string(*curr), original));
-            }
+        } break;
+        case KeywordE::DELETE: {
+          if (token_number != 0) {
+            return cpp::fail(fmt::format(
+                "Found `DELETE` keyword not as the query root.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          }
 
-            if (ctx == Context::Unknown) {
-              if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}})) {
-                ctx = Context::DeleteDatabaseE;
-              } else {
-                ctx = Context::DeleteTableE;
-              }
+          if (!next.has_value()) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE` or `TABLE` after `DELETE` but got "
+                "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(
+                         next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
+                     !same_variant_and_value(next.value(),
+                                             Token{Keyword{KeywordE::TABLE}})) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE` or `TABLE` after `DELETE` but got "
+                "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+          }
+
+          if (ctx == Context::Unknown) {
+            if (same_variant_and_value(next.value(),
+                                       Token{Keyword{KeywordE::DATABASE}})) {
+              ctx = Context::DeleteDatabaseE;
+            } else {
+              ctx = Context::DeleteTableE;
             }
           }
-            break;
-        
-          case KeywordE::SHOW:
-          {
-            if (token_number != 0) {
-              return cpp::fail(
-                  fmt::format(
-                      "Found `SHOW` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));          
-            }
-            
-            if (!next.has_value()) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE`, `DATABASES`, `FROM` or `TABLE` after `SHOW` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));
-            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
-                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}}) && 
-                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::FROM}}) &&
-                       !same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASES}})) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE`, `DATABASES`, `FROM` or `TABLE` after `SHOW` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*next), token_number, to_string(*curr), original));
-            }
+        } break;
 
-            if (ctx == Context::Unknown) {
-              if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASE}})) {
-                ctx = Context::ShowDatabaseE;
-              }
-              else if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::DATABASES}})) {
-                ctx = Context::ShowDatabasesE;
-              }
-              else if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::TABLE}})) {
-                ctx = Context::ShowTableE;
-              } else if (same_variant_and_value(next.value(), Token{Keyword{KeywordE::FROM}})) {
-                if (!nextp1.has_value()) {
-                  return cpp::fail(
-                      fmt::format(
-                          "Expected `DATABASE`, after `SHOW FROM` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                          to_string(*next), token_number+1, original));
-                } else if (!same_variant_and_value(nextp1.value(), Token{Keyword{KeywordE::DATABASE}})) {
-                  return cpp::fail(
-                      fmt::format(
-                          "Expected `DATABASE`, after `SHOW FROM` but got {}.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                          to_string(*nextp1), to_string(*next), token_number+1, original));
-                }
-              
-                std::cout << "Set context to Show column\n";
-                ctx = Context::ShowColumnValuesE;
-              }
-            }
+        case KeywordE::SHOW: {
+          if (token_number != 0) {
+            return cpp::fail(fmt::format(
+                "Found `SHOW` keyword not as the query root.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
           }
-            break;
-        
-          case KeywordE::COLUMN: {
-            if (ctx == Context::ShowColumnValuesE) {
-              std::cout << "Detected column\n";
-              if (!next.has_value()) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `TABLE.COLUMN` identifier after `COLUMN` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*curr), token_number, original));          
-              } else if (!same_variant(*next, Token{Identifier{NameAndSub{}}})) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `TABLE.COLUMN` identifier after `COLUMN` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*next), token_number, to_string(*curr), original));
-              }
-            
+
+          if (!next.has_value()) {
+            return cpp::fail(
+                fmt::format("Expected `DATABASE`, `DATABASES`, `FROM` or "
+                            "`TABLE` after `SHOW` but got nothing.\nAfter "
+                            "token {} (Pos: {}) in query:\n    \"{}\"",
+                            to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(
+                         next.value(), Token{Keyword{KeywordE::DATABASE}}) &&
+                     !same_variant_and_value(next.value(),
+                                             Token{Keyword{KeywordE::TABLE}}) &&
+                     !same_variant_and_value(next.value(),
+                                             Token{Keyword{KeywordE::FROM}}) &&
+                     !same_variant_and_value(
+                         next.value(), Token{Keyword{KeywordE::DATABASES}})) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE`, `DATABASES`, `FROM` or `TABLE` after "
+                "`SHOW` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    "
+                "\"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+          }
+
+          if (ctx == Context::Unknown) {
+            if (same_variant_and_value(next.value(),
+                                       Token{Keyword{KeywordE::DATABASE}})) {
+              ctx = Context::ShowDatabaseE;
+            } else if (same_variant_and_value(
+                           next.value(), Token{Keyword{KeywordE::DATABASES}})) {
+              ctx = Context::ShowDatabasesE;
+            } else if (same_variant_and_value(
+                           next.value(), Token{Keyword{KeywordE::TABLE}})) {
+              ctx = Context::ShowTableE;
+            } else if (same_variant_and_value(next.value(),
+                                              Token{Keyword{KeywordE::FROM}})) {
               if (!nextp1.has_value()) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `;` after `TABLE.COLUMN` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*next), token_number+1, original));          
-              } else if (!same_variant(*nextp1, Token{Symbol{SymbolE::SEMICOLON}})) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `;` after `TABLE.COLUMN` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*nextp1), token_number+1, to_string(*next), original));
+                return cpp::fail(fmt::format(
+                    "Expected `DATABASE`, after `SHOW FROM` but got "
+                    "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*next), token_number + 1, original));
+              } else if (!same_variant_and_value(
+                             nextp1.value(),
+                             Token{Keyword{KeywordE::DATABASE}})) {
+                return cpp::fail(fmt::format(
+                    "Expected `DATABASE`, after `SHOW FROM` but got {}.\nAfter "
+                    "token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*nextp1), to_string(*next), token_number + 1,
+                    original));
               }
-            
-              auto & var = std::get<Automata::ShowColumnValues>(variant.value());
-              auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
-              var.table = table_column.name;
-              var.column = table_column.sub;
+
+              std::cout << "Set context to Show column\n";
+              ctx = Context::ShowColumnValuesE;
             }
           }
-            break;
-          case KeywordE::INTO:
-          {
+        } break;
+
+        case KeywordE::COLUMN: {
+          if (ctx == Context::ShowColumnValuesE) {
+            std::cout << "Detected column\n";
             if (!next.has_value()) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE.TABLE` identifier after `INTO` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));          
+              return cpp::fail(fmt::format(
+                  "Expected `TABLE.COLUMN` identifier after `COLUMN` but got "
+                  "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
             } else if (!same_variant(*next, Token{Identifier{NameAndSub{}}})) {
-              return cpp::fail(
-                  fmt::format(
-                      "Expected `DATABASE.TABLE` identifier after `INTO` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*next), token_number, to_string(*curr), original));
+              return cpp::fail(fmt::format(
+                  "Expected `TABLE.COLUMN` identifier after `COLUMN` but got "
+                  "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number, to_string(*curr), original));
             }
+
+            if (!nextp1.has_value()) {
+              return cpp::fail(fmt::format(
+                  "Expected `;` after `TABLE.COLUMN` but got nothing.\nAfter "
+                  "token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number + 1, original));
+            } else if (!same_variant(*nextp1,
+                                     Token{Symbol{SymbolE::SEMICOLON}})) {
+              return cpp::fail(fmt::format(
+                  "Expected `;` after `TABLE.COLUMN` but got `{}`.\nAfter "
+                  "token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*nextp1), token_number + 1, to_string(*next),
+                  original));
+            }
+
+            auto &var = std::get<Automata::ShowColumnValues>(variant.value());
+            auto table_column =
+                std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
+            var.table = table_column.name;
+            var.column = table_column.sub;
           }
-            break;
-          case KeywordE::INSERT:
-          {
-            if (token_number != 0) {
-              return cpp::fail(
-                  fmt::format(
-                      "Found `INSERT` keyword not as the query root.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));          
-            }
-            
+        } break;
+        case KeywordE::INTO: {
+          if (!next.has_value()) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE.TABLE` identifier after `INTO` but got "
+                "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          } else if (!same_variant(*next, Token{Identifier{NameAndSub{}}})) {
+            return cpp::fail(fmt::format(
+                "Expected `DATABASE.TABLE` identifier after `INTO` but got "
+                "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+          }
+        } break;
+        case KeywordE::INSERT: {
+          if (token_number != 0) {
+            return cpp::fail(fmt::format(
+                "Found `INSERT` keyword not as the query root.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          }
+
+          if (!next.has_value()) {
+            return cpp::fail(fmt::format(
+                "Expected `INTO` after `INSERT` but got nothing.\nAfter token "
+                "{} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(next.value(),
+                                             Token{Keyword{KeywordE::INTO}})) {
+            return cpp::fail(fmt::format(
+                "Expected `INTO` after `INSERT` but got `{}`.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+          }
+
+          if (ctx == Context::Unknown &&
+              same_variant_and_value(next.value(),
+                                     Token{Keyword{KeywordE::INTO}})) {
+            ctx = Context::InsertE;
+          }
+        } break;
+        case KeywordE::TABLE: {
+          if (ctx == CreateTableE) {
             if (!next.has_value()) {
               return cpp::fail(
-                  fmt::format(
-                      "Expected `INTO` after `INSERT` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*curr), token_number, original));
-            } else if (!same_variant_and_value(next.value(), Token{Keyword{KeywordE::INTO}})) {
+                  fmt::format("Expected `DATABASE.TABLE` identifier after "
+                              "`CREATE TABLE` but got nothing.\nAfter token {} "
+                              "(Pos: {}) in query:\n    \"{}\"",
+                              to_string(*curr), token_number, original));
+            } else if (!same_variant(next.value(),
+                                     Token{Identifier{NameAndSub{}}})) {
+              return cpp::fail(fmt::format(
+                  "Expected `DATABASE.TABLE` identifier after `CREATE TABLE` "
+                  "but got `{}`.\nAfter token {} (Pos: {}) in query:\n    "
+                  "\"{}\"",
+                  to_string(*next), to_string(*curr), token_number, original));
+            }
+
+          } else if (ctx == DeleteTableE) {
+            if (!next.has_value()) {
               return cpp::fail(
-                  fmt::format(
-                      "Expected `INTO` after `INSERT` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                      to_string(*next), token_number, to_string(*curr), original));
+                  fmt::format("Expected `DATABASE.TABLE` identifier after "
+                              "`DELETE TABLE` but got nothing.\nAfter token {} "
+                              "(Pos: {}) in query:\n    \"{}\"",
+                              to_string(*curr), token_number, original));
+            } else if (!same_variant(next.value(),
+                                     Token{Identifier{NameAndSub{}}})) {
+              return cpp::fail(fmt::format(
+                  "Expected `DATABASE.TABLE` identifier after `DELETE TABLE` "
+                  "but got `{}`.\nAfter token {} (Pos: {}) in query:\n    "
+                  "\"{}\"",
+                  to_string(*next), to_string(*curr), token_number, original));
+            }
+          }
+        } break;
+        case KeywordE::DATABASE: {
+          std::cout << "Got database keyword\n";
+          if (ctx == Context::CreateDatabaseE ||
+              ctx == Context::ShowColumnValuesE ||
+              ctx == Context::DeleteDatabaseE) {
+            if (!next.has_value()) {
+              return cpp::fail(fmt::format(
+                  "Expected `DATABASE` name after `DATABASE` keyword but got "
+                  "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+            } else if (!same_variant(next.value(), Token{Identifier{Name{}}})) {
+              return cpp::fail(fmt::format(
+                  "Expected `DATABASE` name after `DATABASE` keyword but got "
+                  "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), to_string(*curr), token_number, original));
             }
 
-            if (ctx == Context::Unknown && same_variant_and_value(next.value(), Token{Keyword{KeywordE::INTO}})) {
-              ctx = Context::InsertE;
+            if (ctx == Context::ShowColumnValuesE) {
+              std::cout << "Set variant\n";
+              auto database =
+                  std::get<Parser::Name>(std::get<Parser::Identifier>(*next));
+              variant = {ShowColumnValues{"", database.value, ""}};
             }
           }
-            break;
-          case KeywordE::TABLE:
-          {
-            if (ctx == CreateTableE) {
-              if (!next.has_value()) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE.TABLE` identifier after `CREATE TABLE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*curr), token_number, original));
-              } else if (!same_variant(next.value(), Token{Identifier{NameAndSub{}}})) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE.TABLE` identifier after `CREATE TABLE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*next), to_string(*curr), token_number, original));
+          break;
+        case KeywordE::DATABASES: {
+          if (ctx == ShowDatabasesE) {
+            if (prev.has_value() && next.has_value()) {
+              if (!same_variant_and_value(prev.value(),
+                                          Token{Keyword{KeywordE::SHOW}})) {
+                return cpp::fail(fmt::format(
+                    "Expected `SHOW` keyword before `DATABASES` but got "
+                    "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*prev), to_string(*curr), token_number,
+                    original));
+              } else if (!same_variant_and_value(
+                             next.value(), Token{Symbol{SymbolE::SEMICOLON}})) {
+                return cpp::fail(fmt::format(
+                    "Expected `;` after `DATABASES` but got `{}`.\nAfter token "
+                    "{} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*next), to_string(*curr), token_number,
+                    original));
+              } else {
+                variant = {Automata::ShowDatabases{}};
               }
-
-            } else if (ctx == DeleteTableE) {
-              if (!next.has_value()) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE.TABLE` identifier after `DELETE TABLE` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*curr), token_number, original));
-              } else if (!same_variant(next.value(), Token{Identifier{NameAndSub{}}})) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE.TABLE` identifier after `DELETE TABLE` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*next), to_string(*curr), token_number, original));
-              }
-
-            }
+            } else
+              return cpp::fail(fmt::format(
+                  "Expected `SHOW DATABASES;`.\nBut got query:\n    \"{}\"",
+                  original));
           }
-            break;
-          case KeywordE::DATABASE:
-          {
-            std::cout << "Got database keyword\n";
-            if (ctx == Context::CreateDatabaseE || ctx == Context::ShowColumnValuesE || ctx == Context::DeleteDatabaseE ) {
-              if (!next.has_value()) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE` name after `DATABASE` keyword but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*curr), token_number, original));
-              } else if (!same_variant(next.value(), Token{Identifier{Name{}}})) {
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `DATABASE` name after `DATABASE` keyword but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                        to_string(*next), to_string(*curr), token_number, original));
-              }
-              
-              if (ctx == Context::ShowColumnValuesE) {
-                std::cout << "Set variant\n";
-                auto database = std::get<Parser::Name>(std::get<Parser::Identifier>(*next));
-                variant = {ShowColumnValues{"", database.value, ""}};
-              }
-          }
-            break;
-          case KeywordE::DATABASES:
-          {
-            if(ctx == ShowDatabasesE){
-              if(prev.has_value() && next.has_value()){
-                if(!same_variant_and_value(prev.value(), Token{Keyword{KeywordE::SHOW}})){
-                  return cpp::fail(
-                      fmt::format(
-                          "Expected `SHOW` keyword before `DATABASES` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                          to_string(*prev), to_string(*curr), token_number, original));
-                } else if(!same_variant_and_value(next.value(), Token{Symbol{SymbolE::SEMICOLON}})){
-                  return cpp::fail(
-                      fmt::format(
-                          "Expected `;` after `DATABASES` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                          to_string(*next), to_string(*curr), token_number, original));
-                } else {
-                  variant = {Automata::ShowDatabases{}};
-                }
-              }
-              else
-                return cpp::fail(
-                    fmt::format(
-                        "Expected `SHOW DATABASES;`.\nBut got query:\n    \"{}\"",
-                        original));
-                
-              }
-            }
-          }
-            break;
-          default:
-            break;
+        }
+        } break;
+        default:
+          break;
         }
 
         return {};
       },
-      [&](const Type &type) -> cpp::result<void, std::string>  {
-        if (ctx == Context::CreateTableE) {  
+      [&](const Type &type) -> cpp::result<void, std::string> {
+        if (ctx == Context::CreateTableE) {
           if (type.variant == TypeE::STR) {
             if (!nextp1.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected name after type str{} in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), to_string(*curr), token_number, original));
+                  "Expected name after type str{} in `CREATE TABLE` context "
+                  "but got nothing\nAfter token `{}` (Pos: {}) in query:\n    "
+                  "\"{}\"",
+                  to_string(*next), to_string(*curr), token_number, original));
             } else if (!same_variant(*nextp1, Token{Identifier{Name{}}})) {
-              return cpp::fail(fmt::format(
-                "Expected name after type str{} in `CREATE TABLE` context but got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), to_string(*nextp1), to_string(*curr), token_number, original));
+              return cpp::fail(
+                  fmt::format("Expected name after type str{} in `CREATE "
+                              "TABLE` context but got `{}`\nAfter token `{}` "
+                              "(Pos: {}) in query:\n    \"{}\"",
+                              to_string(*next), to_string(*nextp1),
+                              to_string(*curr), token_number, original));
             }
           } else {
             if (!next.has_value()) {
-                return cpp::fail(fmt::format(
-                  "Expected name after type `{}` in `CREATE TABLE` context but got nothing\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+              return cpp::fail(fmt::format(
+                  "Expected name after type `{}` in `CREATE TABLE` context but "
+                  "got nothing\nAfter token `{}` (Pos: {}) in query:\n    "
+                  "\"{}\"",
                   to_string(*curr), to_string(*curr), token_number, original));
             } else if (!same_variant(*next, Token{Identifier{Name{}}})) {
-                return cpp::fail(fmt::format(
-                  "Expected name after type `{}` in `CREATE TABLE` context but got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
-                  to_string(*curr), to_string(*next), to_string(*curr), token_number, original));
+              return cpp::fail(fmt::format(
+                  "Expected name after type `{}` in `CREATE TABLE` context but "
+                  "got `{}`\nAfter token `{}` (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), to_string(*next), to_string(*curr),
+                  token_number, original));
             }
           }
         }
         return {};
       },
-      [&](const Symbol &symbol) -> cpp::result<void, std::string>  {
-        // If the symbol is a semicolon, the next token should be a null optional;
+      [&](const Symbol &symbol) -> cpp::result<void, std::string> {
+        // If the symbol is a semicolon, the next token should be a null
+        // optional;
         if (symbol.variant == SymbolE::SEMICOLON) {
           if (next.has_value()) {
             return cpp::fail(fmt::format(
-                "Expected end of query after semicolon but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                "Expected end of query after semicolon but got `{}`\nAfter "
+                "token `;` (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), token_number, original));
           }
         } else if (symbol.variant == SymbolE::OPENING_PAR) {
           if (ctx == Context::CreateTableE) {
-            if ( !next.has_value() ) {
-              return cpp::fail(fmt::format(
-                "Expected type after opening parenthesis in `CREATE TABLE` context but got nothing\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
-                token_number, original));
-            } else if ( !same_variant(*next, Token{Parser::Type{}} )) {
-              return cpp::fail(fmt::format(
-                "Expected type after opening parenthesis in `CREATE TABLE` context but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), token_number, original));
+            if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format("Expected type after opening parenthesis in "
+                              "`CREATE TABLE` context but got nothing\nAfter "
+                              "token `;` (Pos: {}) in query:\n    \"{}\"",
+                              token_number, original));
+            } else if (!same_variant(*next, Token{Parser::Type{}})) {
+              return cpp::fail(
+                  fmt::format("Expected type after opening parenthesis in "
+                              "`CREATE TABLE` context but got `{}`\nAfter "
+                              "token `;` (Pos: {}) in query:\n    \"{}\"",
+                              to_string(*next), token_number, original));
             }
           } else if (ctx == Context::InsertE) {
-            if ( !next.has_value() ) {
+            if (!next.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected str, uint, int, bool or double literal after opening parenthesis in `INSERT INTO` context but got nothing\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
-                token_number, original));
-            } else if ( !same_variant(*next, Token{String{}}) 
-                  && !same_variant(*next, Token{Numbers{Int{}}}) 
-                  && !same_variant(*next, Token{Numbers{UInt{}}}) 
-                  && !same_variant(*next, Token{Numbers{Double{}}})
-                  && !same_variant(*next, Token{Bool{}})
-            ) {
+                  "Expected str, uint, int, bool or double literal after "
+                  "opening parenthesis in `INSERT INTO` context but got "
+                  "nothing\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                  token_number, original));
+            } else if (!same_variant(*next, Token{String{}}) &&
+                       !same_variant(*next, Token{Numbers{Int{}}}) &&
+                       !same_variant(*next, Token{Numbers{UInt{}}}) &&
+                       !same_variant(*next, Token{Numbers{Double{}}}) &&
+                       !same_variant(*next, Token{Bool{}})) {
               return cpp::fail(fmt::format(
-                "Expected str, uint, int, bool or double literal after opening parenthesis in `INSERT INTO` context but got `{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), token_number, original));
+                  "Expected str, uint, int, bool or double literal after "
+                  "opening parenthesis in `INSERT INTO` context but got "
+                  "`{}`\nAfter token `;` (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number, original));
             }
-          } 
+          }
         } else if (symbol.variant == SymbolE::COMA) {
           if (ctx == Context::CreateTableE) {
             if (!next.has_value()) {
-                return cpp::fail(fmt::format(
-                  "Expected type or `)` in `CREATE TABLE` context but got nothing\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
+              return cpp::fail(fmt::format(
+                  "Expected type or `)` in `CREATE TABLE` context but got "
+                  "nothing\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
                   token_number, original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant(*next, Token{Parser::Type{}})) {  
-                return cpp::fail(fmt::format(
-                  "Expected type or `)` in `CREATE TABLE` context but got `{}`\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::CLOSING_PAR}}) &&
+                       !same_variant(*next, Token{Parser::Type{}})) {
+              return cpp::fail(fmt::format(
+                  "Expected type or `)` in `CREATE TABLE` context but got "
+                  "`{}`\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
                   to_string(*next), token_number, original));
             }
           } else if (ctx == Context::InsertE) {
             if (!next.has_value()) {
-                return cpp::fail(fmt::format(
-                  "Expected value or `)` in `INSERT INTO` context but got nothing\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
+              return cpp::fail(fmt::format(
+                  "Expected value or `)` in `INSERT INTO` context but got "
+                  "nothing\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
                   token_number, original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) 
-                  && !same_variant(*next, Token{String{}}) 
-                  && !same_variant(*next, Token{Numbers{Int{}}}) 
-                  && !same_variant(*next, Token{Numbers{UInt{}}}) 
-                  && !same_variant(*next, Token{Numbers{Double{}}})
-                  && !same_variant(*next, Token{Bool{}})
-            ) {
-                return cpp::fail(fmt::format(
-                  "Expected value or `)` in `INSERT INTO` context but got `{}`\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::CLOSING_PAR}}) &&
+                       !same_variant(*next, Token{String{}}) &&
+                       !same_variant(*next, Token{Numbers{Int{}}}) &&
+                       !same_variant(*next, Token{Numbers{UInt{}}}) &&
+                       !same_variant(*next, Token{Numbers{Double{}}}) &&
+                       !same_variant(*next, Token{Bool{}})) {
+              return cpp::fail(fmt::format(
+                  "Expected value or `)` in `INSERT INTO` context but got "
+                  "`{}`\nAfter token `,` (Pos: {}) in query:\n    \"{}\"",
                   to_string(*next), token_number, original));
             }
           }
@@ -412,24 +457,29 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
           if (ctx == Context::CreateTableE) {
             if (!next.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected `;` in `CREATE TABLE` context but got nothing\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
-                token_number, original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::SEMICOLON}})) {
+                  "Expected `;` in `CREATE TABLE` context but got "
+                  "nothing\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
+                  token_number, original));
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::SEMICOLON}})) {
               return cpp::fail(fmt::format(
-                "Expected `;` in `CREATE TABLE` context but got `{}`\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), token_number, original));
+                  "Expected `;` in `CREATE TABLE` context but got `{}`\nAfter "
+                  "token `)` (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number, original));
             }
           } else if (ctx == Context::InsertE) {
             if (!next.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected `;` in `INSERT INTO` context but got nothing\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
-                token_number, original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::SEMICOLON}})) {
+                  "Expected `;` in `INSERT INTO` context but got "
+                  "nothing\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
+                  token_number, original));
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::SEMICOLON}})) {
               return cpp::fail(fmt::format(
-                "Expected `;` in `INSERT INTO` context but got `{}`\nAfter token `)` (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), token_number, original));
+                  "Expected `;` in `INSERT INTO` context but got `{}`\nAfter "
+                  "token `)` (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number, original));
             }
-          
           }
         }
         return {};
@@ -437,63 +487,77 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
       [&](const String &string) -> cpp::result<void, std::string> {
         if (ctx == Context::InsertE) {
           if (!next.has_value()) {
-              return cpp::fail(fmt::format(
-                "Expected `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*curr), token_number, original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}})) {
-              return cpp::fail(fmt::format(
-                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+            return cpp::fail(
+                fmt::format("Expected `)` or `,` but got nothing.\nAfter token "
+                            "{} (Pos: {}) in query:\n    \"{}\"",
+                            to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(
+                         *next, Token{Symbol{SymbolE::CLOSING_PAR}}) &&
+                     !same_variant_and_value(*next,
+                                             Token{Symbol{SymbolE::COMA}})) {
+            return cpp::fail(fmt::format(
+                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) "
+                "in query:\n    \"{}\"",
                 to_string(*next), to_string(*curr), token_number, original));
-            }
-        
-            auto & var = std::get<Automata::Insert>(variant.value());  
-            var.values.push_back({string});      
+          }
+
+          auto &var = std::get<Automata::Insert>(variant.value());
+          var.values.push_back({string});
         }
-      
+
         return {};
       },
       [&](const Numbers &numbers) -> cpp::result<void, std::string> {
         if (ctx == Context::InsertE) {
           if (!next.has_value()) {
+            return cpp::fail(
+                fmt::format("Expected `)` or `,` but got nothing.\nAfter token "
+                            "{} (Pos: {}) in query:\n    \"{}\"",
+                            to_string(*curr), token_number, original));
+          } else if (!same_variant_and_value(
+                         *next, Token{Symbol{SymbolE::CLOSING_PAR}}) &&
+                     !same_variant_and_value(*next,
+                                             Token{Symbol{SymbolE::COMA}})) {
             return cpp::fail(fmt::format(
-              "Expected `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-              to_string(*curr), token_number, original));
-          } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}})) {
-            return cpp::fail(fmt::format(
-              "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-              to_string(*next), to_string(*curr), token_number, original));
+                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) "
+                "in query:\n    \"{}\"",
+                to_string(*next), to_string(*curr), token_number, original));
           }
-        
-          auto & var = std::get<Automata::Insert>(variant.value());  
+
+          auto &var = std::get<Automata::Insert>(variant.value());
           if (same_variant(numbers, Token{Numbers{Int{}}})) {
             auto value = std::get<Int>(numbers);
-            var.values.push_back({value});      
+            var.values.push_back({value});
           } else if (same_variant(numbers, Token{Numbers{UInt{}}})) {
             auto value = std::get<UInt>(numbers);
-            var.values.push_back({value});      
+            var.values.push_back({value});
           } else {
             auto value = std::get<Double>(numbers);
-            var.values.push_back({value});      
+            var.values.push_back({value});
           }
-          
         }
-      
+
         return {};
       },
       [&](const Identifier &identifier) -> cpp::result<void, std::string> {
-        if (ctx == Context::CreateDatabaseE || ctx == Context::DeleteDatabaseE || ctx == Context::DeleteTableE || ctx == Context::ShowDatabaseE || ctx == Context::ShowTableE) {
-          // If there is not a next token it is an error, there should be a semicolon
+        if (ctx == Context::CreateDatabaseE ||
+            ctx == Context::DeleteDatabaseE || ctx == Context::DeleteTableE ||
+            ctx == Context::ShowDatabaseE || ctx == Context::ShowTableE) {
+          // If there is not a next token it is an error, there should be a
+          // semicolon
           if (!next.has_value())
             return cpp::fail(fmt::format(
-                "Expected semicolon after identifier but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected semicolon after identifier but got nothing.\nAfter "
+                "token {} (Pos: {}) in query:\n    \"{}\"",
                 token_number, to_string(*curr), original));
-          if (!same_variant_and_value(next.value(), Token{Symbol{SymbolE::SEMICOLON}}))
+          if (!same_variant_and_value(next.value(),
+                                      Token{Symbol{SymbolE::SEMICOLON}}))
             return cpp::fail(fmt::format(
-                "Expected semicolon after identifier but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected semicolon after identifier but got `{}`.\nAfter "
+                "token {} (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), token_number, to_string(*curr), original));
         }
-      
-        
+
         if (ctx == Context::ShowDatabaseE) {
           if (std::holds_alternative<Name>(identifier)) {
             std::string name = std::get<Name>(identifier).value;
@@ -501,17 +565,19 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             return {};
           } else {
             return cpp::fail(fmt::format(
-                "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected database name but got `{}`.\nAfter token {} (Pos: "
+                "{}) in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
-        } else if (ctx == Context::ShowTableE) {  
+        } else if (ctx == Context::ShowTableE) {
           if (std::holds_alternative<NameAndSub>(identifier)) {
             auto data = std::get<NameAndSub>(identifier);
             variant = {Automata::ShowTable{data.name, data.sub}};
             return {};
           } else {
             return cpp::fail(fmt::format(
-                "Expected table name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected table name but got `{}`.\nAfter token {} (Pos: {}) "
+                "in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
         } else if (ctx == Context::CreateDatabaseE) {
@@ -521,7 +587,8 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             return {};
           } else {
             return cpp::fail(fmt::format(
-                "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected database name but got `{}`.\nAfter token {} (Pos: "
+                "{}) in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
         } else if (ctx == Context::DeleteDatabaseE) {
@@ -531,7 +598,8 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             return {};
           } else {
             return cpp::fail(fmt::format(
-                "Expected database name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected database name but got `{}`.\nAfter token {} (Pos: "
+                "{}) in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
         } else if (ctx == Context::DeleteTableE) {
@@ -541,122 +609,146 @@ cpp::result<Automata::Action, std::string> Automata::get_action_struct(std::vect
             return {};
           } else {
             return cpp::fail(fmt::format(
-                "Expected table name but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                "Expected table name but got `{}`.\nAfter token {} (Pos: {}) "
+                "in query:\n    \"{}\"",
                 to_string(*curr), token_number, to_string(*curr), original));
           }
         } else if (ctx == Context::CreateTableE) {
           if (std::holds_alternative<NameAndSub>(identifier)) {
             if (!prev.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected `CREATE TABLE` but got nothing.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
-                token_number, to_string(*curr), original));
-            } else if (!same_variant_and_value(*prev, Token{Keyword{KeywordE::TABLE}})) {
+                  "Expected `CREATE TABLE` but got nothing.\nBefore token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(
+                           *prev, Token{Keyword{KeywordE::TABLE}})) {
               return cpp::fail(fmt::format(
-                "Expected `TABLE` but got `{}`.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*prev), to_string(*curr), token_number, original));
+                  "Expected `TABLE` but got `{}`.\nBefore token {} (Pos: {}) "
+                  "in query:\n    \"{}\"",
+                  to_string(*prev), to_string(*curr), token_number, original));
             }
-          
+
             if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format("Expected `(` but got nothing.\nAfter token {} "
+                              "(Pos: {}) in query:\n    \"{}\"",
+                              token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::OPENING_PAR}})) {
               return cpp::fail(fmt::format(
-                "Expected `(` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                token_number, to_string(*curr), original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::OPENING_PAR}})) {
-              return cpp::fail(fmt::format(
-                "Expected `(` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), token_number, to_string(*curr), original));
+                  "Expected `(` but got `{}`.\nAfter token {} (Pos: {}) in "
+                  "query:\n    \"{}\"",
+                  to_string(*next), token_number, to_string(*curr), original));
             }
-          
+
             auto data = std::get<NameAndSub>(identifier);
             variant = {Automata::CreateTable{data.name, data.sub, {}}};
           }
-        
+
           if (std::holds_alternative<Name>(identifier)) {
             if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format("Expected `)` or `,` but got nothing.\nAfter "
+                              "token {} (Pos: {}) in query:\n    \"{}\"",
+                              to_string(*curr), token_number, original));
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::CLOSING_PAR}}) &&
+                       !same_variant_and_value(*next,
+                                               Token{Symbol{SymbolE::COMA}})) {
               return cpp::fail(fmt::format(
-                "Expected `)` or `,` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*curr), token_number, original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::CLOSING_PAR}}) && !same_variant_and_value(*next, Token{Symbol{SymbolE::COMA}})) {
-              return cpp::fail(fmt::format(
-                "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), to_string(*curr), token_number, original));
+                  "Expected `)` or `,` but got `{}`.\nAfter token {} (Pos: {}) "
+                  "in query:\n    \"{}\"",
+                  to_string(*next), to_string(*curr), token_number, original));
             }
-          
+
             if (same_variant(*prev, Token{Parser::Type{}})) {
-              auto & var = std::get<Automata::CreateTable>(variant.value());
+              auto &var = std::get<Automata::CreateTable>(variant.value());
               std::string name = std::get<Name>(identifier).value;
               Parser::Type type = std::get<Parser::Type>(*prev);
               var.columns.insert(name, Layout::from_parser_type(type));
-            } else if (same_variant_and_value(*prevm1, Token{Parser::Type{TypeE::STR}})) {
-              auto & var = std::get<Automata::CreateTable>(variant.value());
+            } else if (same_variant_and_value(
+                           *prevm1, Token{Parser::Type{TypeE::STR}})) {
+              auto &var = std::get<Automata::CreateTable>(variant.value());
               std::string name = std::get<Name>(identifier).value;
               UInt size = std::get<UInt>(std::get<Numbers>(*prev));
-              var.columns.insert(name, Layout{.size=size.value, .optional=false, .type=ColumnType::str});
+              var.columns.insert(name, Layout{.size = size.value,
+                                              .optional = false,
+                                              .type = ColumnType::str});
             } else {
               return cpp::fail(fmt::format(
-                "Something went wrong while extracting types.\nIn token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*curr), token_number, original));
+                  "Something went wrong while extracting types.\nIn token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
             }
           }
         } else if (ctx == Context::InsertE) {
           if (std::holds_alternative<NameAndSub>(identifier)) {
             if (!prev.has_value()) {
               return cpp::fail(fmt::format(
-                "Expected `DATABASE.TABLE` identifier but got nothing.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
-                token_number, to_string(*curr), original));
-            } else if (!same_variant_and_value(*prev, Token{Keyword{KeywordE::INTO}})) {
+                  "Expected `DATABASE.TABLE` identifier but got "
+                  "nothing.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
+                  token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(
+                           *prev, Token{Keyword{KeywordE::INTO}})) {
               return cpp::fail(fmt::format(
-                "Expected `DATABASE.TABLE` identifier but got `{}`.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*prev), to_string(*curr), token_number, original));
+                  "Expected `DATABASE.TABLE` identifier but got `{}`.\nBefore "
+                  "token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*prev), to_string(*curr), token_number, original));
             }
-          
+
             if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format("Expected `(` but got nothing.\nAfter token {} "
+                              "(Pos: {}) in query:\n    \"{}\"",
+                              token_number, to_string(*curr), original));
+            } else if (!same_variant_and_value(
+                           *next, Token{Symbol{SymbolE::OPENING_PAR}})) {
               return cpp::fail(fmt::format(
-                "Expected `(` but got nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                token_number, to_string(*curr), original));
-            } else if (!same_variant_and_value(*next, Token{Symbol{SymbolE::OPENING_PAR}})) {
-              return cpp::fail(fmt::format(
-                "Expected `(` but got `{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                to_string(*next), token_number, to_string(*curr), original));
+                  "Expected `(` but got `{}`.\nAfter token {} (Pos: {}) in "
+                  "query:\n    \"{}\"",
+                  to_string(*next), token_number, to_string(*curr), original));
             }
-          
+
             auto data = std::get<NameAndSub>(identifier);
             variant = {Automata::Insert{data.name, data.sub, {}}};
           }
         }
-          return {};
-      },
-      [&](const Operator &op) -> cpp::result<void, std::string> {
         return {};
       },
+      [&](const Operator &op) -> cpp::result<void, std::string> { return {}; },
       [&](const Parser::Unknown &unknown) -> cpp::result<void, std::string> {
-        std::string result = Logger::show_ln(LOG_TYPE_::NONE, fmt::format("Found unknown token `{}`.", to_string(unknown)));
-        result += Logger::show(LOG_TYPE_::NONE, fmt::format("Token (Pos: {}) in query:\n    \"{}\"", token_number, original));
+        std::string result = Logger::show_ln(
+            LOG_TYPE_::NONE,
+            fmt::format("Found unknown token `{}`.", to_string(unknown)));
+        result +=
+            Logger::show(LOG_TYPE_::NONE,
+                         fmt::format("Token (Pos: {}) in query:\n    \"{}\"",
+                                     token_number, original));
         return cpp::fail(result);
-      }
-  };
+      }};
 
   for (token_number = 0; token_number < in.size(); token_number++) {
     curr = in[token_number];
-    
+
     if (token_number > 0) {
-      prev = in[token_number-1];
+      prev = in[token_number - 1];
     } else {
       prev = std::nullopt;
     }
-    
+
     if (token_number - 1 > 0) {
-      prevm1 = in[token_number-2];
+      prevm1 = in[token_number - 2];
     } else {
       prevm1 = std::nullopt;
     }
-    
-    if (token_number < in.size()-1) {
+
+    if (token_number < in.size() - 1) {
       next = in[token_number + 1];
     } else {
       next = std::nullopt;
     }
 
-    if (token_number+1 < in.size()-1) {
+    if (token_number + 1 < in.size() - 1) {
       nextp1 = in[token_number + 2];
     } else {
       nextp1 = std::nullopt;

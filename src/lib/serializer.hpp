@@ -1,8 +1,8 @@
 #ifndef SERIALIZER_HPP
 #define SERIALIZER_HPP
 
-#include <iostream>
 #include "analyzer/parser.hpp"
+#include <iostream>
 
 enum ColumnType {
   u8 = 1,
@@ -28,38 +28,36 @@ struct Layout {
 
   bool operator==(Layout const &other) const;
 
-  bool operator!=(Layout const &other) const {
-    return !(other == *this);
-  }
+  bool operator!=(Layout const &other) const { return !(other == *this); }
 
   static Layout from_parser_type(Parser::Type const &type) {
     switch (type.variant) {
-      case Parser::TypeE::U8:
-        return Layout{.size = 1, .optional = false, .type = ColumnType::u8};
-      case Parser::TypeE::U16:
-        return Layout{.size = 2, .optional = false, .type = ColumnType::u16};
-      case Parser::TypeE::U32:
-        return Layout{.size = 4, .optional = false, .type = ColumnType::u32};
-      case Parser::TypeE::U64:
-        return Layout{.size = 8, .optional = false, .type = ColumnType::u64};
-      case Parser::TypeE::I8:
-        return Layout{.size = 1, .optional = false, .type = ColumnType::i8};
-      case Parser::TypeE::I16:
-        return Layout{.size = 2, .optional = false, .type = ColumnType::i16};
-      case Parser::TypeE::I32:
-        return Layout{.size = 4, .optional = false, .type = ColumnType::i32};
-      case Parser::TypeE::I64:
-        return Layout{.size = 8, .optional = false, .type = ColumnType::i64};
-        //case Parser::TypeE::F32:
-        //  return Layout{.size = 4, .optional = false, .type = ColumnType::f32};
-      case Parser::TypeE::F64:
-        return Layout{.size = 8, .optional = false, .type = ColumnType::f64};
-      case Parser::TypeE::STR:
-        return Layout{.size = 0, .optional = false, .type = ColumnType::str};
-      case Parser::TypeE::BOOL:
-        return Layout{.size = 1, .optional = false, .type = ColumnType::rbool};
-      default:
-        throw std::runtime_error("Invalid type");
+    case Parser::TypeE::U8:
+      return Layout{.size = 1, .optional = false, .type = ColumnType::u8};
+    case Parser::TypeE::U16:
+      return Layout{.size = 2, .optional = false, .type = ColumnType::u16};
+    case Parser::TypeE::U32:
+      return Layout{.size = 4, .optional = false, .type = ColumnType::u32};
+    case Parser::TypeE::U64:
+      return Layout{.size = 8, .optional = false, .type = ColumnType::u64};
+    case Parser::TypeE::I8:
+      return Layout{.size = 1, .optional = false, .type = ColumnType::i8};
+    case Parser::TypeE::I16:
+      return Layout{.size = 2, .optional = false, .type = ColumnType::i16};
+    case Parser::TypeE::I32:
+      return Layout{.size = 4, .optional = false, .type = ColumnType::i32};
+    case Parser::TypeE::I64:
+      return Layout{.size = 8, .optional = false, .type = ColumnType::i64};
+      // case Parser::TypeE::F32:
+      //   return Layout{.size = 4, .optional = false, .type = ColumnType::f32};
+    case Parser::TypeE::F64:
+      return Layout{.size = 8, .optional = false, .type = ColumnType::f64};
+    case Parser::TypeE::STR:
+      return Layout{.size = 0, .optional = false, .type = ColumnType::str};
+    case Parser::TypeE::BOOL:
+      return Layout{.size = 1, .optional = false, .type = ColumnType::rbool};
+    default:
+      throw std::runtime_error("Invalid type");
     }
   }
 
@@ -71,49 +69,49 @@ struct Layout {
 
   friend std::ostream &operator<<(std::ostream &os, Layout const &layout) {
     os << to_string(layout.type) << "(" << layout.size << " bytes)";
-    //os << "Layout{size=" << layout.size << ", type=" << layout.type << "}";
+    // os << "Layout{size=" << layout.size << ", type=" << layout.type << "}";
     return os;
   }
 };
 
 struct DynArray {
-  uint8_t * array;
-  uint64_t length;  
+  uint8_t *array;
+  uint64_t length;
 };
 
 namespace rsp_ {
-  extern "C" void drop_dyn_array(DynArray); 
-  extern "C" DynArray serialize_layout(Layout);
-  extern "C" Layout deserialize_layout(uint8_t *, uint64_t);
+extern "C" void drop_dyn_array(DynArray);
+extern "C" DynArray serialize_layout(Layout);
+extern "C" Layout deserialize_layout(uint8_t *, uint64_t);
 
-  extern "C" DynArray su64(uint64_t);
-  extern "C" uint64_t du64(uint8_t *, uint64_t);
-  extern "C" DynArray su32(uint32_t);
-  extern "C" uint32_t du32(uint8_t *, uint64_t);
-  extern "C" DynArray su16(uint16_t);
-  extern "C" uint16_t du16(uint8_t *, uint64_t);
-  extern "C" DynArray su8(uint8_t);
-  extern "C" uint8_t du8(uint8_t *, uint64_t);
+extern "C" DynArray su64(uint64_t);
+extern "C" uint64_t du64(uint8_t *, uint64_t);
+extern "C" DynArray su32(uint32_t);
+extern "C" uint32_t du32(uint8_t *, uint64_t);
+extern "C" DynArray su16(uint16_t);
+extern "C" uint16_t du16(uint8_t *, uint64_t);
+extern "C" DynArray su8(uint8_t);
+extern "C" uint8_t du8(uint8_t *, uint64_t);
 
-  extern "C" DynArray si64(int64_t);
-  extern "C" int32_t di64(uint8_t *, uint64_t);
-  extern "C" DynArray si32(int32_t);
-  extern "C" int32_t di32(uint8_t *, uint64_t);
-  extern "C" DynArray si16(int16_t);
-  extern "C" int16_t di16(uint8_t *, uint64_t);
-  extern "C" DynArray si8(int8_t);
-  extern "C" int8_t di8(uint8_t *, uint64_t);
+extern "C" DynArray si64(int64_t);
+extern "C" int32_t di64(uint8_t *, uint64_t);
+extern "C" DynArray si32(int32_t);
+extern "C" int32_t di32(uint8_t *, uint64_t);
+extern "C" DynArray si16(int16_t);
+extern "C" int16_t di16(uint8_t *, uint64_t);
+extern "C" DynArray si8(int8_t);
+extern "C" int8_t di8(uint8_t *, uint64_t);
 
-  extern "C" DynArray sf64(double);
-  extern "C" double df64(uint8_t *, uint64_t);
+extern "C" DynArray sf64(double);
+extern "C" double df64(uint8_t *, uint64_t);
 
-  extern "C" DynArray sbool(bool);
-  extern "C" bool dbool(uint8_t *, uint64_t);
+extern "C" DynArray sbool(bool);
+extern "C" bool dbool(uint8_t *, uint64_t);
 
-  extern "C" DynArray serialize_str(const char *, uint64_t);
-  extern "C" char * deserialize_str(uint8_t *, uint64_t);
-  extern "C" void drop_str(char *);
-}
+extern "C" DynArray serialize_str(const char *, uint64_t);
+extern "C" char *deserialize_str(uint8_t *, uint64_t);
+extern "C" void drop_str(char *);
+} // namespace rsp_
 
 struct SString {
   char *data;
@@ -122,47 +120,35 @@ struct SString {
   SString() : data(nullptr), size(0) {}
   SString(char *data, uint64_t size) : data(data), size(size) {}
 
-  ~SString() {
-    rsp_::drop_str(data);
-  }
+  ~SString() { rsp_::drop_str(data); }
 
-  std::string to_string() {
-    return std::string(data);
-  }
+  std::string to_string() { return std::string(data); }
 };
 
 struct Serialized {
 protected:
   DynArray member;
+
 public:
-  template<typename T>
-  uint8_t operator[](T idx) {
-    return member.array[idx];
-  }
+  template <typename T> uint8_t operator[](T idx) { return member.array[idx]; }
 
-  uint8_t * data() {
-    return member.array;
-  }
-  
-  explicit Serialized(const DynArray & array) : member(array) {}
-  
-  [[nodiscard]] uint64_t len() const {
-    return member.length;
-  }
-  
-  ~Serialized() {
-    rsp_::drop_dyn_array(member);
-  }
+  uint8_t *data() { return member.array; }
 
-  [[nodiscard]] static Layout dLayout(uint8_t * a, uint64_t aa) {
+  explicit Serialized(const DynArray &array) : member(array) {}
+
+  [[nodiscard]] uint64_t len() const { return member.length; }
+
+  ~Serialized() { rsp_::drop_dyn_array(member); }
+
+  [[nodiscard]] static Layout dLayout(uint8_t *a, uint64_t aa) {
     return {rsp_::deserialize_layout(a, aa)};
   }
-  
+
   [[nodiscard]] Layout dLayout() const {
     return {rsp_::deserialize_layout(member.array, member.length)};
   }
 
-  [[nodiscard]] static uint64_t du64(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static uint64_t du64(uint8_t *a, uint64_t aa) {
     return rsp_::du64(a, aa);
   }
 
@@ -170,7 +156,7 @@ public:
     return rsp_::du64(member.array, member.length);
   }
 
-  [[nodiscard]] static uint32_t du32(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static uint32_t du32(uint8_t *a, uint64_t aa) {
     return rsp_::du32(a, aa);
   }
 
@@ -178,7 +164,7 @@ public:
     return rsp_::du32(member.array, member.length);
   }
 
-  [[nodiscard]] static uint16_t du16(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static uint16_t du16(uint8_t *a, uint64_t aa) {
     return rsp_::du16(a, aa);
   }
 
@@ -186,7 +172,7 @@ public:
     return rsp_::du16(member.array, member.length);
   }
 
-  [[nodiscard]] static uint8_t du8(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static uint8_t du8(uint8_t *a, uint64_t aa) {
     return rsp_::du8(a, aa);
   }
 
@@ -194,7 +180,7 @@ public:
     return rsp_::du8(member.array, member.length);
   }
 
-  [[nodiscard]] static int64_t di64(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static int64_t di64(uint8_t *a, uint64_t aa) {
     return rsp_::di64(a, aa);
   }
 
@@ -202,7 +188,7 @@ public:
     return rsp_::di64(member.array, member.length);
   }
 
-  [[nodiscard]] static int32_t di32(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static int32_t di32(uint8_t *a, uint64_t aa) {
     return rsp_::di32(a, aa);
   }
 
@@ -210,7 +196,7 @@ public:
     return rsp_::di32(member.array, member.length);
   }
 
-  [[nodiscard]] static int16_t di16(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static int16_t di16(uint8_t *a, uint64_t aa) {
     return rsp_::di16(a, aa);
   }
 
@@ -218,7 +204,7 @@ public:
     return rsp_::di16(member.array, member.length);
   }
 
-  [[nodiscard]] static int8_t di8(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static int8_t di8(uint8_t *a, uint64_t aa) {
     return rsp_::di8(a, aa);
   }
 
@@ -226,7 +212,7 @@ public:
     return rsp_::di8(member.array, member.length);
   }
 
-  [[nodiscard]] static double df64(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static double df64(uint8_t *a, uint64_t aa) {
     return rsp_::df64(a, aa);
   }
 
@@ -234,7 +220,7 @@ public:
     return rsp_::df64(member.array, member.length);
   }
 
-  [[nodiscard]] static bool dbool(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static bool dbool(uint8_t *a, uint64_t aa) {
     return rsp_::dbool(a, aa);
   }
 
@@ -242,7 +228,7 @@ public:
     return rsp_::dbool(member.array, member.length);
   }
 
-  [[nodiscard]] static SString dstr(uint8_t * a, uint64_t aa) {
+  [[nodiscard]] static SString dstr(uint8_t *a, uint64_t aa) {
     return {rsp_::deserialize_str(a, aa), aa};
   }
 
@@ -257,7 +243,7 @@ public:
   static Serialized serialize(Layout layout) {
     return Serialized(rsp_::serialize_layout(layout));
   }
-  
+
   static Serialized serialize(uint64_t value) {
     return Serialized(rsp_::su64(value));
   }
@@ -294,13 +280,13 @@ public:
     return Serialized(rsp_::sf64(value));
   }
 
-  static Serialized serialize(const char * value, uint64_t size) {
+  static Serialized serialize(const char *value, uint64_t size) {
     return Serialized(rsp_::serialize_str(value, size));
   }
 
-  static Serialized serialize(const std::string & value, uint64_t size) {
+  static Serialized serialize(const std::string &value, uint64_t size) {
     return Serialized(rsp_::serialize_str(value.c_str(), size));
   }
 };
 
-#endif //SERIALIZER_HPP
+#endif // SERIALIZER_HPP

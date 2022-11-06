@@ -63,16 +63,16 @@ struct ShowColumnValues {
 };
 
 enum Context {
-  CreateDatabaseE   ,
-  CreateTableE      ,
-  DeleteDatabaseE   ,
-  DeleteTableE      ,
-  ShowDatabaseE     ,
-  ShowTableE        ,
-  ShowDatabasesE    ,
-  InsertE           ,
-  ShowColumnValuesE ,
-  Unknown [[maybe_unused]] 
+  CreateDatabaseE,
+  CreateTableE,
+  DeleteDatabaseE,
+  DeleteTableE,
+  ShowDatabaseE,
+  ShowTableE,
+  ShowDatabasesE,
+  InsertE,
+  ShowColumnValuesE,
+  Unknown [[maybe_unused]]
 };
 
 using Action = std::variant<

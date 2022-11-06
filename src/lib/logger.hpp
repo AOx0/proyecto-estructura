@@ -1,21 +1,16 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
+#include <fmt/color.h>
+#include <fmt/core.h>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <utility>
-#include <fmt/core.h>
-#include <fmt/color.h>
-#include <mutex>
 
 #include "fm.hpp"
 
-enum LOG_TYPE_ {
-  INFO,
-  WARN,
-  ERROR,
-  NONE
-};
+enum LOG_TYPE_ { INFO, WARN, ERROR, NONE };
 
 struct Logger {
   using Path = FileManager::Path;
@@ -32,7 +27,6 @@ private:
   static std::vector<std::uint8_t> to_vec(const std::string &str);
 
 public:
-
   explicit Logger(Path path);
 
   // Static method to log to path_.path and to print to stdout with fmt library
@@ -45,4 +39,4 @@ public:
   void error(const std::string &msg);
 };
 
-#endif //LOGGER_HPP
+#endif // LOGGER_HPP

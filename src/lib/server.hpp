@@ -45,7 +45,7 @@ public:
     if (shared.null) {
       return std::nullopt;
     } else {
-      return std::make_optional(string((char *) shared.value));
+      return std::make_optional(string((char *)shared.value));
     }
   }
 };
