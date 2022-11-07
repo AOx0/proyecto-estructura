@@ -92,6 +92,7 @@ set(LIBRARIES
         src/lib/linkedList.hpp
         src/lib/serializer.cpp
         src/lib/serializer.hpp
+        src/lib/columnInstance.hpp
         )
 
 add_executable(proyecto-estructura

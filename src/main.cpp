@@ -13,6 +13,7 @@
 #include "lib/linkedList.hpp"
 #include "lib/logger.hpp"
 #include "lib/server.hpp"
+#include "lib/columnInstance.hpp"
 
 using namespace std;
 
@@ -167,9 +168,9 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
       return;
     }
 
-    auto result = Parser::validate(query);
-    if (!std::get<0>(result)) {
-      SEND_ERROR("Invalid query: {}\n", std::get<1>(result).value());
+    auto parser_validation_result = Parser::validate(query);
+    if (!std::get<0>(parser_validation_result)) {
+      SEND_ERROR("Invalid query: {}\n", std::get<1>(parser_validation_result).value());
       break;
     }
 
@@ -236,7 +237,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           db->tables.for_each_c(
               [&](const KeyValue<std::string, std::shared_ptr<Table>> &table) {
                 stringstream data;
-                data << (*table.value.get());
+                data << (*table.value);
                 SEND("{}\n", data.str());
                 return false;
               });
@@ -259,7 +260,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
                        arg.database);
           } else {
             stringstream data;
-            data << (*table->get());
+            data << *table;
             SEND("{}\n", data.str());
           }
 
@@ -268,16 +269,16 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
 
       } else if (holds_alternative<Automata::ShowDatabases>(args.value())) {
         auto databases = dbs.get_db_names();
-        if (databases.size() == 0) {
+        if (databases.empty()) {
           SEND_ERROR("No databases exist\n");
         } else {
-          for (int i = 0; i < databases.size(); ++i) {
-            SEND("{}\n", databases[i]);
+          for (auto & database : databases) {
+            SEND("{}\n", database);
           }
         }
       } else if (holds_alternative<Automata::Insert>(args.value())) {
         auto arg = std::get<Automata::Insert>(args.value());
-        LSEND("Inserting into table {} from database {} values \n", arg.table,
+        /*LSEND("Inserting into table {} from database {} values \n", arg.table,
               arg.database);
         arg.values.for_each([&](auto value) {
           if (holds_alternative<Parser::String>(value)) {
@@ -295,7 +296,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           }
           return false;
         });
-        LSEND("\n");
+        LSEND("\n");*/
 
         auto db = dbs.dbs.get(arg.database);
 
@@ -323,10 +324,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         }
       } else if (holds_alternative<Automata::ShowColumnValues>(args.value())) {
         auto arg = std::get<Automata::ShowColumnValues>(args.value());
-        LSEND("Request to show contents of column {} from table {} at database "
-              "{}\n",
-              arg.column, arg.table, arg.database);
-
         auto db = dbs.dbs.get(arg.database);
 
         if (db == nullptr) {
@@ -341,11 +338,17 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
                        arg.database);
           } else {
             auto result = ColumnInstance::load_column(
-                arg.database, arg.table, arg.column, *table->get());
+                arg.database, arg.table, arg.column, *(table->get()));
             if (result.has_error()) {
               SEND_ERROR("{}\n", result.error());
             } else {
-              LSEND("Read values successfully!\n");
+              auto string_version = result.value().to_string_vec();
+
+              //SEND("Values: ");
+              for (auto & value : string_version) {
+                SEND("{}, ", value);
+              }
+              SEND("\n");
             }
           }
 
