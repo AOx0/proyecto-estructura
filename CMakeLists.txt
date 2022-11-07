@@ -44,14 +44,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Corrosion)
 
-# Agregamos tabulate para poder imprimir tablas
+# Agregamos libfort para poder imprimir tablas
 FetchContent_Declare(
-        tabulate
-        GIT_REPOSITORY https://github.com/p-ranav/tabulate.git
-        GIT_TAG 4d76b8ae309dee120b45d91cb4d1998e38a7e5c6
+        libfort
+        GIT_REPOSITORY https://github.com/seleznevae/libfort.git
+        GIT_TAG 41237162a9bd34a30a88069ee4e230584ae8d674
 )
 
-FetchContent_MakeAvailable(tabulate)
+FetchContent_MakeAvailable(libfort)
+
 
 corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)# PROFILE release)
 corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)# PROFILE release)
@@ -122,8 +123,8 @@ add_executable(
         tests/serializer.cc
 )
 
-target_link_libraries(proyecto-tests GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer tabulate)
-target_link_libraries(toidb PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer tabulate)
+target_link_libraries(proyecto-tests PRIVATE fort GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer)
+target_link_libraries(toidb  PRIVATE fort PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto-tests)

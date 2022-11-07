@@ -1,12 +1,12 @@
 #include <csignal>
-#include <fmt/core.h>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <thread>
 #include <vector>
-#include <tabulate/table.hpp>
+#include <fmt/core.h>
+#include <fort.hpp>
 
 #include "lib/analyzer.hpp"
 #include "lib/database.hpp"
@@ -16,7 +16,6 @@
 #include "lib/server.hpp"
 #include "lib/columnInstance.hpp"
 #include "lib/databases.hpp"
-
 
 using namespace std;
 
@@ -133,15 +132,15 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           SEND_ERROR("Database {} does not exist\n", arg.name);
         } else {
           (*db->using_db)++;
-          tabulate::Table pp_table;
-          pp_table.add_row({"Tables"});
+            fort::char_table pp_table;
+            pp_table << fort::header << "Tables" << fort::endr;
           db->tables.for_each_c(
               [&](const KeyValue<std::string, std::shared_ptr<DatabaseTable>> &table) {
-                pp_table.add_row({table.key});
+                pp_table << table.key << fort::endr;
                 return false;
               });
 
-          send << pp_table << '\n';
+          send << pp_table.to_string() << '\n';
           (*db->using_db)--;
         }
       } else if (holds_alternative<Automata::ShowTable>(args.value())) {
@@ -158,15 +157,16 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
-            tabulate::Table pp_table;
-            pp_table.add_row({"Column", "Type", "Size"});
+            fort::char_table pp_table;
+            pp_table << fort::header << "Column" << "Size" << "Type" << fort::endr;
             auto _ = (*table)->columns.for_each_c(
                 [&](const KeyValue<std::string, Layout> &column) {
-                  pp_table.add_row({column.key, to_string(column.value.type), fmt::format("{}", column.value.size)});
+                    pp_table << column.key << column.value.size << to_string(column.value.type)
+                             << fort::endr;
                   return false;
                 });
 
-            send << pp_table << '\n';
+            send << pp_table.to_string() << '\n';
           }
 
           (*db->using_db)--;
@@ -177,12 +177,12 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (databases.empty()) {
           SEND_ERROR("No databases exist\n");
         } else {
-          tabulate::Table pp_table;
-          pp_table.add_row({"Databases"});
+          fort::char_table pp_table;
+            pp_table << fort::header << "Databases" << fort::endr;
           for (auto &db : databases) {
-            pp_table.add_row({db});
+            pp_table << db << fort::endr;
           }
-          send << pp_table << '\n';
+          send << pp_table.to_string() << '\n';
         }
       } else if (holds_alternative<Automata::Insert>(args.value())) {
         auto arg = std::get<Automata::Insert>(args.value());
@@ -232,13 +232,13 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             } else {
               auto string_version = result.value().to_string_vec();
 
-              tabulate::Table pp_table;
-              pp_table.add_row({"Values"});
+              fort::char_table pp_table;
+              pp_table << fort::header << "Values" << fort::endr;
               for (auto & value : string_version) {
-                pp_table.add_row({value});
+                pp_table << value << fort::endr;
               }
 
-              send << pp_table << '\n';
+              send << pp_table.to_string() << '\n';
             }
           }
 
@@ -273,24 +273,22 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
               }
               return false;
             });
-            using Row_t = tabulate::Table::Row_t;
-            Row_t row;
 
-            tabulate::Table pp_table;
-            row.insert(row.end(),
-                       std::make_move_iterator(column_names.begin()),
-                       std::make_move_iterator(column_names.end()));
-            pp_table.add_row(row);
+            fort::char_table pp_table;
+
+            for (auto &column_name : column_names) {
+              pp_table << fort::header << column_name;
+            }
+            pp_table << fort::endr;
 
             for (size_t i = 0; i < data[0].size(); i++) {
-              row.clear();
               for (auto & j : data) {
-                row.push_back(j[i]);
+                pp_table << j[i];
               }
-              pp_table.add_row(row);
+                pp_table << fort::endr;
             }
 
-            send << pp_table << "\n";
+            send << pp_table.to_string() << "\n";
           }
 
           (*db->using_db)--;

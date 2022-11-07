@@ -20,6 +20,8 @@ const DEP1: &[u8] = include_bytes!("./../../cmake-build-debug/fm.dll");
 const DEP2: &[u8] = include_bytes!("./../../cmake-build-debug/serializer.dll");
 #[cfg(any(target_os = "windows"))]
 const DEP3: &[u8] = include_bytes!("./../../cmake-build-debug/tcpserver.dll");
+#[cfg(any(target_os = "windows"))]
+const DEP4: &[u8] = include_bytes!("./../../cmake-build-debug/_deps/libfort-build/lib/libfort.dll");
 
 macro_rules! write_to_path {
     ($bytes:expr, $path:expr) => {{
@@ -66,6 +68,7 @@ pub fn colocar_dependencias() -> Result<(), Box<dyn std::error::Error>> {
         write_to_path!(DEP1, &bin_folder.join("fm.dll"));
         write_to_path!(DEP2, &bin_folder.join("serializer.dll"));
         write_to_path!(DEP3, &bin_folder.join("tcpserver.dll"));
+        write_to_path!(DEP4, &bin_folder.join("libfort.dll"));
     }
 
     #[cfg(any(target_os = "macos", target_os = "linux"))]
