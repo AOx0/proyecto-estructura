@@ -2,7 +2,6 @@
 
 #include "../database.hpp"
 #include "../logger.hpp"
-#include "../table.hpp"
 #include "parser.hpp"
 
 cpp::result<Automata::Action, std::string>
@@ -168,30 +167,52 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
                               "something incorrect.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                               to_string(*curr), token_number, original));
             }
-            else if (!same_variant(*next, Token{Identifier{NameAndSub{}}})){
+            else if (!same_variant(*next, Token{Identifier{NameAndSub{}}}) && !same_variant(*next, Token{Identifier{Name{}}})) {
               return cpp::fail(fmt::format(
-                  "Expected `DATABASE.TABLE` identifier after `FROM` but got "
+                  "Expected `DATABASE.TABLE` or `DATABASE` identifier after `FROM` but got "
                   "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
                   to_string(*next), token_number, to_string(*curr), original));
             }
-            if (!nextp1.has_value()) {
-              return cpp::fail(fmt::format(
-                  "Expected `;` after `TABLE.COLUMN` but got nothing.\nAfter "
-                  "token {} (Pos: {}) in query:\n    \"{}\"",
-                  to_string(*next), token_number + 1, original));
-            } else if (!same_variant(*nextp1,
-                                     Token{Symbol{SymbolE::SEMICOLON}})) {
-              return cpp::fail(fmt::format(
-                  "Expected `;` after `TABLE.COLUMN` but got `{}`.\nAfter "
-                  "token {} (Pos: {}) in query:\n    \"{}\"",
-                  to_string(*nextp1), token_number + 1, to_string(*next),
-                  original));
+
+            if (same_variant(*next, Token{Identifier{NameAndSub{}}})) {
+              if (!nextp1.has_value()) {
+                return cpp::fail(fmt::format(
+                    "Expected `;` after `FROM DATABASE.TABLE` but got nothing.\nAfter "
+                    "token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*next), token_number + 1, original));
+              } else if (!same_variant(*nextp1,
+                                       Token{Symbol{SymbolE::SEMICOLON}})) {
+                return cpp::fail(fmt::format(
+                    "Expected `;` after `FROM DATABASE.TABLE` but got `{}`.\nAfter "
+                    "token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*nextp1), token_number + 1, to_string(*next),
+                    original));
+              }
+              auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
+              variant = {Automata::ShowTableData{table_column.name, table_column.sub}};
+            } else if (same_variant(*next, Token{Identifier{Name{}}})) {
+              if (!nextp1.has_value()) {
+                return cpp::fail(fmt::format(
+                    "Expected `TABLE.COLUMN` after `FROM DATABASE` but got nothing.\nAfter "
+                    "token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*next), token_number + 1, original));
+              } else if (!same_variant(*nextp1,
+                                       Token{Identifier{NameAndSub{}}})) {
+                return cpp::fail(fmt::format(
+                    "Expected `TABLE.COLUMN` after `FROM DATABASE` but got `{}`.\nAfter "
+                    "token {} (Pos: {}) in query:\n    \"{}\"",
+                    to_string(*nextp1), token_number + 1, to_string(*next),
+                    original));
+              }
+              auto database = std::get<Name>(std::get<Parser::Identifier>(*next)).value;
+              auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*nextp1));
+              variant = {Automata::ShowColumnValues{database, table_column.name, table_column.sub}};
+              ctx = Context::ShowColumnValuesE;
             }
-            auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
-            variant = {Automata::ShowTableData{table_column.name, table_column.sub}};
           }
 
-        }break;
+        }
+        break;
 
 
         case KeywordE::COLUMN: {
@@ -586,7 +607,19 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
                 to_string(*next), token_number, to_string(*curr), original));
         }
 
-        if (ctx == Context::ShowDatabaseE) {
+        if (ctx == Context::ShowColumnValuesE && same_variant(*curr, Token{Identifier{NameAndSub{}}})) {
+          if (!next.has_value())
+            return cpp::fail(fmt::format(
+                "Expected `;` after `TABLE.COLUMN` identifier but got nothing.\nAfter "
+                "token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+          else if (!same_variant_and_value(next.value(),
+                                      Token{Symbol{SymbolE::SEMICOLON}}))
+            return cpp::fail(fmt::format(
+                "Expected `;` after `TABLE.COLUMN` identifier but got `{}`.\nAfter "
+                "token {} (Pos: {}) in query:\n    \"{}\"",
+                to_string(*next), token_number, to_string(*curr), original));
+        } else if (ctx == Context::ShowDatabaseE) {
           if (std::holds_alternative<Name>(identifier)) {
             std::string name = std::get<Name>(identifier).value;
             variant = {Automata::ShowDatabase{name}};

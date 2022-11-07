@@ -57,9 +57,9 @@ struct MakeSelect {
 struct ShowDatabases {};
 
 struct ShowColumnValues {
-  std::string column;
   std::string database;
   std::string table;
+  std::string column;
 };
 struct ShowTableData{
   std::string database;
