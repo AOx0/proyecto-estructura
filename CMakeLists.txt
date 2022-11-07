@@ -127,3 +127,10 @@ target_link_libraries(toidb PUBLIC tcpserver fmt::fmt-header-only fm Result::Res
 
 include(GoogleTest)
 gtest_discover_tests(proyecto-tests)
+
+add_custom_command(
+        TARGET toidb POST_BUILD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/toi/
+        COMMAND cargo install --path .
+        VERBATIM
+)
