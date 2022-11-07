@@ -72,6 +72,18 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
     },
+    #[clap(about = "Rerun toidb")]
+    Restart {
+        /// Force stop instead of attepmting to smootly end toidb.
+        #[arg(short, long)]
+        force: bool,
+        /// The port to bind to
+        #[arg(required = false, index = 1, default_value = "9999")]
+        port: String,
+        /// Show server output
+        #[arg(short, long)]
+        attach: bool,
+    },
     #[clap(about = "Connect to a toidb instance")]
     Connect {
         /// The ip to connect to
@@ -188,6 +200,53 @@ fn main() {
     let args = App::parse();
 
     match args.command {
+        Commands::Restart { force, attach, .. } => {
+            if !process_exists() {
+                println!("Error: toidb is not running");
+            } else {
+                kill_database_process(force);
+                println!("Stopped toidb");
+            }
+
+            if let Err(e) = dep::colocar_dependencias() {
+                println!("Error: {e}");
+                exit(1);
+            }
+
+            let bin_dir = match dep::get_data_dir() {
+                Err(e) => {
+                    println!("Error al botener la ruta al directorio 'bin'\nError {e}");
+                    exit(1);
+                }
+                Ok(value) => value.join("bin"),
+            };
+
+            if let Err(e) = set_current_dir(&bin_dir) {
+                println!("Error: {e}");
+                exit(1);
+            }
+
+            if process_exists() {
+                println!("Error: toidb is already running");
+                exit(1);
+            }
+
+            if !attach {
+                Command::new(&bin_dir.join("toidb"))
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .unwrap();
+                println!("Spawned a toidb instance");
+            } else {
+                Command::new(&bin_dir.join("toidb"))
+                    .spawn()
+                    .unwrap()
+                    .wait_with_output()
+                    .unwrap();
+            }
+        }
         Commands::Stop { force } => {
             if !process_exists() {
                 println!("Error: toidb is not running");
