@@ -36,7 +36,7 @@ pub fn kill_database_process() {
     }
 
     if let Some(proc_) = process {
-        proc_.kill_with(sysinfo::Signal::Term);
+        proc_.kill();
     }
 }
 

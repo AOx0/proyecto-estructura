@@ -455,9 +455,9 @@ int main() {
     return 1;
   }
 
-  signal(26, [](int value) {
+  signal(SIGKILL, [](int value) {
     cout << endl;
-    KILL_MSG("SIGINT");
+    KILL_MSG("SIGKILL");
   });
 
   signal(SIGTERM, [](int value) {
