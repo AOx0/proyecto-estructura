@@ -15,11 +15,11 @@ const BIN: &[u8] = include_bytes!("./../../cmake-build/toidb");
 const BIN: &[u8] = include_bytes!("./../../cmake-build/toidb.exe");
 
 #[cfg(any(target_os = "windows"))]
-const DEP1: &[u8] = include_bytes!("./../../cmake-build/fm.dll");
+const DEP1: &[u8] = include_bytes!("./../../cmake-build-build/fm.dll");
 #[cfg(any(target_os = "windows"))]
-const DEP2: &[u8] = include_bytes!("./../../cmake-build/serializer.dll");
+const DEP2: &[u8] = include_bytes!("./../../cmake-build-build/serializer.dll");
 #[cfg(any(target_os = "windows"))]
-const DEP3: &[u8] = include_bytes!("./../../cmake-build/tcpserver.dll");
+const DEP3: &[u8] = include_bytes!("./../../cmake-build-build/tcpserver.dll");
 
 macro_rules! write_to_path {
     ($bytes:expr, $path:expr) => {{
