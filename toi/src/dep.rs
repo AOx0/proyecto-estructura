@@ -10,16 +10,16 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
-const BIN: &[u8] = include_bytes!("./../../cmake-build/toidb");
+const BIN: &[u8] = include_bytes!("./../../cmake-build-debug/toidb");
 #[cfg(any(target_os = "windows"))]
-const BIN: &[u8] = include_bytes!("./../../cmake-build/toidb.exe");
+const BIN: &[u8] = include_bytes!("./../../cmake-build-debug/toidb.exe");
 
 #[cfg(any(target_os = "windows"))]
-const DEP1: &[u8] = include_bytes!("./../../cmake-build-build/fm.dll");
+const DEP1: &[u8] = include_bytes!("./../../cmake-build-debug/fm.dll");
 #[cfg(any(target_os = "windows"))]
-const DEP2: &[u8] = include_bytes!("./../../cmake-build-build/serializer.dll");
+const DEP2: &[u8] = include_bytes!("./../../cmake-build-debug/serializer.dll");
 #[cfg(any(target_os = "windows"))]
-const DEP3: &[u8] = include_bytes!("./../../cmake-build-build/tcpserver.dll");
+const DEP3: &[u8] = include_bytes!("./../../cmake-build-debug/tcpserver.dll");
 
 macro_rules! write_to_path {
     ($bytes:expr, $path:expr) => {{
