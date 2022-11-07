@@ -122,8 +122,8 @@ add_executable(
         tests/serializer.cc
 )
 
-target_link_libraries(proyecto-tests GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer)
-target_link_libraries(toidb PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
+target_link_libraries(proyecto-tests GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer tabulate)
+target_link_libraries(toidb PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer tabulate)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto-tests)
