@@ -460,6 +460,11 @@ int main() {
     KILL_MSG("SIGKILL");
   });
 
+  signal(SIGILL, [](int value) {
+    cout << endl;
+    KILL_MSG("SIGILL");
+  });
+
   signal(SIGTERM, [](int value) {
     cout << endl;
     KILL_MSG("SIGTERM");

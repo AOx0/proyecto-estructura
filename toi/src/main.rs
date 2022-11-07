@@ -10,7 +10,7 @@ use std::{
     io::{Read, Write},
     process::exit,
 };
-use sysinfo::{ProcessExt, System, SystemExt};
+use sysinfo::{ProcessExt, Signal, System, SystemExt};
 mod dep;
 
 pub fn process_exists() -> bool {
@@ -36,7 +36,7 @@ pub fn kill_database_process() {
     }
 
     if let Some(proc_) = process {
-        proc_.kill();
+        proc_.kill_with(Signal::Illegal);
     }
 }
 
