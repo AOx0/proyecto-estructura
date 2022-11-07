@@ -149,28 +149,50 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
             } else if (same_variant_and_value(
                            next.value(), Token{Keyword{KeywordE::TABLE}})) {
               ctx = Context::ShowTableE;
-            } else if (same_variant_and_value(next.value(),
-                                              Token{Keyword{KeywordE::FROM}})) {
-              if (!nextp1.has_value()) {
-                return cpp::fail(fmt::format(
-                    "Expected `DATABASE`, after `SHOW FROM` but got "
-                    "nothing.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
-                    to_string(*next), token_number + 1, original));
-              } else if (!same_variant_and_value(
-                             nextp1.value(),
-                             Token{Keyword{KeywordE::DATABASE}})) {
-                return cpp::fail(fmt::format(
-                    "Expected `DATABASE`, after `SHOW FROM` but got {}.\nAfter "
-                    "token {} (Pos: {}) in query:\n    \"{}\"",
-                    to_string(*nextp1), to_string(*next), token_number + 1,
-                    original));
-              }
-
-              std::cout << "Set context to Show column\n";
-              ctx = Context::ShowColumnValuesE;
             }
           }
         } break;
+
+        case KeywordE::FROM: {
+          std::cout<<"entro en el from"<<std::endl;
+          if (ctx == Context::Unknown){
+            if (token_number == 0) {
+              return cpp::fail(fmt::format(
+                  "Found `FROM` keyword not as the query root.\nAfter token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+            }
+            if (!next.has_value()) {
+              return cpp::fail(
+                  fmt::format("Expected `Database name` identifier after `FROM` but got "
+                              "something incorrect.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                              to_string(*curr), token_number, original));
+            }
+            else if (!same_variant(*next, Token{Identifier{NameAndSub{}}})){
+              return cpp::fail(fmt::format(
+                  "Expected `DATABASE.TABLE` identifier after `FROM` but got "
+                  "`{}`.\nAfter token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number, to_string(*curr), original));
+            }
+            if (!nextp1.has_value()) {
+              return cpp::fail(fmt::format(
+                  "Expected `;` after `TABLE.COLUMN` but got nothing.\nAfter "
+                  "token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*next), token_number + 1, original));
+            } else if (!same_variant(*nextp1,
+                                     Token{Symbol{SymbolE::SEMICOLON}})) {
+              return cpp::fail(fmt::format(
+                  "Expected `;` after `TABLE.COLUMN` but got `{}`.\nAfter "
+                  "token {} (Pos: {}) in query:\n    \"{}\"",
+                  to_string(*nextp1), token_number + 1, to_string(*next),
+                  original));
+            }
+            auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
+            variant = {Automata::ShowTableData{table_column.name, table_column.sub}};
+          }
+
+        }break;
+
 
         case KeywordE::COLUMN: {
           if (ctx == Context::ShowColumnValuesE) {
@@ -200,7 +222,6 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
                   to_string(*nextp1), token_number + 1, to_string(*next),
                   original));
             }
-
             auto &var = std::get<Automata::ShowColumnValues>(variant.value());
             auto table_column =
                 std::get<NameAndSub>(std::get<Parser::Identifier>(*next));
@@ -208,6 +229,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
             var.column = table_column.sub;
           }
         } break;
+
         case KeywordE::INTO: {
           if (!next.has_value()) {
             return cpp::fail(fmt::format(
@@ -286,7 +308,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
           std::cout << "Got database keyword\n";
           if (ctx == Context::CreateDatabaseE ||
               ctx == Context::ShowColumnValuesE ||
-              ctx == Context::DeleteDatabaseE) {
+              ctx == Context::DeleteDatabaseE || ctx == Context::ShowTableDataE) {
             if (!next.has_value()) {
               return cpp::fail(fmt::format(
                   "Expected `DATABASE` name after `DATABASE` keyword but got "
@@ -304,6 +326,12 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
               auto database =
                   std::get<Parser::Name>(std::get<Parser::Identifier>(*next));
               variant = {ShowColumnValues{"", database.value, ""}};
+            } else if (ctx == Context::ShowTableDataE){
+              if (next.has_value()){
+
+              }
+              auto database = std::get<Parser::Name>(std::get<Parser::Identifier>(*next));
+              variant = {Automata::ShowColumnValues{}};
             }
           }
           break;

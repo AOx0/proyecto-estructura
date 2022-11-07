@@ -355,6 +355,24 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           (*db->using_db)--;
         }
       }
+      else if(holds_alternative<Automata::ShowTableData>(args.value())){
+        auto arg = std::get<Automata::ShowTableData>(args.value());
+        auto db = dbs.dbs.get(arg.database);
+        if (db == nullptr) {
+          SEND_ERROR("Database {} does not exist\n", arg.database);
+        } else {
+          (*db->using_db)++;
+
+          auto table = db->tables.get(arg.table);
+
+          if (table == nullptr) {
+            SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
+                       arg.database);
+          }
+          SEND("Funciono");
+
+        }
+      }
     } else {
       SEND_ERROR("{}\n", args.error());
     }
