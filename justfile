@@ -18,7 +18,7 @@ run nucleos="4": (build nucleos) && exec
 run-release nucleos="4": (build-release nucleos) && exec
 
 exec:
-    ./cmake-build/proyecto-estructura
+    ./cmake-build/toidb
 
 clean:
   rm -rf cmake-build

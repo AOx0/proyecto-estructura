@@ -8,7 +8,7 @@
 ## no mingw is required in the main system due to rustup shipping it with component rust-mingw
 
 cmake_minimum_required(VERSION 3.10)
-project(proyecto-estructura)
+project(toidb)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_CXX_STANDARD 20)
@@ -104,7 +104,7 @@ set(LIBRARIES
         src/lib/columnInstance.hpp
         )
 
-add_executable(proyecto-estructura
+add_executable(toidb
         src/main.cpp
         ${LIBRARIES}
         )
@@ -123,7 +123,7 @@ add_executable(
 )
 
 target_link_libraries(proyecto-tests GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer)
-target_link_libraries(proyecto-estructura PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
+target_link_libraries(toidb PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto-tests)

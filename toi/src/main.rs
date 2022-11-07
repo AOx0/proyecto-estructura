@@ -15,7 +15,7 @@ pub fn kill_database_process() {
     system.refresh_all();
     let mut process = None;
     for (_, proc_) in system.processes() {
-        if proc_.name() == "proyecto-estructura" {
+        if proc_.name() == "toidb" {
             process = Some(proc_.clone());
         }
     }
