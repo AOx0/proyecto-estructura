@@ -10,7 +10,7 @@ use std::{
     io::{Read, Write},
     process::exit,
 };
-use sysinfo::{ProcessExt, System, SystemExt};
+use sysinfo::{ProcessExt, Signal, System, SystemExt};
 mod dep;
 
 pub fn process_exists() -> bool {
@@ -25,7 +25,7 @@ pub fn process_exists() -> bool {
     return false;
 }
 
-pub fn kill_database_process() {
+pub fn kill_database_process(force: bool) {
     let mut system = System::new_all();
     system.refresh_all();
     let mut process = None;
@@ -36,7 +36,15 @@ pub fn kill_database_process() {
     }
 
     if let Some(proc_) = process {
-        proc_.kill();
+        if force {
+            proc_.kill();
+        } else {
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            proc_.kill_with(Signal::Term);
+
+            #[cfg(any(target_os = "windows"))]
+            proc_.kill();
+        }
     }
 }
 
@@ -49,18 +57,22 @@ struct App {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    #[clap(about = "Run toidb in the background", visible_alias = "start")]
-    Run {
+    #[clap(about = "Run toidb in the background")]
+    Start {
         /// The port to bind to
         #[arg(required = false, index = 1, default_value = "9999")]
         port: String,
         /// Show server output
         #[arg(short, long)]
-        show_output: bool,
+        attach: bool,
     },
     #[clap(about = "Stop toidb process")]
-    Stop,
-    #[clap(about = "Connect to a toidb instance", visible_alias = "use")]
+    Stop {
+        /// Force stop instead of attepmting to smootly end toidb.
+        #[arg(short, long)]
+        force: bool,
+    },
+    #[clap(about = "Connect to a toidb instance")]
     Connect {
         /// The ip to connect to
         #[arg(required = false, index = 0, default_value = "localhost")]
@@ -126,7 +138,7 @@ fn run_repl(ip: &str, port: &str) -> Result<(), Box<dyn std::error::Error>> {
                     rl.add_history_entry(msg.as_str());
 
                     if msg == "stop" {
-                        kill_database_process();
+                        kill_database_process(false);
                         break 'main;
                     }
 
@@ -176,11 +188,11 @@ fn main() {
     let args = App::parse();
 
     match args.command {
-        Commands::Stop => {
+        Commands::Stop { force } => {
             if !process_exists() {
                 println!("Error: toidb is not running");
             } else {
-                kill_database_process();
+                kill_database_process(force);
                 println!("Stopped toidb");
             }
         }
@@ -190,7 +202,7 @@ fn main() {
                 exit(1);
             }
         }
-        Commands::Run { show_output, .. } => {
+        Commands::Start { attach, .. } => {
             if let Err(e) = dep::colocar_dependencias() {
                 println!("Error: {e}");
                 exit(1);
@@ -214,7 +226,7 @@ fn main() {
                 exit(1);
             }
 
-            if !show_output {
+            if !attach {
                 Command::new(&bin_dir.join("toidb"))
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
