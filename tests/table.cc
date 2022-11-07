@@ -10,13 +10,13 @@ TEST(SerDe, StructToBytes) {
   const bool OPTIONAL = true;
 
   KeyValueList<std::string, Layout> map {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
-  Table input(map);
+  DatabaseTable input(map);
 
   std::vector<uint8_t> expected{'h',  'e',  'l',  'l',      'o',
                                 '\0', TYPE, SIZE, OPTIONAL, '\0'};
   std::vector<uint8_t> result(input.into_vec());
 
-  EXPECT_EQ(expected, result) << "Bad Table struct serialization";
+  EXPECT_EQ(expected, result) << "Bad DatabaseTable struct serialization";
 }
 
 TEST(SerDe, MultipleEntry_StructToBytes) {
@@ -26,14 +26,14 @@ TEST(SerDe, MultipleEntry_StructToBytes) {
 
   KeyValueList<std::string, Layout> map {{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
                                      {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
-  Table input(map);
+  DatabaseTable input(map);
 
   std::vector<uint8_t> expected{
       'h', 'e', 'l', 'l', 'o', '\0', TYPE, SIZE, OPTIONAL, 'h',
       'e', 'l', 'l', 'o', '2', '\0', TYPE, SIZE, OPTIONAL, '\0'};
   std::vector<uint8_t> result(input.into_vec());
 
-  EXPECT_EQ(expected, result) << "Bad Table struct serialization";
+  EXPECT_EQ(expected, result) << "Bad DatabaseTable struct serialization";
 }
 
 TEST(SerDe, BytesToStruct) {
@@ -47,11 +47,11 @@ TEST(SerDe, BytesToStruct) {
 
   KeyValueList<std::string, Layout> map{{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
                                     {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
-  const Table expected(map);
+  const DatabaseTable expected(map);
 
-  const Table result(Table::from_vec(input));
+  const DatabaseTable result(DatabaseTable::from_vec(input));
 
-  EXPECT_EQ(expected, result) << "Bad Table struct de-serialization";
+  EXPECT_EQ(expected, result) << "Bad DatabaseTable struct de-serialization";
 }
 
 TEST(SerDe, StructToBytesAndViceversa) {
@@ -60,17 +60,17 @@ TEST(SerDe, StructToBytesAndViceversa) {
   const bool OPTIONAL = true;
 
   KeyValueList<std::string, Layout> map{{"@$pq=", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
-  Table input(map);
+  DatabaseTable input(map);
 
   std::vector<uint8_t> expected{'@',  '$',  'p',  'q',      '=',
                                 '\0', TYPE, SIZE, OPTIONAL, '\0'};
   std::vector<uint8_t> result(input.into_vec());
 
-  EXPECT_EQ(expected, result) << "Bad Table struct serialization";
+  EXPECT_EQ(expected, result) << "Bad DatabaseTable struct serialization";
 
-  const Table result_2(Table::from_vec(result));
+  const DatabaseTable result_2(DatabaseTable::from_vec(result));
 
-  EXPECT_EQ(input, result_2) << "Bad Table struct de-serialization";
+  EXPECT_EQ(input, result_2) << "Bad DatabaseTable struct de-serialization";
 }
 */
 
@@ -82,11 +82,11 @@ TEST(SerDe, SaveLoadFromFile) {
   KeyValueList<std::string, Layout> map{{"hello", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}},
                                     {"hello2", {.size = SIZE, .optional = OPTIONAL, .type = TYPE}}};
 
-  Table expected("table1", map);
+  DatabaseTable expected("table1", map);
 
   expected.to_file("./table1");
 
-  Table result = Table::from_file("./table1", "table1");
+  DatabaseTable result = DatabaseTable::from_file("./table1", "table1");
 
   EXPECT_EQ(expected, result) << "Bad save & load";
 }

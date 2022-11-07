@@ -100,7 +100,7 @@ struct Databases {
 
       if (table_ptr == nullptr) {
         return cpp::fail(
-            fmt::format("Table {}.{} does not exist", name, table));
+            fmt::format("DatabaseTable {}.{} does not exist", name, table));
       } else {
         auto result = db->delete_table_dir(name, table);
 
@@ -217,13 +217,13 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.name);
         } else {
-          auto result = Table::createTable(arg.db, arg.name, arg.columns);
+          auto result = DatabaseTable::createTable(arg.db, arg.name, arg.columns);
           if (result.has_error()) {
             SEND_ERROR("{}\n", result.error());
           } else {
             db->tables.insert(arg.name,
-                              std::make_shared<Table>(std::move(*result)));
-            LSEND("Table {} created in database {}\n", arg.name, arg.db);
+                              std::make_shared<DatabaseTable>(std::move(*result)));
+            LSEND("DatabaseTable {} created in database {}\n", arg.name, arg.db);
           }
         }
       } else if (holds_alternative<Automata::ShowDatabase>(args.value())) {
@@ -235,7 +235,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           SEND("Database: {}\n", arg.name);
           (*db->using_db)++;
           db->tables.for_each_c(
-              [&](const KeyValue<std::string, std::shared_ptr<Table>> &table) {
+              [&](const KeyValue<std::string, std::shared_ptr<DatabaseTable>> &table) {
                 stringstream data;
                 data << (*table.value);
                 SEND("{}\n", data.str());
@@ -256,7 +256,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           auto table = db->tables.get(arg.table);
 
           if (table == nullptr) {
-            SEND_ERROR("Table {} does not exist in {}\n", arg.table,
+            SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
             stringstream data;
@@ -308,7 +308,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           auto table = db->tables.get(arg.table);
 
           if (table == nullptr) {
-            SEND_ERROR("Table {} does not exist in {}\n", arg.table,
+            SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
             auto result =
@@ -334,7 +334,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           auto table = db->tables.get(arg.table);
 
           if (table == nullptr) {
-            SEND_ERROR("Table {} does not exist in {}\n", arg.table,
+            SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
             auto result = ColumnInstance::load_column(

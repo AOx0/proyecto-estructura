@@ -15,13 +15,13 @@
 #include "linkedList.hpp"
 #include "serializer.hpp"
 
-struct Table {
+struct DatabaseTable {
   KeyValueList<std::string, Layout> columns;
   std::shared_mutex mtx_;
   std::string name;
 
-  friend std::ostream &operator<<(std::ostream &os, Table const &table) {
-    os << "Table " << table.name << ":\n";
+  friend std::ostream &operator<<(std::ostream &os, DatabaseTable const &table) {
+    os << "DatabaseTable " << table.name << ":\n";
 
     table.columns.for_each_c([&](const KeyValue<std::string, Layout> &keyval) {
       os << "    " << keyval.key << " : " << keyval.value << '\n';
@@ -33,14 +33,14 @@ struct Table {
 
   // Move constructor
   // Move constructors should be marked with except
-  Table(Table &&rhs) noexcept {
+  DatabaseTable(DatabaseTable &&rhs) noexcept {
     std::unique_lock<std::shared_mutex> lock(rhs.mtx_);
     columns = std::move(rhs.columns);
     name = std::move(rhs.name);
   }
 
   // Move operator
-  Table &operator=(Table &&rhs) noexcept {
+  DatabaseTable &operator=(DatabaseTable &&rhs) noexcept {
     if (this != &rhs) {
       std::unique_lock lock_rhs(rhs.mtx_);
       std::unique_lock lock_this(mtx_);
@@ -54,10 +54,10 @@ struct Table {
 
   [[nodiscard]] std::vector<std::uint8_t> into_vec();
 
-  static Table from_vec(const std::vector<std::uint8_t> &in,
-                        const std::string &name);
+  static DatabaseTable from_vec(const std::vector<std::uint8_t> &in,
+                                const std::string &name);
 
-  static Table from_file(std::string const &path, std::string const &name);
+  static DatabaseTable from_file(std::string const &path, std::string const &name);
 
   void to_file(const std::string &path);
 
@@ -383,15 +383,13 @@ struct Table {
             fmt::format("Column {} does not exist", current_column->value.key));
       }
 
-      if (std::holds_alternative<std::uint64_t>(to_insert[i])) {
-        std::uint64_t value = std::get<std::uint64_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::int64_t>(to_insert[i])) {
-        std::int64_t value = std::get<std::int64_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::string>(to_insert[i])) {
+    #define ENCODE(TYPE) if (std::holds_alternative<TYPE>(to_insert[i])) {\
+      TYPE value = std::get<TYPE>(to_insert[i]);\
+      FileManager::append_to_file(column_path.path,\
+                                  Serialized::serialize(value));\
+    }
+
+      if (std::holds_alternative<std::string>(to_insert[i])) {
         std::string value = std::get<std::string>(to_insert[i]);
         auto result = columns.get_at(i);
         if (result == nullptr) {
@@ -401,40 +399,18 @@ struct Table {
         auto size = result->value.value.size;
         FileManager::append_to_file(column_path.path,
                                     Serialized::serialize(value, size));
-      } else if (std::holds_alternative<bool>(to_insert[i])) {
-        bool value = std::get<bool>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::uint8_t>(to_insert[i])) {
-        std::uint8_t value = std::get<std::uint8_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::uint16_t>(to_insert[i])) {
-        std::uint16_t value = std::get<std::uint16_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::uint32_t>(to_insert[i])) {
-        std::uint32_t value = std::get<std::uint32_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::int8_t>(to_insert[i])) {
-        std::int8_t value = std::get<std::int8_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::int16_t>(to_insert[i])) {
-        std::int16_t value = std::get<std::int16_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<std::int32_t>(to_insert[i])) {
-        std::int32_t value = std::get<std::int32_t>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
-      } else if (std::holds_alternative<double>(to_insert[i])) {
-        double value = std::get<double>(to_insert[i]);
-        FileManager::append_to_file(column_path.path,
-                                    Serialized::serialize(value));
       } else {
-        return cpp::fail(fmt::format("Cannot push to field {}", i));
+        ENCODE(std::uint64_t)
+        else ENCODE(std::int64_t)
+        else ENCODE(std::uint32_t)
+        else ENCODE(std::int32_t)
+        else ENCODE(std::uint16_t)
+        else ENCODE(std::int16_t)
+        else ENCODE(std::uint8_t)
+        else ENCODE(std::int8_t)
+        else ENCODE(bool)
+        else ENCODE(double)
+        else return cpp::fail(fmt::format("Cannot push to field {}", i));
       }
 
       current_column = current_column->next;
@@ -443,12 +419,12 @@ struct Table {
     return {};
   }
 
-  bool operator==(Table const &other) const;
+  bool operator==(DatabaseTable const &other) const;
 
-  Table(const std::string &name, KeyValueList<std::string, Layout> &layout)
+  DatabaseTable(const std::string &name, KeyValueList<std::string, Layout> &layout)
       : name(fmt::format("{}", name)), columns(std::move(layout)), mtx_() {}
 
-  static cpp::result<Table, std::string>
+  static cpp::result<DatabaseTable, std::string>
   createTable(std::string database, std::string &table_name,
               KeyValueList<std::string, Layout> &layout);
 };

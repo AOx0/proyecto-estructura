@@ -13,11 +13,11 @@
 
 struct DataBase {
   std::shared_ptr<std::atomic_int32_t> using_db;
-  KeyValueList<std::string, std::shared_ptr<Table>> tables;
+  KeyValueList<std::string, std::shared_ptr<DatabaseTable>> tables;
   std::string nombre;
 
   DataBase(std::string name)
-      : tables(std::move(KeyValueList<std::string, std::shared_ptr<Table>>())),
+      : tables(std::move(KeyValueList<std::string, std::shared_ptr<DatabaseTable>>())),
         nombre(name), using_db(std::make_shared<std::atomic_int32_t>(0)) {}
 
   // << operator
@@ -54,7 +54,7 @@ struct DataBase {
           info_file.is_file()) {
         tables.insert(
             info_file.get_parent().get_file_name(),
-            std::make_shared<Table>(Table::from_file(
+            std::make_shared<DatabaseTable>(DatabaseTable::from_file(
                 info_file.path, info_file.get_parent().get_file_name())));
       }
     }

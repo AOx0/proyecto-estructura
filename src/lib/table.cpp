@@ -7,7 +7,7 @@
 #include "serializer.hpp"
 #include "table.hpp"
 
-std::vector<std::uint8_t> Table::into_vec() {
+std::vector<std::uint8_t> DatabaseTable::into_vec() {
   std::vector<std::uint8_t> resultado{};
 
   columns.for_each_node([&](Node<KeyValue<std::string, Layout>> *entry) {
@@ -35,8 +35,8 @@ std::vector<std::uint8_t> Table::into_vec() {
   return resultado;
 }
 
-Table Table::from_vec(const std::vector<std::uint8_t> &in,
-                      const std::string &name) {
+DatabaseTable DatabaseTable::from_vec(const std::vector<std::uint8_t> &in,
+                                      const std::string &name) {
   KeyValueList<std::string, Layout> columns;
 
   size_t i = 0;
@@ -65,15 +65,15 @@ Table Table::from_vec(const std::vector<std::uint8_t> &in,
   return {name, columns};
 }
 
-bool Table::operator==(const Table &other) const {
+bool DatabaseTable::operator==(const DatabaseTable &other) const {
   return columns == other.columns;
 }
 
-Table Table::from_file(std::string const &path, std::string const &name) {
-  return Table::from_vec(FileManager::read_to_vec(path), name);
+DatabaseTable DatabaseTable::from_file(std::string const &path, std::string const &name) {
+  return DatabaseTable::from_vec(FileManager::read_to_vec(path), name);
 }
 
-void Table::to_file(const std::string &path) {
+void DatabaseTable::to_file(const std::string &path) {
   FileManager::write_to_file(path, this->into_vec());
 }
 
@@ -86,10 +86,10 @@ bool Layout::operator==(const Layout &other) const {
   return result == 3;
 }
 
-cpp::result<Table, std::string>
-Table::createTable(std::string database, std::string &table_name,
-                   KeyValueList<std::string, Layout> &layout) {
-  Table t(table_name, layout);
+cpp::result<DatabaseTable, std::string>
+DatabaseTable::createTable(std::string database, std::string &table_name,
+                           KeyValueList<std::string, Layout> &layout) {
+  DatabaseTable t(table_name, layout);
 
   auto p = FileManager::Path("data") / database;
 
@@ -99,7 +99,7 @@ Table::createTable(std::string database, std::string &table_name,
   auto table_folder = p / table_name;
 
   if (table_folder.exists())
-    return cpp::fail(fmt::format("Table {} does exist. Aborting table creation",
+    return cpp::fail(fmt::format("DatabaseTable {} does exist. Aborting table creation",
                                  table_name));
 
   if (!table_folder.create_as_dir())

@@ -31,7 +31,7 @@ struct ColumnInstance {
     else PUSH(ColumnType::i64, std::int64_t)
     else PUSH(ColumnType::f64, double)
     else if (layout.type == ColumnType::str) {
-      std::vector<std::string> *data_cast = reinterpret_cast<std::vector<std::string> *>(data);
+      auto *data_cast = reinterpret_cast<std::vector<std::string> *>(data);
       std::vector<std::string> result;
       for (std::size_t i = 0; i < size; i++) {
         result.push_back(fmt::format("{}", data_cast->at(i)));
@@ -53,7 +53,7 @@ struct ColumnInstance {
 
   static cpp::result<ColumnInstance, std::string>
   load_column(std::string database, std::string table, std::string column,
-              Table &descriptor) {
+              DatabaseTable &descriptor) {
     std::unique_lock<std::shared_mutex> lock(descriptor.mtx_);
 
     Node<KeyValue<std::string, Layout>> *node =

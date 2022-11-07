@@ -44,6 +44,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Corrosion)
 
+# Agregamos corrosion para compilar rust por default
+FetchContent_Declare(
+        tabulate
+        GIT_REPOSITORY https://github.com/p-ranav/tabulate
+        GIT_TAG v1.4
+)
+
+FetchContent_MakeAvailable(tabulate)
+
 corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)# PROFILE release)
 corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)# PROFILE release)
 corrosion_import_crate(MANIFEST_PATH serializer/Cargo.toml)# PROFILE release)
