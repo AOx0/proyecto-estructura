@@ -6,6 +6,7 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+#include <tabulate/table.hpp>
 
 #include "lib/analyzer.hpp"
 #include "lib/database.hpp"
@@ -15,6 +16,7 @@
 #include "lib/server.hpp"
 #include "lib/columnInstance.hpp"
 #include "lib/databases.hpp"
+
 
 using namespace std;
 
@@ -130,15 +132,16 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.name);
         } else {
-          SEND("Database: {}\n", arg.name);
           (*db->using_db)++;
+          tabulate::Table pp_table;
+          pp_table.add_row({"Tables"});
           db->tables.for_each_c(
               [&](const KeyValue<std::string, std::shared_ptr<DatabaseTable>> &table) {
-                stringstream data;
-                data << (*table.value);
-                SEND("{}\n", data.str());
+                pp_table.add_row({table.key});
                 return false;
               });
+
+          send << pp_table << '\n';
           (*db->using_db)--;
         }
       } else if (holds_alternative<Automata::ShowTable>(args.value())) {
@@ -148,18 +151,22 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
-          SEND("Database: {}\n", arg.database);
           (*db->using_db)++;
-
           auto table = db->tables.get(arg.table);
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
-            stringstream data;
-            data << *table;
-            SEND("{}\n", data.str());
+            tabulate::Table pp_table;
+            pp_table.add_row({"Column", "Type", "Size"});
+            auto _ = (*table)->columns.for_each_c(
+                [&](const KeyValue<std::string, Layout> &column) {
+                  pp_table.add_row({column.key, to_string(column.value.type), fmt::format("{}", column.value.size)});
+                  return false;
+                });
+
+            send << pp_table << '\n';
           }
 
           (*db->using_db)--;
@@ -170,32 +177,15 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (databases.empty()) {
           SEND_ERROR("No databases exist\n");
         } else {
-          for (auto & database : databases) {
-            SEND("{}\n", database);
+          tabulate::Table pp_table;
+          pp_table.add_row({"Databases"});
+          for (auto &db : databases) {
+            pp_table.add_row({db});
           }
+          send << pp_table << '\n';
         }
       } else if (holds_alternative<Automata::Insert>(args.value())) {
         auto arg = std::get<Automata::Insert>(args.value());
-        /*LSEND("Inserting into table {} from database {} values \n", arg.table,
-              arg.database);
-        arg.values.for_each([&](auto value) {
-          if (holds_alternative<Parser::String>(value)) {
-            Parser::String val = get<Parser::String>(value);
-            LSEND("{}, ", val.value);
-          } else if (holds_alternative<Parser::UInt>(value)) {
-            Parser::UInt val = get<Parser::UInt>(value);
-            LSEND("{}, ", val.value);
-          } else if (holds_alternative<Parser::Int>(value)) {
-            Parser::Int val = get<Parser::Int>(value);
-            LSEND("{}, ", val.value);
-          } else if (holds_alternative<Parser::Double>(value)) {
-            Parser::Double val = get<Parser::Double>(value);
-            LSEND("{}, ", val.value);
-          }
-          return false;
-        });
-        LSEND("\n");*/
-
         auto db = dbs.dbs.get(arg.database);
 
         if (db == nullptr) {
@@ -236,18 +226,71 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
                        arg.database);
           } else {
             auto result = ColumnInstance::load_column(
-                arg.database, arg.table, arg.column, *(table->get()));
+                arg.database, arg.table, arg.column, *(*table));
             if (result.has_error()) {
               SEND_ERROR("{}\n", result.error());
             } else {
               auto string_version = result.value().to_string_vec();
 
-              //SEND("Values: ");
+              tabulate::Table pp_table;
+              pp_table.add_row({"Values"});
               for (auto & value : string_version) {
-                SEND("{}, ", value);
+                pp_table.add_row({value});
               }
-              SEND("\n");
+
+              send << pp_table << '\n';
             }
+          }
+
+          (*db->using_db)--;
+        }
+      }
+      else if(holds_alternative<Automata::ShowTableData>(args.value())){
+        auto arg = std::get<Automata::ShowTableData>(args.value());
+        auto db = dbs.dbs.get(arg.database);
+        if (db == nullptr) {
+          SEND_ERROR("Database {} does not exist\n", arg.database);
+        } else {
+          (*db->using_db)++;
+
+          auto table = db->tables.get(arg.table);
+
+          if (table == nullptr) {
+            SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
+                       arg.database);
+          } else {
+            vector<vector<string>> data;
+            vector<string> column_names;
+
+            (*table)->columns.for_each_c([&](const KeyValue<std::string, Layout> &column){
+              auto result = ColumnInstance::load_column(
+                  arg.database, arg.table, column.key, *(*table));
+              column_names.push_back(column.key);
+              if (result.has_error()) {
+                SEND_ERROR("{}\n", result.error());
+              } else {
+                data.emplace_back(result.value().to_string_vec());
+              }
+              return false;
+            });
+            using Row_t = tabulate::Table::Row_t;
+            Row_t row;
+
+            tabulate::Table pp_table;
+            row.insert(row.end(),
+                       std::make_move_iterator(column_names.begin()),
+                       std::make_move_iterator(column_names.end()));
+            pp_table.add_row(row);
+
+            for (size_t i = 0; i < data[0].size(); i++) {
+              row.clear();
+              for (auto & j : data) {
+                row.push_back(j[i]);
+              }
+              pp_table.add_row(row);
+            }
+
+            send << pp_table << "\n";
           }
 
           (*db->using_db)--;

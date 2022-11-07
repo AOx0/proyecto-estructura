@@ -44,11 +44,11 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Corrosion)
 
-# Agregamos corrosion para compilar rust por default
+# Agregamos tabulate para poder imprimir tablas
 FetchContent_Declare(
         tabulate
-        GIT_REPOSITORY https://github.com/p-ranav/tabulate
-        GIT_TAG v1.4
+        GIT_REPOSITORY https://github.com/p-ranav/tabulate.git
+        GIT_TAG 4d76b8ae309dee120b45d91cb4d1998e38a7e5c6
 )
 
 FetchContent_MakeAvailable(tabulate)
@@ -127,3 +127,10 @@ target_link_libraries(toidb PUBLIC tcpserver fmt::fmt-header-only fm Result::Res
 
 include(GoogleTest)
 gtest_discover_tests(proyecto-tests)
+
+add_custom_command(
+        TARGET toidb POST_BUILD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/toi/
+        COMMAND cargo install --path .
+        VERBATIM
+)

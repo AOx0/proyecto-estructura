@@ -57,7 +57,11 @@ struct MakeSelect {
 struct ShowDatabases {};
 
 struct ShowColumnValues {
+  std::string database;
+  std::string table;
   std::string column;
+};
+struct ShowTableData{
   std::string database;
   std::string table;
 };
@@ -72,13 +76,14 @@ enum Context {
   ShowDatabasesE,
   InsertE,
   ShowColumnValuesE,
+  ShowTableDataE,
   Unknown [[maybe_unused]]
 };
 
 using Action = std::variant<
     Automata::CreateDatabase, Automata::CreateTable, Automata::DeleteDatabase,
     Automata::DeleteTable, Automata::ShowDatabase, Automata::ShowTable,
-    Automata::ShowDatabases, Automata::Insert, Automata::ShowColumnValues>;
+    Automata::ShowDatabases, Automata::Insert, Automata::ShowColumnValues, Automata::ShowTableData>;
 
 cpp::result<Automata::Action, std::string>
 get_action_struct(std::vector<Parser::Token> in, std::string original);
