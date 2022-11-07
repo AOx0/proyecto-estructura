@@ -10,4 +10,4 @@ rust-version = "1.64.0"
 clap = { version = "4.0.10", features = ["derive"] }
 directories = "4.0.1"
 rustyline = "10.0.0"
-text_io = "0.1.12"
+sysinfo = "0.26.7"

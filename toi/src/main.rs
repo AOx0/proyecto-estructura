@@ -5,10 +5,25 @@ use std::{
     io::{Read, Write},
     process::exit,
 };
-use text_io::try_read;
+use sysinfo::{ProcessExt, System, SystemExt};
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+
+pub fn kill_database_process() {
+    let mut system = System::new_all();
+    system.refresh_all();
+    let mut process = None;
+    for (_, proc_) in system.processes() {
+        if proc_.name() == "proyecto-estructura" {
+            process = Some(proc_.clone());
+        }
+    }
+
+    if let Some(proc_) = process {
+        proc_.kill_with(sysinfo::Signal::Term);
+    }
+}
 
 /// DB Client
 #[derive(Parser, Debug)]
@@ -20,48 +35,6 @@ struct Args {
     /// The port to connect to
     #[arg(required = false, index = 1, default_value = "9999")]
     port: String,
-    /// Non REPL mode
-    #[arg(short, long)]
-    non_repl: bool,
-}
-
-fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
-    let Args { ip, port, .. } = args;
-    'main: loop {
-        let mut stream = TcpStream::connect(format!("{ip}:{port}"))?;
-
-        loop {
-            let mut buf = vec![0; 1024 * 2];
-            let msg: String = try_read!("{}\n")?;
-
-            if msg.is_empty() {
-                continue;
-            }
-
-            if !msg.is_ascii() {
-                println!("Message must be ascii");
-                continue;
-            }
-
-            stream.write_all(msg.as_bytes())?;
-
-            if msg == "exit" || msg == "stop" {
-                break 'main;
-            }
-
-            let n = stream.read(&mut buf)?;
-
-            if n == 0 {
-                println!("Server closed connection");
-                println!("Trying to reconnect. Input your query again");
-                continue 'main;
-            }
-
-            print!("{}", std::str::from_utf8(&buf[..n])?);
-        }
-    }
-
-    Ok(())
 }
 
 fn run_repl(args: Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -78,7 +51,13 @@ fn run_repl(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     'main: loop {
-        let mut stream = TcpStream::connect(format!("{ip}:{port}"))?;
+        let stream = TcpStream::connect(format!("{ip}:{port}"));
+        if let Err(e) = stream {
+            println!("Error: {}", e);
+            println!("Make sure the server is running");
+            break 'main;
+        }
+        let mut stream = stream.unwrap();
 
         loop {
             let mut buf = vec![0; 1024 * 2];
@@ -101,29 +80,47 @@ fn run_repl(args: Args) -> Result<(), Box<dyn std::error::Error>> {
                         continue;
                     }
 
-                    stream.write_all(msg.as_bytes())?;
+                    let result = stream.write_all(msg.as_bytes());
+                    if let Err(e) = result {
+                        println!("Error: {}", e);
+                        break;
+                    }
                     rl.add_history_entry(msg.as_str());
+
+                    if msg == "stop" {
+                        kill_database_process();
+                        break 'main;
+                    }
 
                     if msg == "exit" || msg == "stop" {
                         break 'main;
                     }
 
-                    let n = stream.read(&mut buf)?;
-
-                    if n == 0 {
-                        println!("Server closed connection");
+                    let n = stream.read(&mut buf);
+                    if let Err(e) = n {
+                        println!("Error: {}", e);
                         println!("Trying to reconnect. Input your query again");
                         continue 'main;
-                    }
+                    } else {
+                        let n = n.unwrap();
+                        if n == 0 {
+                            println!("Server closed connection");
+                            println!("Trying to reconnect. Input your query again");
+                            continue 'main;
+                        }
 
-                    print!("{}", std::str::from_utf8(&buf[..n])?);
+                        let conversion = std::str::from_utf8(&buf[..n]);
+                        if let Ok(res) = conversion {
+                            print!("{}", res);
+                        } else {
+                            println!("Error: {}", conversion.unwrap_err());
+                        }
+                    }
                 }
                 Err(ReadlineError::Interrupted) => {
-                    println!("CTRL-C");
                     break 'main;
                 }
                 Err(ReadlineError::Eof) => {
-                    println!("CTRL-D");
                     break 'main;
                 }
                 Err(err) => {
@@ -139,14 +136,7 @@ fn run_repl(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() {
     let args = Args::parse();
-
-    let result = if args.non_repl {
-        run(args)
-    } else {
-        run_repl(args)
-    };
-
-    if let Err(e) = result {
+    if let Err(e) = run_repl(args) {
         println!("Error: {}", e);
         exit(1);
     }
