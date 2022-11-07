@@ -57,8 +57,8 @@ struct App {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    #[clap(about = "Run toidb in the background", visible_alias = "start")]
-    Run {
+    #[clap(about = "Run toidb in the background")]
+    Start {
         /// The port to bind to
         #[arg(required = false, index = 1, default_value = "9999")]
         port: String,
@@ -72,7 +72,7 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
     },
-    #[clap(about = "Connect to a toidb instance", visible_alias = "use")]
+    #[clap(about = "Connect to a toidb instance")]
     Connect {
         /// The ip to connect to
         #[arg(required = false, index = 0, default_value = "localhost")]
@@ -202,7 +202,7 @@ fn main() {
                 exit(1);
             }
         }
-        Commands::Run { attach, .. } => {
+        Commands::Start { attach, .. } => {
             if let Err(e) = dep::colocar_dependencias() {
                 println!("Error: {e}");
                 exit(1);

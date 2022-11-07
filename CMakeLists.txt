@@ -102,7 +102,7 @@ set(LIBRARIES
         src/lib/serializer.cpp
         src/lib/serializer.hpp
         src/lib/columnInstance.hpp
-        )
+        src/lib/databases.hpp)
 
 add_executable(toidb
         src/main.cpp
