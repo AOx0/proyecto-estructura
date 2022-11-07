@@ -17,7 +17,6 @@
 #include "lib/columnInstance.hpp"
 #include "lib/databases.hpp"
 
-
 using namespace std;
 
 volatile sig_atomic_t st = 0;
@@ -281,7 +280,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
               pp_table << fort::header << column_name;
             }
             pp_table << fort::endr;
-
 
             for (size_t i = 0; i < data[0].size(); i++) {
               for (auto & j : data) {
