@@ -1,14 +1,29 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Shell};
 use directories::ProjectDirs;
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+use std::env::set_current_dir;
 use std::net::TcpStream;
+use std::process::{Command, Stdio};
 use std::{
     io::{Read, Write},
     process::exit,
 };
 use sysinfo::{ProcessExt, System, SystemExt};
+mod dep;
 
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
+pub fn process_exists() -> bool {
+    let mut system = System::new_all();
+    system.refresh_all();
+    for (_, proc_) in system.processes() {
+        if proc_.name() == "toidb" {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 pub fn kill_database_process() {
     let mut system = System::new_all();
@@ -25,20 +40,43 @@ pub fn kill_database_process() {
     }
 }
 
-/// DB Client
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// The ip to connect to
-    #[arg(required = false, index = 0, default_value = "localhost")]
-    ip: String,
-    /// The port to connect to
-    #[arg(required = false, index = 1, default_value = "9999")]
-    port: String,
+#[clap(author, version, about, long_about = None)]
+struct App {
+    #[clap(subcommand)]
+    pub(crate) command: Commands,
 }
 
-fn run_repl(args: Args) -> Result<(), Box<dyn std::error::Error>> {
-    let Args { ip, port, .. } = args;
+#[derive(Subcommand, Debug)]
+enum Commands {
+    #[clap(about = "Run toidb in the background", visible_alias = "start")]
+    Run {
+        /// The port to bind to
+        #[arg(required = false, index = 1, default_value = "9999")]
+        port: String,
+        /// Show server output
+        #[arg(short, long)]
+        show_output: bool,
+    },
+    #[clap(about = "Stop toidb process")]
+    Stop,
+    #[clap(about = "Connect to a toidb instance", visible_alias = "use")]
+    Connect {
+        /// The ip to connect to
+        #[arg(required = false, index = 0, default_value = "localhost")]
+        ip: String,
+        /// The port to connect to
+        #[arg(required = false, index = 1, default_value = "9999")]
+        port: String,
+    },
+    #[clap(about = "Generate toi completions for the specified shell")]
+    GenerateCompletion {
+        #[clap(value_parser(["bash", "fish", "zsh", "powershell", "elvish"]))]
+        shell: String,
+    },
+}
+
+fn run_repl(ip: &str, port: &str) -> Result<(), Box<dyn std::error::Error>> {
     let project_dirs = ProjectDirs::from("com", "up", "toi").unwrap();
     let history_path = project_dirs.data_dir().join("history.txt");
 
@@ -135,9 +173,91 @@ fn run_repl(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
-    let args = Args::parse();
-    if let Err(e) = run_repl(args) {
-        println!("Error: {}", e);
-        exit(1);
+    let args = App::parse();
+
+    match args.command {
+        Commands::Stop => {
+            if !process_exists() {
+                println!("Error: toidb is not running");
+            } else {
+                kill_database_process();
+                println!("Stopped toidb");
+            }
+        }
+        Commands::Connect { ip, port } => {
+            if let Err(e) = run_repl(&ip, &port) {
+                println!("Error: {}", e);
+                exit(1);
+            }
+        }
+        Commands::Run { show_output, .. } => {
+            if let Err(e) = dep::colocar_dependencias() {
+                println!("Error: {e}");
+                exit(1);
+            }
+
+            let bin_dir = match dep::get_data_dir() {
+                Err(e) => {
+                    println!("Error al botener la ruta al directorio 'bin'\nError {e}");
+                    exit(1);
+                }
+                Ok(value) => value.join("bin"),
+            };
+
+            if let Err(e) = set_current_dir(&bin_dir) {
+                println!("Error: {e}");
+                exit(1);
+            }
+
+            if process_exists() {
+                println!("Error: toidb is already running");
+                exit(1);
+            }
+
+            if !show_output {
+                Command::new(&bin_dir.join("toidb"))
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .unwrap();
+                println!("Spawned a toidb instance");
+            } else {
+                Command::new(&bin_dir.join("toidb"))
+                    .spawn()
+                    .unwrap()
+                    .wait_with_output()
+                    .unwrap();
+            }
+        }
+        Commands::GenerateCompletion { shell } => {
+            let mut matches = App::command();
+            match shell.as_str() {
+                "bash" => {
+                    generate(Shell::Bash, &mut matches, "toi", &mut std::io::stdout());
+                }
+                "fish" => {
+                    generate(Shell::Fish, &mut matches, "toi", &mut std::io::stdout());
+                }
+                "zsh" => {
+                    generate(Shell::Zsh, &mut matches, "toi", &mut std::io::stdout());
+                }
+                "powershell" => {
+                    generate(
+                        Shell::PowerShell,
+                        &mut matches,
+                        "toi",
+                        &mut std::io::stdout(),
+                    );
+                }
+                "elvish" => {
+                    generate(Shell::Elvish, &mut matches, "toi", &mut std::io::stdout());
+                }
+                _ => {
+                    eprintln!("Invalid shell");
+                    std::process::exit(1);
+                }
+            }
+        }
     }
 }

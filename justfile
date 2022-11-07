@@ -2,7 +2,7 @@ default:
   just --list
 
 init:
-  cmake -S. -B cmake-build
+  cmake -S. -B cmake-build -GNinja
 
 build nucleos="4": init
   cmake --build cmake-build -j {{nucleos}}
