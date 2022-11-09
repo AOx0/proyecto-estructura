@@ -7,6 +7,7 @@
 #include <vector>
 #include <fmt/core.h>
 #include <fort.hpp>
+#include <cxxopts.hpp>
 
 #include "lib/analyzer.hpp"
 #include "lib/database.hpp"
@@ -307,7 +308,14 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
   }
 }
 
-int main() {
+int main(int argc, char **argv) {
+  cxxopts::Options options("toidb-server", "A simple database server");
+  options.add_options()("h,help", "Print help")(
+      "p,port", "Port to listen on", cxxopts::value<std::string>()->default_value("9999"))(
+      "i,ip", "IP to listen on", cxxopts::value<std::string>()->default_value("0.0.0.0"));
+
+  auto args = options.parse(argc, argv);
+
   Databases dbs;
   vector<thread> threads;
   FileManager::Path data_path(
@@ -402,7 +410,7 @@ int main() {
   LOG("Starting CppServer 0.1.14");
   {
     LOG("Starting TcpServer 0.1.11");
-    TcpServer server = TcpServer();
+    TcpServer server = TcpServer(args["ip"].as<std::string>(), args["port"].as<std::string>());
 
     while (!st) {
       shared_ptr<Connection> event = server.recv();

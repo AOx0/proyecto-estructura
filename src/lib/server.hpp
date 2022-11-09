@@ -18,7 +18,7 @@ extern "C" void drop_shared(Shared s);
 
 extern "C" Shared receive(void *);
 
-extern "C" void *start();
+extern "C" void *start(const char *, const char *);
 
 extern "C" void stop(void *);
 
@@ -55,7 +55,7 @@ protected:
   void *server;
 
 public:
-  TcpServer() : server(start()) {}
+  TcpServer(string ip, string port) : server(start(ip.c_str(), port.c_str())) {}
 
   ~TcpServer() { stop(server); }
 

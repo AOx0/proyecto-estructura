@@ -60,7 +60,7 @@ enum Commands {
     #[clap(about = "Run toidb in the background")]
     Start {
         /// The port to bind to
-        #[arg(required = false, index = 1, default_value = "9999")]
+        #[arg(short, long, default_value = "9999")]
         port: String,
         /// Show server output
         #[arg(short, long)]
@@ -78,7 +78,7 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
         /// The port to bind to
-        #[arg(required = false, index = 1, default_value = "9999")]
+        #[arg(short, long, default_value = "9999")]
         port: String,
         /// Show server output
         #[arg(short, long)]
@@ -87,10 +87,10 @@ enum Commands {
     #[clap(about = "Connect to a toidb instance")]
     Connect {
         /// The ip to connect to
-        #[arg(required = false, index = 0, default_value = "localhost")]
+        #[arg(short, long, default_value = "localhost")]
         ip: String,
         /// The port to connect to
-        #[arg(required = false, index = 1, default_value = "9999")]
+        #[arg(short, long, default_value = "9999")]
         port: String,
     },
     #[clap(about = "Generate toi completions for the specified shell")]
@@ -200,7 +200,7 @@ fn main() {
     let args = App::parse();
 
     match args.command {
-        Commands::Restart { force, attach, .. } => {
+        Commands::Restart { force, attach, port } => {
             if !process_exists() {
                 println!("Error: toidb is not running");
             } else {
@@ -233,6 +233,7 @@ fn main() {
 
             if !attach {
                 Command::new(&bin_dir.join("toidb"))
+                    .args(["-p", &port])
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
@@ -241,6 +242,7 @@ fn main() {
                 println!("Spawned a toidb instance");
             } else {
                 Command::new(&bin_dir.join("toidb"))
+                    .args(["-p", &port])
                     .spawn()
                     .unwrap()
                     .wait_with_output()
@@ -261,7 +263,7 @@ fn main() {
                 exit(1);
             }
         }
-        Commands::Start { attach, .. } => {
+        Commands::Start { port, attach } => {
             if let Err(e) = dep::colocar_dependencias() {
                 println!("Error: {e}");
                 exit(1);
@@ -287,6 +289,7 @@ fn main() {
 
             if !attach {
                 Command::new(&bin_dir.join("toidb"))
+                    .args(["-p", &port])
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
@@ -295,6 +298,7 @@ fn main() {
                 println!("Spawned a toidb instance");
             } else {
                 Command::new(&bin_dir.join("toidb"))
+                    .args(["-p", &port])
                     .spawn()
                     .unwrap()
                     .wait_with_output()

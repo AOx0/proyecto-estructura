@@ -106,11 +106,13 @@ impl TcpServer {
     }
 
     pub fn new(
+        ip: String,
+        port: String,
         msg: Sender<usize>,
         channels: Arc<RwLock<HashMap<Token, ConnectionState>>>,
     ) -> TcpServer {
         let mut result = TcpServer {
-            listener: TcpListener::bind("0.0.0.0:9999".parse().unwrap())
+            listener: TcpListener::bind(format!("{ip}:{port}").parse().unwrap())
                 .expect("Failed to init listener"),
             poll: Poll::new().expect("Failed to init poll"),
             events: Events::with_capacity(1024),
@@ -430,7 +432,10 @@ pub struct Tcp {
 }
 
 #[no_mangle]
-pub extern "C" fn start() -> *mut c_void {
+pub extern "C" fn start(ip: *const c_char, port: *const c_char) -> *mut c_void {
+    let ip = try_op![unsafe { CStr::from_ptr(ip).to_str() }, On error: return null_mut()];
+    let port = try_op![unsafe { CStr::from_ptr(port).to_str() }, On error: return null_mut()];
+
     // Creamos el canal de notificación principal
     let (cx2, rx2): (Sender<usize>, Receiver<usize>) = channel();
     let rx2 = Arc::new(Mutex::new(rx2));
@@ -442,7 +447,7 @@ pub extern "C" fn start() -> *mut c_void {
     let runtime = spawn({
         let channels = Arc::clone(&channels);
         || {
-            let mut server = TcpServer::new(cx2, channels);
+            let mut server = TcpServer::new(ip.to_owned(), port.to_owned(), cx2, channels);
             server.run_server();
             server.stop();
         }

@@ -53,6 +53,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(libfort)
 
+# Agregamos `cxxopts` para poder parsear argumentos de la línea de comandos
+FetchContent_Declare(
+        cxxopts
+        GIT_REPOSITORY https://github.com/jarro2783/cxxopts
+        GIT_TAG v3.0.0
+)
+
+FetchContent_MakeAvailable(cxxopts)
+
 
 corrosion_import_crate(MANIFEST_PATH server/Cargo.toml)# PROFILE release)
 corrosion_import_crate(MANIFEST_PATH fm/Cargo.toml)# PROFILE release)
@@ -124,7 +133,7 @@ add_executable(
 )
 
 target_link_libraries(proyecto-tests PRIVATE fort GTest::gtest_main fmt::fmt-header-only fm Result::Result serializer)
-target_link_libraries(toidb  PRIVATE fort PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer)
+target_link_libraries(toidb  PRIVATE fort PUBLIC tcpserver fmt::fmt-header-only fm Result::Result serializer cxxopts)
 
 include(GoogleTest)
 gtest_discover_tests(proyecto-tests)
