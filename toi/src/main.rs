@@ -2,7 +2,6 @@ use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{generate, Shell};
 use directories::ProjectDirs;
 use rustyline::error::ReadlineError;
-use rustyline::Editor;
 use std::env::set_current_dir;
 use std::net::TcpStream;
 use std::process::{Command, Stdio};
@@ -12,6 +11,103 @@ use std::{
 };
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 mod dep;
+
+use std::collections::HashSet;
+
+use rustyline::hint::{Hint, Hinter};
+use rustyline::Context;
+use rustyline::{Cmd, Editor, KeyEvent};
+use rustyline_derive::{Completer, Helper, Highlighter, Validator};
+
+#[derive(Completer, Helper, Validator, Highlighter)]
+struct DIYHinter {
+    // It's simple example of rustyline, for more efficient, please use ** radix trie **
+    hints: HashSet<CommandHint>,
+}
+
+#[derive(Hash, Debug, PartialEq, Eq)]
+struct CommandHint {
+    display: String,
+    complete_up_to: usize,
+}
+
+impl Hint for CommandHint {
+    fn display(&self) -> &str {
+        &self.display
+    }
+
+    fn completion(&self) -> Option<&str> {
+        if self.complete_up_to > 0 {
+            Some(&self.display[..self.complete_up_to])
+        } else {
+            None
+        }
+    }
+}
+
+impl CommandHint {
+    fn new(text: &str, complete_up_to: &str) -> CommandHint {
+        assert!(text.starts_with(complete_up_to));
+        CommandHint {
+            display: text.into(),
+            complete_up_to: complete_up_to.len(),
+        }
+    }
+
+    fn suffix(&self, strip_chars: usize) -> CommandHint {
+        CommandHint {
+            display: self.display[strip_chars..].to_owned(),
+            complete_up_to: self.complete_up_to.saturating_sub(strip_chars),
+        }
+    }
+}
+
+impl Hinter for DIYHinter {
+    type Hint = CommandHint;
+
+    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<CommandHint> {
+        if line.is_empty() || pos < line.len() {
+            return None;
+        }
+
+        self.hints.iter().find_map(|hint| {
+            // expect hint after word complete, like redis cli, add condition:
+            //line.ends_with(" ");
+            if hint.display.starts_with(line)
+            /*&& line.ends_with(" ")*/
+            {
+                Some(hint.suffix(pos))
+            } else {
+                None
+            }
+        })
+    }
+}
+
+fn diy_hints() -> HashSet<CommandHint> {
+    let mut set = HashSet::new();
+    set.insert(CommandHint::new("exit", "exit"));
+    set.insert(CommandHint::new("stop", "stop"));
+    set.insert(CommandHint::new("SHOW DATABASES;", "SHOW DATABASES;"));
+    set.insert(CommandHint::new(
+        "SHOW DATABASE database;",
+        "SHOW DATABASE ",
+    ));
+    set.insert(CommandHint::new(
+        "SHOW TABLE database.table;",
+        "SHOW TABLE ",
+    ));
+    set.insert(CommandHint::new(
+        "SHOW COLUMN database table.column;",
+        "SHOW COLUMN ",
+    ));
+    set.insert(CommandHint::new("SHOW FROM database.table;", "SHOW FROM "));
+    set.insert(CommandHint::new(
+        "SHOW FROM database table.column;",
+        "SHOW FROM ",
+    ));
+    set
+}
 
 pub fn process_exists() -> bool {
     let mut system = System::new_all();
@@ -103,8 +199,11 @@ enum Commands {
 fn run_repl(ip: &str, port: &str) -> Result<(), Box<dyn std::error::Error>> {
     let project_dirs = ProjectDirs::from("com", "up", "toi").unwrap();
     let history_path = project_dirs.data_dir().join("history.txt");
+    let h = DIYHinter { hints: diy_hints() };
 
-    let mut rl = Editor::<()>::new()?;
+    let mut rl = Editor::<DIYHinter>::new()?;
+    rl.bind_sequence(KeyEvent::from('\t'), Cmd::CompleteHint);
+    rl.set_helper(Some(h));
     if rl.load_history(&history_path).is_err() {
         println!(
             "Info: No previous history. Generating at {}",
