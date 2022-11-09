@@ -121,7 +121,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           if (result.has_error()) {
             SEND_ERROR("{}\n", result.error());
           } else {
-            db->tables.insert(arg.name,
+            (*db)->tables.insert(arg.name,
                               std::make_shared<DatabaseTable>(std::move(*result)));
             LSEND("DatabaseTable {} created in database {}\n", arg.name, arg.db);
           }
@@ -132,17 +132,15 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.name);
         } else {
-          (*db->using_db)++;
             fort::char_table pp_table;
             pp_table << fort::header << "Tables" << fort::endr;
-          db->tables.for_each_c(
+          (*db)->tables.for_each_c(
               [&](const KeyValue<std::string, std::shared_ptr<DatabaseTable>> &table) {
                 pp_table << table.key << fort::endr;
                 return false;
               });
 
           send << pp_table.to_string() << '\n';
-          (*db->using_db)--;
         }
       } else if (holds_alternative<Automata::ShowTable>(args.value())) {
         auto arg = get<Automata::ShowTable>(args.value());
@@ -151,8 +149,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
-          (*db->using_db)++;
-          auto table = db->tables.get(arg.table);
+          auto table = (*db)->tables.get(arg.table);
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
@@ -169,8 +166,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
 
             send << pp_table.to_string() << '\n';
           }
-
-          (*db->using_db)--;
         }
 
       } else if (holds_alternative<Automata::ShowDatabases>(args.value())) {
@@ -192,9 +187,8 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
-          (*db->using_db)++;
 
-          auto table = db->tables.get(arg.table);
+          auto table = (*db)->tables.get(arg.table);
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
@@ -208,8 +202,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
               SEND("Values inserted successfully!\n");
             }
           }
-
-          (*db->using_db)--;
         }
       } else if (holds_alternative<Automata::ShowColumnValues>(args.value())) {
         auto arg = std::get<Automata::ShowColumnValues>(args.value());
@@ -218,9 +210,8 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
-          (*db->using_db)++;
 
-          auto table = db->tables.get(arg.table);
+          auto table = (*db)->tables.get(arg.table);
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
@@ -243,7 +234,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             }
           }
 
-          (*db->using_db)--;
         }
       }
       else if(holds_alternative<Automata::ShowTableData>(args.value())){
@@ -252,9 +242,8 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
-          (*db->using_db)++;
 
-          auto table = db->tables.get(arg.table);
+          auto table = (*db)->tables.get(arg.table);
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
@@ -282,17 +271,19 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             }
             pp_table << fort::endr;
 
-            for (size_t i = 0; i < data[0].size(); i++) {
-              for (auto & j : data) {
-                pp_table << j[i];
-              }
+            if (data.empty()) {
+              SEND_ERROR("No data in table\n");
+            } else {
+              for (size_t i = 0; i < data[0].size(); i++) {
+                for (auto & j : data) {
+                  pp_table << j[i];
+                }
                 pp_table << fort::endr;
+              }
+              send << pp_table.to_string() << "\n";
             }
-
-            send << pp_table.to_string() << "\n";
           }
 
-          (*db->using_db)--;
         }
       }
     } else {

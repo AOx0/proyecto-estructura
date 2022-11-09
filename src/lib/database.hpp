@@ -12,13 +12,16 @@
 #include "table.hpp"
 
 struct DataBase {
-  std::shared_ptr<std::atomic_int32_t> using_db;
   KeyValueList<std::string, std::shared_ptr<DatabaseTable>> tables;
   std::string nombre;
+  std::shared_mutex mutex;
 
   DataBase(std::string name)
       : tables(std::move(KeyValueList<std::string, std::shared_ptr<DatabaseTable>>())),
-        nombre(name), using_db(std::make_shared<std::atomic_int32_t>(0)) {}
+        nombre(name) {
+    std::unique_lock<std::shared_mutex> lock(mutex);
+    load_tables();
+  }
 
   // << operator
   friend std::ostream &operator<<(std::ostream &os, const DataBase &db) {
@@ -29,7 +32,7 @@ struct DataBase {
       return os;
     }
 
-    os << "DataBase: (" << db.using_db << "){";
+    os << "{";
 
     for (auto &table : tables.value()) {
       os << table << ", ";
@@ -89,24 +92,19 @@ struct DataBase {
   // Move constructor
   // Move constructors should be marked with except
   DataBase(DataBase &&rhs) noexcept {
+    std::unique_lock<std::shared_mutex> lock(rhs.mutex);
     tables = rhs.tables;
     nombre = rhs.nombre;
-    using_db = rhs.using_db;
-  }
-
-  // Copy constructor
-  DataBase(DataBase const &rhs) {
-    tables = rhs.tables;
-    nombre = rhs.nombre;
-    using_db = rhs.using_db;
   }
 
   // Move operator
   DataBase &operator=(DataBase &&rhs) noexcept {
     if (this != &rhs) {
+      std::unique_lock lock_rhs(rhs.mutex);
+      std::unique_lock lock_this(mutex);
+      std::lock(lock_rhs, lock_this);
       tables = rhs.tables;
       nombre = rhs.nombre;
-      using_db = rhs.using_db;
     }
 
     return *this;

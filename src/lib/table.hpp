@@ -9,6 +9,8 @@
 #include <shared_mutex>
 #include <variant>
 #include <vector>
+#include <chrono>
+#include <thread>
 
 #include "analyzer/parser.hpp"
 #include "fm.hpp"
@@ -20,7 +22,9 @@ struct DatabaseTable {
   std::shared_mutex mtx_;
   std::string name;
 
-  friend std::ostream &operator<<(std::ostream &os, DatabaseTable const &table) {
+  friend std::ostream &operator<<(std::ostream &os, DatabaseTable &table) {
+    std::shared_lock lock(table.mtx_);
+
     os << "DatabaseTable " << table.name << ":\n";
 
     table.columns.for_each_c([&](const KeyValue<std::string, Layout> &keyval) {
@@ -65,6 +69,7 @@ struct DatabaseTable {
   try_insert(std::string const &database,
              List<std::variant<Parser::String, Parser::UInt, Parser::Int,
                                Parser::Double, Parser::Bool>> &&values) {
+
     // First we verify type casting safeness
     if (values.len() != columns.len()) {
       std::stringstream error;
@@ -372,8 +377,13 @@ struct DatabaseTable {
     // Up to this point to_insert is full of values that are the correct type
     // We iterate once more each layout column
 
+    std::unique_lock<std::shared_mutex> lock(mtx_);
+
     current_column = columns.first();
     for (std::size_t i = 0; i < columns.len(); i++) {
+      // Sleep 2000 miliseconds
+      std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
       FileManager::Path column_path = FileManager::Path("data") / database /
                                       name /
                                       (current_column->value.key + ".col");
