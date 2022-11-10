@@ -76,6 +76,56 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
             }
           }
         } break;
+
+        case KeywordE::USING:{
+          if (token_number != 0){
+            return cpp::fail(fmt::format(
+                "Found `Select` keyword not as the query root.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          }
+          if (!next.has_value()){
+            return cpp::fail(fmt::format(
+                "Expected `database` name but got nothing.\nAfter token {} "
+                "(Pos: {}) in query:\n    \"{}\"",
+                to_string(*curr), token_number, original));
+          }
+          if (ctx == Context::Unknown) {
+            if (same_variant(next.value(),Token{Identifier{Name{}}})){
+              auto database = std::get<Parser::Name>(std::get<Parser::Identifier>(*next));
+              variant = {Automata::Show_Select{database.value,{},{}}};
+              ctx = Context::SelectE;
+            } else {
+              ctx = Context::Unknown;
+            }
+          }
+        }break;
+
+        case KeywordE::SELECT:{
+          if (ctx = Context::SelectE){
+            if (token_number == 0){
+              return cpp::fail(fmt::format(
+                  "Found `Select` keyword not as the query root.\nAfter token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+            }
+            else if (!next.has_value()){
+              return cpp::fail(fmt::format(
+                  "Expected `table.row` table.row but got nothing.\nAfter token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+            }else if (!same_variant(next.value(),Token{Identifier{NameAndSub{}}})){
+              return cpp::fail(fmt::format(
+                  "Expected `table.row` table.row but got nothing.\nAfter token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+            }
+            else{
+              ctx = Context::SelectE;
+            }
+          }
+        }break;
+
         case KeywordE::DELETE: {
           if (token_number != 0) {
             return cpp::fail(fmt::format(
@@ -211,8 +261,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
             }
           }
 
-        }
-        break;
+        }break;
 
 
         case KeywordE::COLUMN: {
@@ -605,6 +654,22 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
                 "Expected semicolon after identifier but got `{}`.\nAfter "
                 "token {} (Pos: {}) in query:\n    \"{}\"",
                 to_string(*next), token_number, to_string(*curr), original));
+        }
+        if (ctx == Context::SelectE && same_variant(*curr, Token{Identifier{NameAndSub{}}})){
+          if (!next.has_value()){
+            return cpp::fail(fmt::format(
+                "Expected `table.row` after `TABLE.COLUMN` identifier but got nothing.\nAfter "
+                "token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+          }
+          else if(same_variant_and_value(next.value(),Token{Symbol{SymbolE::COMA}})){
+            auto &var = std::get<Automata::Show_Select>(variant.value());
+            auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*curr));
+            var.tables.push_back(table_column);
+            //terminar
+
+          }
+
         }
 
         if (ctx == Context::ShowColumnValuesE && same_variant(*curr, Token{Identifier{NameAndSub{}}})) {

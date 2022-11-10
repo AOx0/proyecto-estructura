@@ -60,7 +60,8 @@ enum KeywordE {
   UN,
   SHOW,
   DATABASES,
-  COLUMN
+  COLUMN,
+  USING
 };
 
 inline std::string to_string(const KeywordE &x) {
@@ -69,6 +70,9 @@ inline std::string to_string(const KeywordE &x) {
   switch (x) {
   case KeywordE::CREATE:
     ss << "CREATE";
+    break;
+  case KeywordE::USING:
+    ss<< "USING";
     break;
   case KeywordE::DATABASE:
     ss << "DATABASE";
