@@ -91,9 +91,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         }
       } else if (holds_alternative<Automata::DeleteDatabase>(args.value())) {
         auto arg = get<Automata::DeleteDatabase>(args.value());
-
         auto result = dbs.delete_database(arg.name);
-
         if (result.has_error()) {
           SEND_ERROR("{}\n", result.error());
         } else {
@@ -104,7 +102,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         auto arg = get<Automata::DeleteTable>(args.value());
 
         auto result = dbs.delete_table(arg.table, arg.database);
-
         if (result.has_error()) {
           SEND_ERROR("{}\n", result.error());
         } else {
@@ -128,10 +125,14 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         }
       } else if (holds_alternative<Automata::ShowDatabase>(args.value())) {
         auto arg = get<Automata::ShowDatabase>(args.value());
+
         auto db = dbs.dbs.get(arg.name);
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.name);
         } else {
+            // We read lock the database
+            std::shared_lock<std::shared_mutex> lock((*db)->mutex);
+
             fort::char_table pp_table;
             pp_table << fort::header << "Tables" << fort::endr;
           (*db)->tables.for_each_c(
@@ -149,12 +150,19 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
+          // We read lock the database
+          std::shared_lock<std::shared_mutex> lock((*db)->mutex);
+
           auto table = (*db)->tables.get(arg.table);
+
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
+            // We read lock the database
+            std::shared_lock<std::shared_mutex> lock((*table)->mtx_);
+
             fort::char_table pp_table;
             pp_table << fort::header << "Column" << "Size" << "Type" << fort::endr;
             auto _ = (*table)->columns.for_each_c(
@@ -187,9 +195,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
-
           auto table = (*db)->tables.get(arg.table);
-
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
@@ -210,6 +216,8 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
         if (db == nullptr) {
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
+          // We read lock the database
+          std::shared_lock<std::shared_mutex> lock((*db)->mutex);
 
           auto table = (*db)->tables.get(arg.table);
 
@@ -217,11 +225,15 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
+            // We read lock the database
+            std::shared_lock<std::shared_mutex> lock((*table)->mtx_);
+
             auto result = ColumnInstance::load_column(
                 arg.database, arg.table, arg.column, *(*table));
             if (result.has_error()) {
               SEND_ERROR("{}\n", result.error());
             } else {
+
               auto string_version = result.value().to_string_vec();
 
               fort::char_table pp_table;
@@ -233,7 +245,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
               send << pp_table.to_string() << '\n';
             }
           }
-
         }
       }
       else if(holds_alternative<Automata::ShowTableData>(args.value())){
@@ -243,12 +254,19 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           SEND_ERROR("Database {} does not exist\n", arg.database);
         } else {
 
+          // We read lock the database
+          std::shared_lock<std::shared_mutex> lock((*db)->mutex);
+
           auto table = (*db)->tables.get(arg.table);
+
 
           if (table == nullptr) {
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
+            // We read lock the database
+            std::shared_lock<std::shared_mutex> lock((*table)->mtx_);
+
             vector<vector<string>> data;
             vector<string> column_names;
 
@@ -303,7 +321,7 @@ int main(int argc, char **argv) {
   cxxopts::Options options("toidb-server", "A simple database server");
   options.add_options()("h,help", "Print help")(
       "p,port", "Port to listen on", cxxopts::value<std::string>()->default_value("9999"))(
-      "i,ip", "IP to listen on", cxxopts::value<std::string>()->default_value("0.0.0.0"));
+      "i,ip", "IP to listen on", cxxopts::value<std::string>()->default_value("[::]"));
 
   auto args = options.parse(argc, argv);
 

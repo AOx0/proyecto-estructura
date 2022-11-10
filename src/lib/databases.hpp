@@ -75,12 +75,13 @@ struct Databases {
         return cpp::fail(
             fmt::format("DatabaseTable {}.{} does not exist", name, table));
       } else {
-        std::unique_lock<std::shared_mutex> lock(table_ptr->get()->mtx_);
-        auto result = (*db)->delete_table_dir(name, table);
+        {
+          std::unique_lock<std::shared_mutex> lock(table_ptr->get()->mtx_);
+          auto result = (*db)->delete_table_dir(name, table);
 
-        if (result.has_error())
-          return cpp::fail(result.error());
-
+          if (result.has_error())
+            return cpp::fail(result.error());
+        }
         (*db)->tables.delete_key(table);
       }
     } else {
