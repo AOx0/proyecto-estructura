@@ -225,9 +225,6 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
             SEND_ERROR("DatabaseTable {} does not exist in {}\n", arg.table,
                        arg.database);
           } else {
-            // We read lock the database
-            std::shared_lock<std::shared_mutex> lock((*table)->mtx_);
-
             auto result = ColumnInstance::load_column(
                 arg.database, arg.table, arg.column, *(*table));
             if (result.has_error()) {
@@ -265,7 +262,7 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
                        arg.database);
           } else {
             // We read lock the database
-            std::shared_lock<std::shared_mutex> lock((*table)->mtx_);
+            // std::shared_lock<std::shared_mutex> lock((*table)->mtx_);
 
             vector<vector<string>> data;
             vector<string> column_names;
