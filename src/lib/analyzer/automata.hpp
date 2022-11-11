@@ -55,6 +55,9 @@ struct Show_Select{
       Parser::Bool >>>restrictions;
 };
 
+std::string val_to_string(const std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double,
+    Parser::Bool > & value);
+
 
 struct ShowDatabases {};
 

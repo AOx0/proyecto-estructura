@@ -8,29 +8,35 @@
 #include "tokenizer.hpp"
 
 namespace Parser {
-enum OperatorE { AND, OR, EQUAL, GREAT_EQUAL, LESS_EQUAL, NOT_EQUAL };
+enum OperatorE { AND, OR, EQUAL, GREAT_EQUAL, LESS_EQUAL, NOT_EQUAL, LESS, GREAT };
 
 inline std::string to_string(const OperatorE &x) {
   std::ostringstream ss;
   switch (x) {
-  case AND:
-    ss << "AND";
-    break;
-  case OR:
-    ss << "OR";
-    break;
-  case EQUAL:
-    ss << "EQUAL";
-    break;
-  case GREAT_EQUAL:
-    ss << "GREAT_EQUAL";
-    break;
-  case LESS_EQUAL:
-    ss << "LESS_EQUAL";
-    break;
-  case NOT_EQUAL:
-    ss << "NOT_EQUAL";
-    break;
+    case AND:
+      ss << "AND";
+      break;
+    case OR:
+      ss << "OR";
+      break;
+    case EQUAL:
+      ss << "EQUAL";
+      break;
+    case GREAT_EQUAL:
+      ss << "GREAT_EQUAL";
+      break;
+    case LESS_EQUAL:
+      ss << "LESS_EQUAL";
+      break;
+    case NOT_EQUAL:
+      ss << "NOT_EQUAL";
+      break;
+    case LESS:
+      ss << "LESS";
+      break;
+    case GREAT:
+      ss << "GREAT";
+      break;
   }
 
   return ss.str();

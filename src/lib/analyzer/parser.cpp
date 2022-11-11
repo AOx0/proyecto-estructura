@@ -87,14 +87,6 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
         resultado.emplace_back(Operator{OperatorE::EQUAL});
         continue;
       }
-      if (*it == ">") {
-        resultado.emplace_back(Operator{OperatorE::GREAT_EQUAL});
-        continue;
-      }
-      if (*it == "<") {
-        resultado.emplace_back(Operator{OperatorE::LESS_EQUAL});
-        continue;
-      }
       if (*it == "!=") {
         resultado.emplace_back(Operator{OperatorE::NOT_EQUAL});
         continue;
@@ -113,6 +105,14 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       }
       if (*it == "<=") {
         resultado.emplace_back(Operator{OperatorE::LESS_EQUAL});
+        continue;
+      }
+      if (*it == "<") {
+        resultado.emplace_back(Operator{OperatorE::LESS});
+        continue;
+      }
+      if (*it == ">") {
+        resultado.emplace_back(Operator{OperatorE::GREAT});
         continue;
       }
     }

@@ -285,6 +285,20 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           }
 
         }
+      } else if (std::holds_alternative<Automata::Show_Select>(args.value())) {
+        auto arg = std::get<Automata::Show_Select>(args.value());
+
+        LSEND("Requested select in database {}\n", arg.database);
+        LSEND("With request for displaying columns:\n");
+        for (auto & column: arg.tables) {
+          LSEND("Table: {} Column: {}\n", column.name, column.sub);
+        }
+        LSEND("And restrictions: \n");
+        for (auto & restriction: arg.restrictions) {
+          std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double,
+              Parser::Bool > value = std::get<2>(restriction);
+          LSEND("Table: {} Column: {} Value: {} and operator {}\n", std::get<0>(restriction).name, std::get<0>(restriction).sub, Automata::val_to_string(value), to_string(std::get<1>(restriction)));
+        }
       }
     } else {
       SEND_ERROR("{}\n", args.error());
