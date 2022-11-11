@@ -300,6 +300,388 @@ void resolve(const shared_ptr<Connection> &s, TcpServer &tcp,
           }
 
         }
+      } else if (std::holds_alternative<Automata::Show_Select>(args.value())) {
+        auto arg = std::get<Automata::Show_Select>(args.value());
+
+        LSEND("Requested select in database {}\n", arg.database);
+        LSEND("With request for displaying columns:\n");
+
+        Cortina<std::string, std::string> display_columns;
+        Cortina<std::string, Node<std::string> *> display_columns_final;
+
+        for (auto &display_column : arg.tables) {
+          LSEND("Column {}\n", display_column.sub);
+          auto db = dbs.dbs.get(arg.database);
+
+          if (db == nullptr) {
+            SEND_ERROR("Database {} does not exist\n", arg.database);
+          } else {
+
+            auto table = (*db)->tables.get(display_column.name);
+
+            if (table == nullptr) {
+              SEND_ERROR("DatabaseTable {} does not exist in {}\n",
+                         display_column.name, arg.database);
+            } else {
+
+              if (display_columns.g(fmt::format("{}.{}", display_column.name, display_column.sub)) == nullptr) {
+                auto result = ColumnInstance::load_column(
+                    arg.database, display_column.name, display_column.sub,
+                    *(*table));
+                if (result.has_error()) {
+                  SEND_ERROR("{}\n", result.error());
+                } else {
+                  std::vector<std::string> string_data = result.value().to_string_vec();
+
+                  for (auto &i : string_data)
+                    display_columns.append(fmt::format("{}.{}", display_column.name, display_column.sub), i);
+                }
+              }
+            }
+          }
+        }
+
+        ListFre<size_t> indexes;
+        for (size_t i = 0; i < display_columns.first()->value.value.len(); i++) {
+          indexes.push(i);
+        }
+
+        // Load each of the columns that are used in the where clause
+        // and then filter the data
+        for (auto &where_column : arg.restrictions) {
+          auto operador = std::get<1>(where_column);
+          auto table_name = std::get<0>(where_column).name;
+          auto column_name = std::get<0>(where_column).sub;
+          auto value = std::get<2>(where_column);
+
+          // Load column values
+          auto db = dbs.dbs.get(arg.database);
+          if (db == nullptr) {
+            SEND_ERROR("Database {} does not exist\n", arg.database);
+          } else {
+
+            auto table = (*db)->tables.get(table_name);
+
+            if (table == nullptr) {
+              SEND_ERROR("DatabaseTable {} does not exist in {}\n", table_name,
+                         arg.database);
+            } else {
+              auto result = ColumnInstance::load_column(
+                  arg.database, table_name, column_name, *(*table));
+              if (result.has_error()) {
+                SEND_ERROR("{}\n", result.error());
+              } else {
+                for (int i = 0; i < result.value().size; i++) {
+                  switch (result.value().layout.type) {
+                    case u8: {
+                      std::vector<uint8_t> *vector = reinterpret_cast<std::vector<uint8_t> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<uint8_t>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<uint8_t>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    case u16: {
+                      std::vector<uint16_t> *vector = reinterpret_cast<std::vector<uint16_t> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<uint16_t>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<uint16_t>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    case u32: {
+                      std::vector<uint32_t> *vector = reinterpret_cast<std::vector<uint32_t> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<uint32_t>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<uint32_t>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    case u64: {
+                      std::vector<uint64_t> *vector = reinterpret_cast<std::vector<uint64_t> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<uint64_t>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<uint64_t>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    case f64: {
+                      std::vector<double> *vector = reinterpret_cast<std::vector<double> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<double>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<double>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    case str: {
+                      std::vector<std::string> *vector = reinterpret_cast<std::vector<std::string> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<std::string>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<std::string>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    case rbool: {
+                      std::vector<bool> *vector = reinterpret_cast<std::vector<bool> *>(result.value().data);
+                      auto r = ColumnInstance::resolve_value(value, result.value().layout);
+                      if (r.has_error()) {
+                        SEND_ERROR("{}\n", r.error());
+                      } else if (!std::holds_alternative<bool>(r.value())) {
+                        SEND_ERROR("Value {} is not of type {}\n", Automata::val_to_string(value), to_string(result.value().layout.type));
+                      } else {
+                        auto v = std::get<bool>(r.value());
+                        if (operador == Parser::OperatorE::EQUAL) {
+                          if (vector->at(i) == v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT) {
+                          if (vector->at(i) > v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS) {
+                          if (vector->at(i) < v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::GREAT_EQUAL) {
+                          if (vector->at(i) >= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::LESS_EQUAL) {
+                          if (vector->at(i) <= v) {
+                            indexes.push(i);
+                          }
+                        } else if (operador == Parser::OperatorE::NOT_EQUAL) {
+                          if (vector->at(i) != v) {
+                            indexes.push(i);
+                          }
+                        }
+                      }
+                    }
+                    break;
+                    default:
+                      SEND_ERROR("Type {} not supported\n", to_string(result.value().layout.type));
+                      break;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        send << indexes << '\n';
+
+        display_columns.for_each_node([&](Node<KeyValue<string, List<string>>> *columns) {
+          size_t i = 0;
+          columns->value.value.for_each_node([&](Node<string> *node) {
+            if (indexes.get(i)->value.fre - 1 == arg.restrictions.size()) {
+              auto a = columns->value.value.get(i);
+              display_columns_final.append(columns->value.key,a);
+            }
+
+            i++;
+            return false;
+          });
+          return false;
+        });
+
+        send << display_columns << '\n';
+        send << display_columns_final << '\n';
+
+        fort::char_table pp_table;
+        display_columns_final.for_each_c([&](const auto &column) {
+          pp_table << fort::header << column.key;
+          return false;
+        });
+        pp_table << fort::endr;
+
+
+        if (display_columns_final.len() <= 0) {
+          LSEND("No results found");
+        } else {
+          for (int j=0; j<display_columns_final.get_at(0)->value.value.len(); j++) {
+            for (int i=0; i<display_columns_final.len(); i++) {
+              pp_table << display_columns_final.get_at(i)->value.value.get(j)->value->value;
+            }
+            pp_table << fort::endr;
+          }
+        }
+
+
+        send << pp_table.to_string() << '\n';
       }
     } else {
       SEND_ERROR("{}\n", args.error());

@@ -48,11 +48,16 @@ struct Insert {
                     Parser::Bool>>
       values;
 };
-
-struct MakeSelect {
-  std::map<std::string, std::set<std::string>> fields_to_select;
-  std::map<std::string, Parser::Type> columns;
+struct Show_Select{
+  std::string database;
+  std::vector<Parser::NameAndSub> tables;
+  std::vector<std::tuple<Parser::NameAndSub, Parser::OperatorE, std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double,
+      Parser::Bool >>>restrictions;
 };
+
+std::string val_to_string(const std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double,
+    Parser::Bool > & value);
+
 
 struct ShowDatabases {};
 
@@ -69,12 +74,14 @@ struct ShowTableData{
 enum Context {
   CreateDatabaseE,
   CreateTableE,
+  WhereE,
   DeleteDatabaseE,
   DeleteTableE,
   ShowDatabaseE,
   ShowTableE,
   ShowDatabasesE,
   InsertE,
+  SelectE,
   ShowColumnValuesE,
   ShowTableDataE,
   Unknown [[maybe_unused]]
@@ -83,7 +90,7 @@ enum Context {
 using Action = std::variant<
     Automata::CreateDatabase, Automata::CreateTable, Automata::DeleteDatabase,
     Automata::DeleteTable, Automata::ShowDatabase, Automata::ShowTable,
-    Automata::ShowDatabases, Automata::Insert, Automata::ShowColumnValues, Automata::ShowTableData>;
+    Automata::ShowDatabases, Automata::Insert, Automata::ShowColumnValues, Automata::ShowTableData, Automata::Show_Select>;
 
 cpp::result<Automata::Action, std::string>
 get_action_struct(std::vector<Parser::Token> in, std::string original);

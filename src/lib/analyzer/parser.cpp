@@ -13,7 +13,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
   const static std::vector<std::string> valid_keywords = {
       "CREATE", "DATABASE", "DATABASES", "TABLE", "INSERT", "INTO",
       "VALUES", "SELECT",   "FROM",      "WHERE", "UPDATE", "SET",
-      "DELETE", "DROP",     "PK",        "UN",    "SHOW",   "COLUMN"};
+      "DELETE", "DROP",     "PK",        "UN",    "SHOW",   "COLUMN","USING"};
 
   const static std::vector<std::string> valid_types = {
       "i8",  "i16", "i32", "i64", "u8",  "u16",
@@ -58,6 +58,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
     continue;                                                                  \
   }
       KEYWORD(SELECT)
+      KEYWORD(USING)
       KEYWORD(INSERT)
       KEYWORD(UPDATE)
       KEYWORD(DELETE)
@@ -75,6 +76,7 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       KEYWORD(PK)
       KEYWORD(UN)
       KEYWORD(INTO)
+
 #undef KEYWORD
     }
 
@@ -83,14 +85,6 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
     if (it != valid_operators.end()) {
       if (*it == "==") {
         resultado.emplace_back(Operator{OperatorE::EQUAL});
-        continue;
-      }
-      if (*it == ">") {
-        resultado.emplace_back(Operator{OperatorE::GREAT_EQUAL});
-        continue;
-      }
-      if (*it == "<") {
-        resultado.emplace_back(Operator{OperatorE::LESS_EQUAL});
         continue;
       }
       if (*it == "!=") {
@@ -111,6 +105,14 @@ std::vector<Parser::Token> Parser::parse(const std::string &in) {
       }
       if (*it == "<=") {
         resultado.emplace_back(Operator{OperatorE::LESS_EQUAL});
+        continue;
+      }
+      if (*it == "<") {
+        resultado.emplace_back(Operator{OperatorE::LESS});
+        continue;
+      }
+      if (*it == ">") {
+        resultado.emplace_back(Operator{OperatorE::GREAT});
         continue;
       }
     }

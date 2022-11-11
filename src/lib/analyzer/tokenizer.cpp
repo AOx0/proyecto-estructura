@@ -75,7 +75,7 @@ Parser::validate(const std::string &in) {
   const static std::vector<std::string> valid_keywords = {
       "CREATE", "DATABASE", "DATABASES", "TABLE", "INSERT", "INTO",
       "VALUES", "SELECT",   "FROM",      "WHERE", "UPDATE", "SET",
-      "DELETE", "DROP",     "PK",        "UN",    "SHOW",   "COLUMN"};
+      "DELETE", "DROP",     "PK",        "UN",    "SHOW",   "COLUMN","USING"};
 
   const static std::vector<std::string> valid_types = {
       "i8",  "i16", "i32", "i64", "u8",  "u16",

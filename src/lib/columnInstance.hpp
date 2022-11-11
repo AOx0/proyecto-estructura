@@ -11,6 +11,281 @@ struct ColumnInstance {
 
   ColumnInstance(Parser::NameAndSub column, void * data, Layout layout, std::size_t size) : column(column), data(data), layout(layout), size(size) {}
 
+  static cpp::result<std::variant<std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t,
+      std::int8_t, std::int16_t, std::int32_t, std::int64_t,
+      std::string, double, bool>, std::string> resolve_value(std::variant<Parser::String, Parser::UInt, Parser::Int,
+      Parser::Double, Parser::Bool> current_value, Layout current_layout) {
+    // Here is where we do actually verify type matching
+    if (std::holds_alternative<Parser::String>(current_value)) {
+      if (current_layout.type == ColumnType::str) {
+        std::string value = get<Parser::String>(current_value).value;
+        if (value.length() > current_layout.size) {
+          return cpp::fail(fmt::format(
+              "Cannot cast string {} bytes long to field which takes a {}",
+              value.length(), current_layout.ly_to_string()));
+        } else {
+          return value;
+        }
+      } else {
+        return cpp::fail(
+            fmt::format("Cannot cast string to field which takes a {}",
+                        current_layout.ly_to_string()));
+      }
+    } else if (std::holds_alternative<Parser::Double>(current_value)) {
+      if (current_layout.type == ColumnType::f64) {
+        double value = get<Parser::Double>(current_value).value;
+        return value;
+      } else {
+        return cpp::fail(
+            fmt::format("Cannot cast string to field which takes a {}",
+                        current_layout.ly_to_string()));
+      }
+    } else if (std::holds_alternative<Parser::UInt>(current_value)) {
+      if (current_layout.type == ColumnType::u8 ||
+          current_layout.type == ColumnType::u16 ||
+          current_layout.type == ColumnType::u32 ||
+          current_layout.type == ColumnType::u64 ||
+          current_layout.type == ColumnType::i8 ||
+          current_layout.type == ColumnType::i16 ||
+          current_layout.type == ColumnType::i32 ||
+          current_layout.type == ColumnType::i64) {
+        switch (current_layout.type) {
+          case ColumnType::u8: {
+            std::uint8_t value = 0;
+            std::uint16_t value_raw;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value_raw;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::uint8_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)", current_layout.ly_to_string()));
+            } else {
+              value = static_cast<uint8_t>(value_raw);
+              std::cout << value << std::endl;
+              return value;
+            }
+          } break;
+          case ColumnType::u16: {
+            std::uint16_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::uint16_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::u32: {
+            std::uint32_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::uint32_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::u64: {
+            std::uint64_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::uint64_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::i8: {
+            std::int8_t value = 0;
+            std::int16_t value_raw;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value_raw;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::int8_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              value = static_cast<int8_t>(value_raw);
+              return value;
+            }
+          } break;
+          case ColumnType::i16: {
+            std::int16_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::int16_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::i32: {
+            std::int32_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::int32_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::i64: {
+            std::int64_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::UInt>(current_value).value;
+            temp >> value;
+            if (temp.fail() || std::get<Parser::UInt>(current_value).value >
+                               std::numeric_limits<std::int64_t>::max()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast uint to field which takes a {} "
+                              "because the value is too big (overflows)",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          default:
+            return cpp::fail(
+                fmt::format("Cannot cast uint to field which takes a {}",
+                            current_layout.ly_to_string()));
+        }
+      } else {
+        return cpp::fail(
+            fmt::format("Cannot cast uint to field which takes a {}",
+                        current_layout.ly_to_string()));
+      }
+    } else if (std::holds_alternative<Parser::Int>(current_value)) {
+      if (current_layout.type == ColumnType::i8 ||
+          current_layout.type == ColumnType::i16 ||
+          current_layout.type == ColumnType::i32 ||
+          current_layout.type == ColumnType::i64) {
+        switch (current_layout.type) {
+          case ColumnType::i8: {
+            std::int8_t value = 0;
+            std::int16_t value_raw;
+            std::stringstream temp;
+            temp << std::get<Parser::Int>(current_value).value;
+            temp >> value_raw;
+            if (temp.fail() ||
+                std::get<Parser::Int>(current_value).value >
+                std::numeric_limits<std::int8_t>::max() ||
+                std::get<Parser::Int>(current_value).value <
+                std::numeric_limits<std::int8_t>::min()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast int to field which takes a {} "
+                              "because the value overflows",
+                              current_layout.ly_to_string()));
+            } else {
+              value = static_cast<int8_t>(value_raw);
+              return value;
+            }
+          } break;
+          case ColumnType::i16: {
+            std::int16_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::Int>(current_value).value;
+            temp >> value;
+            if (temp.fail() ||
+                std::get<Parser::Int>(current_value).value >
+                std::numeric_limits<std::int16_t>::max() ||
+                std::get<Parser::Int>(current_value).value <
+                std::numeric_limits<std::int16_t>::min()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast int to field which takes a {} "
+                              "because the value overflows",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::i32: {
+            std::int32_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::Int>(current_value).value;
+            temp >> value;
+            if (temp.fail() ||
+                std::get<Parser::Int>(current_value).value >
+                std::numeric_limits<std::int32_t>::max() ||
+                std::get<Parser::Int>(current_value).value <
+                std::numeric_limits<std::int32_t>::min()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast int to field which takes a {} "
+                              "because the value overflows",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          case ColumnType::i64: {
+            std::int64_t value = 0;
+            std::stringstream temp;
+            temp << std::get<Parser::Int>(current_value).value;
+            temp >> value;
+            if (temp.fail() ||
+                std::get<Parser::Int>(current_value).value >
+                std::numeric_limits<std::int64_t>::max() ||
+                std::get<Parser::Int>(current_value).value <
+                std::numeric_limits<std::int64_t>::min()) {
+              return cpp::fail(
+                  fmt::format("Cannot cast int to field which takes a {} "
+                              "because the value overflows",
+                              current_layout.ly_to_string()));
+            } else {
+              return value;
+            }
+          } break;
+          default:
+            return cpp::fail(
+                fmt::format("Cannot cast int to field which takes a {}",
+                            current_layout.ly_to_string()));
+        }
+      } else {
+        return cpp::fail(
+            fmt::format("Cannot cast int to field which takes a {}",
+                        current_layout.ly_to_string()));
+      }
+    } else if (std::holds_alternative<Parser::Bool>(current_value)) {
+      if (current_layout.type == ColumnType::rbool) {
+        return std::get<Parser::Bool>(current_value).value;
+      } else {
+        return cpp::fail(
+            fmt::format("Cannot cast bool to field which takes a {}",
+                        current_layout.ly_to_string()));
+      }
+    } else
+      return cpp::fail(fmt::format("Cannot cast to field"));
+  }
+
   std::vector<std::string> to_string_vec() {
 #define PUSH(TYPE, CAST) if (layout.type == TYPE) {\
       auto * data_cast = reinterpret_cast<std::vector<CAST> *>(data);\
