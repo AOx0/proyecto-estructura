@@ -51,8 +51,8 @@ struct Insert {
 struct Show_Select{
   std::string database;
   std::vector<Parser::NameAndSub> tables;
-  std::vector<std::tuple<Parser::NameAndSub, Parser::OperatorE, Parser::String, Parser::UInt, Parser::Int, Parser::Double,
-      Parser::Bool >>restrictions;
+  std::vector<std::tuple<Parser::NameAndSub, Parser::OperatorE, std::variant<Parser::String, Parser::UInt, Parser::Int, Parser::Double,
+      Parser::Bool >>>restrictions;
 };
 
 
@@ -71,6 +71,7 @@ struct ShowTableData{
 enum Context {
   CreateDatabaseE,
   CreateTableE,
+  WhereE,
   DeleteDatabaseE,
   DeleteTableE,
   ShowDatabaseE,

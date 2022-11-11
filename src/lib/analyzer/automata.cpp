@@ -125,6 +125,27 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
             }
           }
         }break;
+        case KeywordE::WHERE:{
+          if (ctx == Context::WhereE){
+            if(!same_variant(next.value(),Token{Identifier{NameAndSub{}}})){
+              return cpp::fail(fmt::format(
+                  "Expected `table.row` table.row but got nothing.\nAfter token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+            }
+            if (!next.has_value())
+            {
+              return cpp::fail(fmt::format(
+                  "Expected `== or > or >= or <= 0r > or < or !=` Operator but got nothing.\nAfter token {} "
+                  "(Pos: {}) in query:\n    \"{}\"",
+                  to_string(*curr), token_number, original));
+
+            }
+
+
+          }
+
+        }
 
         case KeywordE::DELETE: {
           if (token_number != 0) {
@@ -439,7 +460,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
         return {};
       },
       [&](const Type &type) -> cpp::result<void, std::string> {
-        if (ctx == Context::CreateTableE) {
+        if (ctx == Context::CreateTableE ) {
           if (type.variant == TypeE::STR) {
             if (!nextp1.has_value()) {
               return cpp::fail(fmt::format(
@@ -583,7 +604,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
         return {};
       },
       [&](const String &string) -> cpp::result<void, std::string> {
-        if (ctx == Context::InsertE) {
+        if (ctx == Context::InsertE ) {
           if (!next.has_value()) {
             return cpp::fail(
                 fmt::format("Expected `)` or `,` but got nothing.\nAfter token "
@@ -606,7 +627,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
         return {};
       },
       [&](const Numbers &numbers) -> cpp::result<void, std::string> {
-        if (ctx == Context::InsertE) {
+        if (ctx == Context::InsertE || ctx == Context::WhereE) {
           if (!next.has_value()) {
             return cpp::fail(
                 fmt::format("Expected `)` or `,` but got nothing.\nAfter token "
@@ -658,7 +679,7 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
         if (ctx == Context::SelectE && same_variant(*curr, Token{Identifier{NameAndSub{}}})){
           if (!next.has_value()){
             return cpp::fail(fmt::format(
-                "Expected `table.row` after `TABLE.COLUMN` identifier but got nothing.\nAfter "
+                "Expected `table.row` OR `,` identifier but got nothing.\nAfter "
                 "token {} (Pos: {}) in query:\n    \"{}\"",
                 token_number, to_string(*curr), original));
           }
@@ -666,8 +687,16 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
             auto &var = std::get<Automata::Show_Select>(variant.value());
             auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*curr));
             var.tables.push_back(table_column);
-            //terminar
-
+          }
+          if(same_variant(nextp1.value(), Token{Keyword{KeywordE::WHERE}})){
+            ctx = Context::WhereE;
+          }
+          else
+          {
+            return cpp::fail(fmt::format(
+                "Expected `WHERE` after `TABLE.COLUMN` identifier but got nothing.\nAfter "
+                "token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
           }
 
         }
@@ -841,7 +870,28 @@ Automata::get_action_struct(std::vector<Parser::Token> in,
         }
         return {};
       },
-      [&](const Operator &op) -> cpp::result<void, std::string> { return {}; },
+      [&](const Operator &op) -> cpp::result<void, std::string> {
+        if(ctx == KeywordE::WHERE){
+          if(!same_variant(prev.value(),Token{Identifier{NameAndSub{}}})){
+            return cpp::fail(fmt::format(
+                "Expected `TABLE.ROW` identifier but got "
+                "nothing.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+
+          }
+          if(!same_variant(next.value(),Token{Type{Parser::Type}})){
+            return cpp::fail(fmt::format(
+                "Expected `value` type but got "
+                "nothing.\nBefore token {} (Pos: {}) in query:\n    \"{}\"",
+                token_number, to_string(*curr), original));
+          }
+            auto &var = std::get<Automata::Show_Select>(variant.value());
+            auto table_column = std::get<NameAndSub>(std::get<Parser::Identifier>(*curr));
+            auto value = std::get<SString>(std::get<String>(*curr)); //estos ya son experimentos
+            var.restrictions.push_back({table_column,op.variant,variant});
+
+        }
+        return {}; },
       [&](const Parser::Unknown &unknown) -> cpp::result<void, std::string> {
         std::string result = Logger::show_ln(
             LOG_TYPE_::NONE,
