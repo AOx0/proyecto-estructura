@@ -215,6 +215,17 @@ template <typename T> struct List : ListBase<T> {
 
   void pop_front() { ListBase<T>::delete_node(ListBase<T>::tail); }
 
+  Node<T> * get(size_t index) {
+    if (index >= ListBase<T>::size) {
+      return nullptr;
+    }
+    Node<T> *current = ListBase<T>::head;
+    for (size_t i = 0; i < index; i++) {
+      current = current->next;
+    }
+    return current;
+  }
+
   // Copy constructor
   List(const List<T> &other) : ListBase<T>() {
     other.for_each_c([&](const T &value) {
@@ -274,6 +285,21 @@ public:
       push_bk({value, 1});
     }
   };
+
+  Node<FreValue<T>> * get(size_t idx) {
+    if (idx >= size) {
+      return nullptr;
+    }
+    Node<FreValue<T>> *current = head;
+    while (current != nullptr) {
+      if (idx == 0) {
+        return current;
+      }
+      idx--;
+      current = current->next;
+    }
+    return nullptr;
+  }
 
   void pop(T value) {
     Node<FreValue<T>> *node = this->for_each(
@@ -508,6 +534,16 @@ struct Cortina : KeyValueListBase<K, List<V>> {
   using KeyValueListBase<K, List<V>>::i_u;
   using KeyValueListBase<K, List<V>>::u;
   using KeyValueListBase<K, List<V>>::i;
+
+  Node<KeyValue<K, List<V>>> *get_at(size_t index) {
+    return KeyValueListBase<K, List<V>>::for_each_node([&](Node<KeyValue<K, List<V>>> *value) {
+      if (index == 0) {
+        return true;
+      }
+      index--;
+      return false;
+    });
+  }
 
   void insert_append(K key, V value) {
     List<V> *list = g(key);
