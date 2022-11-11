@@ -382,8 +382,6 @@ struct DatabaseTable {
     current_column = columns.first();
     for (std::size_t i = 0; i < columns.len(); i++) {
       // Sleep 2000 miliseconds
-      std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-
       FileManager::Path column_path = FileManager::Path("data") / database /
                                       name /
                                       (current_column->value.key + ".col");
